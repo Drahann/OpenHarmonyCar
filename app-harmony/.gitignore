@@ -1,0 +1,17 @@
+# 鸿蒙 / DevEco Studio 构建产物 —— 不进 git
+/node_modules
+/oh_modules
+**/oh_modules
+/local.properties
+/.idea
+**/build
+/.hvigor
+/.cxx
+.cxx
+/.preview
+**/.preview
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer

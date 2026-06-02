@@ -1,0 +1,71 @@
+# ===== 通用 =====
+*.log
+*.tmp
+_tmp_*
+
+# Claude Code 本地设置（机器相关，不进 git；共享设置可放 .claude/settings.json）
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# ===== 鸿蒙 App (app-harmony) =====
+# 详细规则见 app-harmony/.gitignore
+oh_modules/
+node_modules/
+.hvigor/
+.cxx/
+.preview/
+.idea/
+local.properties
+.clangd
+.appanalyzer
+**/build/
+**/.test/
+
+# ===== C/C++ (purplepi-control) =====
+*.o
+*.a
+*.lo
+*.la
+*.slo
+# 交叉编译产物 / 内核模块：不进 git，用外部分发（见各子项目 README）
+*.so
+*.so.*
+*.ko
+*.elf
+out/
+# 交叉编译工具链 / 预编译大包
+**/prebuilts/
+**/toolchain/bin/
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+
+# ===== Python (purplepi-control / orangepi-vision) =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# ===== 模型权重 / 大文件（默认不进 git；版本化请启用 LFS，见 .gitattributes）=====
+*.om
+*.pt
+*.pth
+*.onnx
+*.engine
+*.caffemodel
+*.mindir
+*.pb
+*.bin
+*.weights
+
+# ===== 录制 / 大体积测试样本（小样本可保留，超大走外部存储）=====
+*.mp4
+*.avi
+*.mov
+*.bag
+*.pcapng

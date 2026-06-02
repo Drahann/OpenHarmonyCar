@@ -1,0 +1,27 @@
+# C/C++ 构建产物
+build/
+out/
+cmake-build-*/
+*.o
+*.a
+*.lo
+*.la
+*.elf
+# 交叉编译动态库 / 内核模块（用 Release/共享盘分发）
+*.so
+*.so.*
+*.ko
+# 交叉工具链本体 / 预编译大包
+toolchain/bin/
+toolchain/prebuilts/
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+# LCM 录制日志（大）；样例日志请放 contracts/fixtures/
+*.lcmlog
+lcmlog-*

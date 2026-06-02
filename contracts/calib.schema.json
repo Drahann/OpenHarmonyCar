@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://openharmonycar/contracts/calib.schema.json",
+  "title": "仪表量程标定文件 (calib.json) —— 草案 v0.1",
+  "description": "香橙派读数计算用：以 center 为原点、zero 为 0° 基准，由 pointer_tip 极角 θ 映射为读数。字段以香橙派(成员B)实现为准，定稿后删除草案标记。",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "description": "键为仪表型号/ID，值为该型号的标定参数",
+    "properties": {
+      "unit": { "type": "string", "description": "读数单位，如 MPa / ℃ / A" },
+      "range_min": { "type": "number", "description": "量程最小值（对应 zero 关键点）" },
+      "range_max": { "type": "number", "description": "量程最大值（对应 full 关键点）" },
+      "angle_min_deg": { "type": "number", "description": "量程起点相对 zero 基准的角度(度)" },
+      "angle_max_deg": { "type": "number", "description": "量程终点相对 zero 基准的角度(度)" },
+      "clockwise": { "type": "boolean", "description": "指针随读数增大是否顺时针", "default": true },
+      "warn_high": { "type": ["number", "null"], "description": "高报阈值，超过置 alarm" },
+      "warn_low": { "type": ["number", "null"], "description": "低报阈值" }
+    },
+    "required": ["unit", "range_min", "range_max"]
+  },
+  "examples": [
+    {
+      "PG-01": {
+        "unit": "MPa",
+        "range_min": 0,
+        "range_max": 1.6,
+        "angle_min_deg": 0,
+        "angle_max_deg": 270,
+        "clockwise": true,
+        "warn_high": 1.2,
+        "warn_low": null
+      }
+    }
+  ]
+}

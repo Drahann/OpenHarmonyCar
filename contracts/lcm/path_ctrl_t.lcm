@@ -1,0 +1,15 @@
+// path_ctrl_t —— 轮控/路径控制消息（模板）
+//
+// ⚠️ 这是占位模板，字段以紫派(成员A)实际实现为准。请据实补全后删除本提示。
+// 用途：导航模块经 PATH 信道下发速度/角速度；或 UDP 桥据遥控指令构造后下发轮控。
+// 生成代码： lcm-gen -x path_ctrl_t.lcm   (C++)；其它语言换对应 -? 选项。
+
+package openharmonycar;
+
+struct path_ctrl_t
+{
+    int64_t timestamp;   // 时间戳（微秒），用于位姿推算的时间差
+    double  v;           // 线速度（单位 TODO，需与轮控物理参数一致）
+    double  omega;       // 角速度（单位 TODO）
+    // TODO 成员A：补充/修正实际字段（如运动状态、左右轮目标等）
+}
