@@ -14,8 +14,10 @@
 
 | 文件 | 接缝 | 主要责任方 | 版本 |
 |---|---|---|---|
-| [`udp-protocol.md`](udp-protocol.md) | App ↔ 紫派（控制/心跳） | App + 紫派 | v0.1（草案，待联调核对） |
-| [`map-format.md`](map-format.md) | 紫派 → App（地图文件/HTTP） | 紫派 + App | v0.1 |
+| [`udp-protocol.md`](udp-protocol.md) | App ↔ 紫派（控制/心跳） | App + 紫派 | **v0.2**（已对账 udp2lcm.c） |
+| [`udp-protocol-crosscheck.md`](udp-protocol-crosscheck.md) | App↔紫派 协议对账报告（逐字段+行号证据） | App | 2026-06-03 |
+| [`map-format.md`](map-format.md) | 紫派 → App（地图文件/HTTP） | 紫派 + App | **v0.2**（单位/URL 已对账） |
+| [`multi-robot-collab.md`](multi-robot-collab.md) | 多机协同（软总线 + 多车覆盖） | App + 紫派 | **v0.2** |
 | [`lcm/`](lcm/) | 紫派内部各模块 | 紫派 | v0.1 |
 | [`server-api.md`](server-api.md) | 香橙派 → 服务器 → App（视频+读数） | ⚠️ 归属未定 | v0.0（待立项） |
 | [`calib.schema.json`](calib.schema.json) | 仪表量程标定 | 香橙派 | v0.1（草案） |
@@ -25,4 +27,5 @@
 
 - [ ] **服务器归属与部署位置**（云端 / 紫派 / 香橙派本机？）见 `server-api.md`。
 - [ ] **视频传输协议**（RTSP / HTTP-FLV / WebSocket / MJPEG）与**识别数据格式**。
-- [ ] UDP 协议中几个 `⚠️ 待确认` 字段（命令 5、命令 'i' 的 IP 复用方式、107/108 语义）。
+- [x] UDP 命令 5 / 'i' IP 复用 / 107·108 语义：**已对账解决**（见 `udp-protocol-crosscheck.md`）。剩余：**地图文件名拼写、坐标原点定义**。
+- [ ] **多机协同**（`multi-robot-collab.md`）：坐标系单位/原点/0°、子机加载图后位姿是否归零到原点、地图传输 A/B、紫派能否常驻无界面 agent、子区域顶点表达。

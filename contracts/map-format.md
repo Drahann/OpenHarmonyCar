@@ -4,8 +4,11 @@
 
 ## 文件与传输
 
-- 紫派 SLAM 建图结果保存为 `/data/test/defultMap.txt`。
-- 紫派拉起轻量 HTTP 服务（Python3，端口 **8000**）暴露该文件，App 通过 HTTP GET 拉取。
+- 紫派 SLAM 建图结果保存在 `/data/test/` 下。
+- 紫派 `chdir("/data/test")` 后拉起 `python -m http.server`（端口 **8000**），**以 `/data/test` 为 web 根**暴露文件
+  （`udp2lcm.c:40-50`）。故 App 拉取 URL = `http://<紫派IP>:8000/<文件名>`，**不带 `/data/test/` 前缀**。
+- ⚠️ **文件名待 A 确认**：App 历史上拉 `defultMap.txt.txt`（双 .txt），A 代码注释写 `defaultMap.txt.txt`。
+  当前 App 常量取 `defultMap.txt.txt` → URL = `http://<紫派IP>:8000/defultMap.txt.txt`。
 - 全息路径覆盖另会生成 `tmpcoverageMap.txt`（初始）、`coverageMap.txt`（最终）。
 
 ## 文本格式（App 侧解析依据）
@@ -26,11 +29,16 @@
 2. **屏幕地图坐标系** — 对全图做包围盒裁剪（找 `xmin/ymin/xmax/ymax` 取正方形）后、可平移缩放的显示坐标。
 3. **终点选点坐标系** — 用户在屏幕上 touch 选点，先转屏幕地图坐标，再换算回真实世界坐标下发。
 
+> **单位（✅ 已对账 `udp2lcm.c`）**：真实世界坐标 **1 单位 = 1/20 m = 5cm**，与地图格子 **1:1**（建图网格 0.05m）；
+> 朝向 `r` = **度**，[-180,180]。UDP 心跳/目标点均用此单位（详见 `udp-protocol.md` 坐标单位节与 `udp-protocol-crosscheck.md`）。
+
 > 换算实现见 App `canvas2map / map2canvas`。紫派侧只需保证：**地图文件格式稳定 + 心跳里的 x/y/r
 > 与地图同一真实世界坐标系**。坐标系原点/朝向定义若有调整，必须在此文档同步。
 
 ## ⚠️ 待确认
 
-- [ ] 真实世界坐标的单位（mm？格？）与原点定义，App 与紫派需一致。
-- [ ] `r`（朝向）的单位（度/弧度）与零位方向。
-- [ ] 分布式拉图（命令 124）后子机地图与主机地图的坐标系是否完全对齐。
+- [x] 坐标**单位 = 1/20 m = 5cm**（✅ 对账 `udp2lcm.c`）；**原点**仍需 A 明确（地图 (0,0) 对应现实何处）。
+- [x] `r`（朝向）= **度**，[-180,180]（✅ 对账）；**零位方向**仍需 A 明确。
+- [x] 分布式拉图后子机与主机坐标系对齐：约定**子机从 master 同一起点、同朝向出发**，初始位姿按构造 = (0,0,0°)，
+      对齐问题消解。详见 [`multi-robot-collab.md`](multi-robot-collab.md)。⚠️ 仍需紫派确认"子机加载图后位姿归零到原点"。
+- [ ] 地图**文件确切名**（`defultMap.txt.txt`？`default`/`defult`？）见 `udp-protocol-crosscheck.md` 第八节。

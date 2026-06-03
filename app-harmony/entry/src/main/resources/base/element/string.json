@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "巡检机器人 entry 模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "巡检机器人主入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "巡检机器人"
+    },
+    {
+      "name": "permissionReason",
+      "value": "用于多机器人分布式协同"
+    },
+    {
+      "name": "robotRunAbility_desc",
+      "value": "跨端协同控制入口"
+    },
+    {
+      "name": "robotRunAbility_label",
+      "value": "机器人控制"
+    }
+  ]
+}

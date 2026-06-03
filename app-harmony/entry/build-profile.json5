@@ -1,0 +1,27 @@
+{
+  "apiType": "stageMode",
+  "buildOption": {
+  },
+  "buildOptionSet": [
+    {
+      "name": "release",
+      "arkOptions": {
+        "obfuscation": {
+          "ruleOptions": {
+            "enable": false,
+            "files": [
+              "./obfuscation-rules.txt"
+            ]
+          }
+        }
+      }
+    },
+  ],
+  "targets": [
+    {
+      "name": "default"
+    }
+    // 说明：仪表化测试目标 ohosTest 留待测试/UI 阶段补齐其脚手架后再加回。
+    // 纯逻辑单测（协议/坐标/地图）放在 src/test（LocalUnit），随 default 目标运行。
+  ]
+}

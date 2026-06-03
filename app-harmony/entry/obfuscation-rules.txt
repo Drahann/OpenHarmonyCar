@@ -1,0 +1,2 @@
+# 在此定义本模块的混淆规则（release 构建时生效，当前 build-profile 中 enable:false）。
+# 文档：https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/source-obfuscation
