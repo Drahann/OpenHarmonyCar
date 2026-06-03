@@ -1,8 +1,36 @@
 # 鸿蒙 App 重构计划（app-harmony）
 
-> **状态**：**功能内核已落地（2026-06-02）**，UI 待接入。详见下方「执行进度」。
+> **状态**：功能内核 + 协议对账已落地并合并入 `main`（2026-06-03，`8dcc698`）；后续改动在分支 `app-harmony-core`。详见「下一次会话从这里开始」与「执行进度」。
 > **决策**：① 多机协同改用 `@ohos.data.distributedDataObject`；② 彻底分层重构（非重写）。
 > **执行方式**：建议 `/clear` 后在新上下文按本文件从 Step 0 起逐步执行；每步对照旧版（`W:\CarApp\CarApp`）行为，用 `tools/mock-purplepi` 验证。
+
+---
+
+## 下一次会话从这里开始（handoff · 2026-06-03）
+
+> 按"新上下文执行大任务"的习惯：`/clear` 后读 `MEMORY.md` + 本节即可接续，不必重新长篇探查。
+
+**当前状态**
+- 功能内核 + 契约 v0.2 + 协议对账已合并进 `main`（`8dcc698`）并推送；A 已能看到平板代码。
+- **后续 App 改动在分支 `app-harmony-core` 上做**（已 checkout；改完再合并 `main`）。工作区干净。
+- 旧 App `W:\CarApp\CarApp` 仍作行为参照。
+
+**可立即做（不被 A 阻塞）**
+1. `service/DeviceCollabService.ets` → 重构为 `FleetMissionService`：共享黑板 `FleetMission`
+   （phase/frame/map/area/assignments/robots），订阅/发布/入会话。结构见 `contracts/multi-robot-collab.md`。
+2. `service/RobotTransport.ets` → 支持**多目标**（一个 App 管多台车的 UDP 链路）。
+3. `model/mission.ets` → 加 `frame{originX,originY,resolution,headingZero}`、`map{ref,text?}`、
+   `assignments{[carId]:{corner1,corner2,robotId}}`、`robots[].progress`。
+4. 取消 `RobotRunAbility` 的"跨车拉起"语义（改作紫派常驻 agent 角色，见协同契约）。
+
+**被 A 阻塞、待回复后收口**
+- 地图文件名确切拼写（`MAP_FILE_NAME` 暂取 `defultMap.txt.txt`）。
+- 坐标原点定义 + 0°方向（落到 `map-format.md` 与协同契约的 `frame`）。
+
+**再之后**：UI 阶段（`component/` MapCanvas·Joystick·DeviceList + 参数化 `ControlPage` + 真 HomePage/SetIPPage）。
+
+**验证**：`node tools/verify/verify.mjs`（纯逻辑）；`python tools/mock-purplepi/mock_purplepi.py`（联调）；
+`entry/src/test` hypium（需 DevEco）。整体 ArkTS 构建只能在 DevEco（无 CLI hvigor）。
 
 ---
 
