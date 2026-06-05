@@ -2,6 +2,7 @@
 #include "Astarplanner.h"
 
 extern lcm_t *lcm;
+extern lcm_t *coop_lcm;
 
 int g_count = 0;
 int printnopathflag = 0;
@@ -11,6 +12,54 @@ int iLimitDis = 25;
 bool visionswitch = true;
 int iVisionDateFlag = 1;
 int g_iSaveDateFlag = 0;
+
+static const double kCoopMinSafeRadius = 0.35;
+static const double kCoopRobotMargin = 0.20;
+static const double kCoopLaserEvidenceMargin = 0.30;
+static const long kCoopMessageTimeoutMs = 2500;
+
+static long coopNowMs()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+static double coopDist2(double ax, double ay, double bx, double by)
+{
+    double dx = ax - bx;
+    double dy = ay - by;
+    return dx * dx + dy * dy;
+}
+
+static double coopPointToSegmentDistance(Pose p, Pose a, Pose b)
+{
+    double vx = b.x - a.x;
+    double vy = b.y - a.y;
+    double len2 = vx * vx + vy * vy;
+    if (len2 < 1e-9) {
+        return sqrt(coopDist2(p.x, p.y, a.x, a.y));
+    }
+    double t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / len2;
+    if (t < 0.0) t = 0.0;
+    if (t > 1.0) t = 1.0;
+    Pose q;
+    q.x = a.x + t * vx;
+    q.y = a.y + t * vy;
+    q.theta = 0;
+    return sqrt(coopDist2(p.x, p.y, q.x, q.y));
+}
+
+static double coopSegmentDistance(Pose a1, Pose a2, Pose b1, Pose b2)
+{
+    double d1 = coopPointToSegmentDistance(a1, b1, b2);
+    double d2 = coopPointToSegmentDistance(a2, b1, b2);
+    double d3 = coopPointToSegmentDistance(b1, a1, a2);
+    double d4 = coopPointToSegmentDistance(b2, a1, a2);
+    double d = d1 < d2 ? d1 : d2;
+    d = d < d3 ? d : d3;
+    return d < d4 ? d : d4;
+}
 OptimizeMap::OptimizeMap(void) {
     OpScanMatcher = new ScanMatcher;
     OpMapServer = new MapServer;
@@ -145,6 +194,33 @@ CNaviInterface::CNaviInterface(void) {
     m_config.ScanMatchconfig.yScanMatchRange = 0.2;
     m_config.ScanMatchconfig.thetaScanMatchRange = 15.0;
 
+    robotId = 0;
+    pthread_mutex_init(&m_coop_mutex, NULL);
+    m_coopState = COOP_AVOID_NORMAL;
+    m_coopSeq = 0;
+    m_coopActiveSeq = 0;
+    m_coopActivePeer = -1;
+    m_coopTriggerReason = 0;
+    m_coopStateTimeMs = 0;
+    m_coopPendingStopRequest = false;
+    m_coopPendingStopSource = -1;
+    m_coopPendingStopSeq = 0;
+    m_coopSavedGoalValid = false;
+    m_coopSavedGoal.x = 0;
+    m_coopSavedGoal.y = 0;
+    m_coopSavedGoal.theta = 0;
+    m_coopSavedCoverageIndex = -1;
+    m_coverageTurnIndex = -1;
+    m_coverageActive = false;
+    m_coopPeerPoseValid = false;
+    m_coopPeerHasGoal = false;
+    m_coopPeerPose.x = 0;
+    m_coopPeerPose.y = 0;
+    m_coopPeerPose.theta = 0;
+    m_coopPeerGoal.x = 0;
+    m_coopPeerGoal.y = 0;
+    m_coopPeerGoal.theta = 0;
+
     int status;
     /************************************************************************************/
     status = pthread_attr_init(&m_thread_attribute);
@@ -201,6 +277,7 @@ CNaviInterface::CNaviInterface(void) {
     m_ifpf = 1;
     m_VisionWallData.clear();
     m_CollisionWallData.clear();
+
 }
 
 CNaviInterface::~CNaviInterface(void) {
@@ -213,6 +290,7 @@ CNaviInterface::~CNaviInterface(void) {
     pthread_mutex_destroy(&m_pf_mutex);
     pthread_mutex_destroy(&m_vw_mutex);
     pthread_mutex_destroy(&m_initloc_mutex);
+    pthread_mutex_destroy(&m_coop_mutex);
 }
 void CNaviInterface::setConfig(RobotConfig &config) {
     S2B[0][3] = config.laserconfig.positionX;
@@ -274,6 +352,13 @@ void *CNaviInterface::PlanThreadProc(LPVOID pPara) {
         pthread_cond_wait(&(pObject->m_condPathPlan), &(pObject->m_mutex));
 
         gettimeofday(&begintime, NULL);
+
+        pObject->updateCoopAvoidance();
+        if (pObject->isStoppedForCoopPeer()) {
+            pObject->publishZeroVelocity();
+            pthread_mutex_unlock(&(pObject->m_mutex));
+            continue;
+        }
 
         pthread_mutex_lock(&(pObject->m_csLaser_mutex));
 
@@ -697,6 +782,7 @@ void CNaviInterface::update(vector<Pose> &bodyPoints,
                         m_ucfindmode = 0;
                         dErrorPose[0] = res.x;
                         dErrorPose[1] = res.y;
+                        triggerCoopAvoidance(COOP_AVOID_TRIGGER_MATCH_JUMP);
                     }
 
                     res.theta = Simu_normalize_theta(res.theta);
@@ -2062,6 +2148,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         }
         if (num <= 0) {
             printf("astar planning failure !\n");fflush(stdout);
+            triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
             rrset += 1;
             if (0 == printnopathflag) {
                 printf("have no path in a*\n");fflush(stdout);
@@ -2254,6 +2341,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
             nopathstatus = reason;
             nopathflag = 1;
         }
+        triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
         m_pNoPathCbFunc(reason); // can not arrive
 
         m_iplanend = 1;
@@ -4221,6 +4309,506 @@ void CNaviInterface::clearNavigationStateAndStop() {
     }
 }
 
+void CNaviInterface::publishZeroVelocity(void) {
+    double pathdot[4] = {0, 0, 0, 0};
+    if (m_pPathCbFunc != NULL) {
+        m_pPathCbFunc(pathdot, 2, 1);
+    }
+}
+
+bool CNaviInterface::getCurrentGoal(Pose &goal) {
+    bool hasGoal = false;
+    pthread_mutex_lock(&m_goal_mutex);
+    if (m_waypoints.size() > 0) {
+        goal = m_waypoints.front();
+        hasGoal = true;
+    }
+    pthread_mutex_unlock(&m_goal_mutex);
+    return hasGoal;
+}
+
+void CNaviInterface::sendCoopPoseRequest(int seq, int reason) {
+    if (coop_lcm == NULL) {
+        return;
+    }
+    Pose goal;
+    bool hasGoal = getCurrentGoal(goal);
+    double dparams[6] = {m_CurPos.x, m_CurPos.y, m_CurPos.theta, 0, 0, 0};
+    if (hasGoal) {
+        dparams[3] = goal.x;
+        dparams[4] = goal.y;
+        dparams[5] = goal.theta;
+    }
+    int8_t iparams[3] = {(int8_t)robotId, (int8_t)seq, (int8_t)hasGoal};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_POSE_REQUEST;
+    cmd.robotid = (int8_t)(1 - robotId);
+    cmd.ndparams = 6;
+    cmd.dparams = dparams;
+    cmd.niparams = 3;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 1;
+    uint8_t bparams[1] = {(uint8_t)reason};
+    cmd.bparams = bparams;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+}
+
+void CNaviInterface::sendCoopStopRequest(int targetRobotId, int seq, int reason) {
+    if (coop_lcm == NULL) {
+        return;
+    }
+    Pose goal;
+    bool hasGoal = getCurrentGoal(goal);
+    double dparams[6] = {m_CurPos.x, m_CurPos.y, m_CurPos.theta, 0, 0, 0};
+    if (hasGoal) {
+        dparams[3] = goal.x;
+        dparams[4] = goal.y;
+        dparams[5] = goal.theta;
+    }
+    int8_t iparams[3] = {(int8_t)robotId, (int8_t)seq, (int8_t)hasGoal};
+    uint8_t bparams[1] = {(uint8_t)reason};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_STOP_REQUEST;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 6;
+    cmd.dparams = dparams;
+    cmd.niparams = 3;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 1;
+    cmd.bparams = bparams;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+}
+
+void CNaviInterface::sendCoopStopAck(int targetRobotId, int seq) {
+    if (coop_lcm == NULL) {
+        return;
+    }
+    int8_t iparams[2] = {(int8_t)robotId, (int8_t)seq};
+    uint8_t bparams[1] = {1};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_STOP_ACK;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 2;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 1;
+    cmd.bparams = bparams;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+}
+
+void CNaviInterface::sendCoopResumeRequest(int targetRobotId, int seq) {
+    if (coop_lcm == NULL) {
+        return;
+    }
+    int8_t iparams[2] = {(int8_t)robotId, (int8_t)seq};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_RESUME_REQUEST;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 2;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+}
+
+void CNaviInterface::sendCoopResumeAck(int targetRobotId, int seq) {
+    if (coop_lcm == NULL) {
+        return;
+    }
+    int8_t iparams[2] = {(int8_t)robotId, (int8_t)seq};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_RESUME_ACK;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 2;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+}
+
+void CNaviInterface::respondCoopPoseRequest(int sourceRobotId, int seq) {
+    if (coop_lcm == NULL) {
+        return;
+    }
+    Pose goal;
+    bool hasGoal = getCurrentGoal(goal);
+    double dparams[6] = {m_CurPos.x, m_CurPos.y, m_CurPos.theta, 0, 0, 0};
+    if (hasGoal) {
+        dparams[3] = goal.x;
+        dparams[4] = goal.y;
+        dparams[5] = goal.theta;
+    }
+    int8_t iparams[3] = {(int8_t)robotId, (int8_t)seq, (int8_t)hasGoal};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_POSE_RESPONSE;
+    cmd.robotid = (int8_t)sourceRobotId;
+    cmd.ndparams = 6;
+    cmd.dparams = dparams;
+    cmd.niparams = 3;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+}
+
+bool CNaviInterface::isStoppedForCoopPeer(void) {
+    bool ret;
+    pthread_mutex_lock(&m_coop_mutex);
+    ret = (m_coopState == COOP_AVOID_STOPPED_FOR_PEER);
+    pthread_mutex_unlock(&m_coop_mutex);
+    return ret;
+}
+
+bool CNaviInterface::isPeerPausedByMe(void) {
+    bool ret;
+    pthread_mutex_lock(&m_coop_mutex);
+    ret = (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME);
+    pthread_mutex_unlock(&m_coop_mutex);
+    return ret;
+}
+
+void CNaviInterface::markCoverageIndex(int index) {
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coverageActive = true;
+    m_coverageTurnIndex = index;
+    pthread_mutex_unlock(&m_coop_mutex);
+}
+
+void CNaviInterface::resetCoverageState(void) {
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coverageActive = false;
+    m_coverageTurnIndex = -1;
+    pthread_mutex_unlock(&m_coop_mutex);
+}
+
+void CNaviInterface::triggerCoopAvoidance(int reason) {
+    if (coop_lcm == NULL || robotId < 0 || robotId > 1) {
+        return;
+    }
+    int seq;
+    pthread_mutex_lock(&m_coop_mutex);
+    if (m_coopState != COOP_AVOID_NORMAL) {
+        pthread_mutex_unlock(&m_coop_mutex);
+        return;
+    }
+    m_coopSeq++;
+    if (m_coopSeq > 120) {
+        m_coopSeq = 1;
+    }
+    seq = m_coopSeq;
+    m_coopActiveSeq = seq;
+    m_coopActivePeer = 1 - robotId;
+    m_coopTriggerReason = reason;
+    m_coopState = COOP_AVOID_WAIT_PEER_POSE;
+    m_coopStateTimeMs = coopNowMs();
+    m_coopPeerPoseValid = false;
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    publishZeroVelocity();
+    sendCoopPoseRequest(seq, reason);
+}
+
+bool CNaviInterface::pauseForCoopPeer(int sourceRobotId, int seq) {
+    Pose savedGoal;
+    bool hasGoal = false;
+    pthread_mutex_lock(&m_goal_mutex);
+    if (m_waypoints.size() > 0) {
+        savedGoal = m_waypoints.front();
+        hasGoal = true;
+    }
+    while (m_waypoints.size() > 0) {
+        m_waypoints.pop();
+    }
+    m_ifastar = 1;
+    m_blaserdwa = false;
+    m_blaserastar = false;
+    istartgo = 0;
+    targetErr = false;
+    rrset = 0;
+    pthread_mutex_unlock(&m_goal_mutex);
+
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coopSavedGoalValid = hasGoal;
+    if (hasGoal) {
+        m_coopSavedGoal = savedGoal;
+    }
+    m_coopSavedCoverageIndex = m_coverageTurnIndex;
+    m_coopActivePeer = sourceRobotId;
+    m_coopActiveSeq = seq;
+    m_coopState = COOP_AVOID_STOPPED_FOR_PEER;
+    m_coopStateTimeMs = coopNowMs();
+    m_coopPendingStopRequest = false;
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    publishZeroVelocity();
+    sendCoopStopAck(sourceRobotId, seq);
+    return true;
+}
+
+void CNaviInterface::resumeAfterCoopPeer(void) {
+    Pose savedGoal;
+    bool hasGoal;
+    pthread_mutex_lock(&m_coop_mutex);
+    hasGoal = m_coopSavedGoalValid;
+    savedGoal = m_coopSavedGoal;
+    m_coopSavedGoalValid = false;
+    m_coopState = COOP_AVOID_NORMAL;
+    m_coopActivePeer = -1;
+    m_coopPendingStopRequest = false;
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    if (hasGoal) {
+        setGoal(savedGoal);
+    }
+}
+
+bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
+    Pose peerPose;
+    Pose peerGoal;
+    bool peerHasGoal;
+    bool peerValid;
+    pthread_mutex_lock(&m_coop_mutex);
+    peerPose = m_coopPeerPose;
+    peerGoal = m_coopPeerGoal;
+    peerHasGoal = m_coopPeerHasGoal;
+    peerValid = m_coopPeerPoseValid;
+    pthread_mutex_unlock(&m_coop_mutex);
+    if (!peerValid) {
+        return false;
+    }
+
+    vector<Pose> route;
+    if (path.size() >= 2) {
+        for (size_t i = 0; i < path.size(); ++i) {
+            if (path[i].size() >= 2) {
+                Pose p;
+                p.x = path[i][0];
+                p.y = path[i][1];
+                p.theta = 0;
+                route.push_back(p);
+            }
+        }
+    }
+    if (route.size() < 2) {
+        Pose goal;
+        if (!getCurrentGoal(goal)) {
+            return false;
+        }
+        route.push_back(m_CurPos);
+        route.push_back(goal);
+    }
+
+    double safeRadius = m_config.robotconfig.radius + kCoopRobotMargin;
+    if (safeRadius < kCoopMinSafeRadius) {
+        safeRadius = kCoopMinSafeRadius;
+    }
+
+    bool blocksRoute = false;
+    for (size_t i = 1; i < route.size(); ++i) {
+        if (coopPointToSegmentDistance(peerPose, route[i - 1], route[i]) <= safeRadius) {
+            blocksRoute = true;
+            break;
+        }
+        if (peerHasGoal &&
+            coopSegmentDistance(route[i - 1], route[i], peerPose, peerGoal) <= safeRadius) {
+            blocksRoute = true;
+            break;
+        }
+    }
+    if (!blocksRoute) {
+        return false;
+    }
+    if (reason != COOP_AVOID_TRIGGER_MATCH_JUMP) {
+        return true;
+    }
+
+    vector<Pose> evidence = m_VisionWallDataCopy;
+    evidence.insert(evidence.end(), m_CollisionWallDataCopy.begin(), m_CollisionWallDataCopy.end());
+    double evidenceRadius = safeRadius + kCoopLaserEvidenceMargin;
+    for (size_t i = 0; i < evidence.size(); ++i) {
+        if (LinAlg::DistancePose(evidence[i], peerPose) <= evidenceRadius) {
+            return true;
+        }
+        if (peerHasGoal && coopPointToSegmentDistance(evidence[i], peerPose, peerGoal) <= evidenceRadius) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void CNaviInterface::updateCoopAvoidance(void) {
+    long now = coopNowMs();
+    int resumeTarget = -1;
+    int resumeSeq = 0;
+    bool shouldCheckArrival = false;
+
+    pthread_mutex_lock(&m_coop_mutex);
+    if ((m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
+         m_coopState == COOP_AVOID_WAIT_STOP_ACK) &&
+        now - m_coopStateTimeMs > kCoopMessageTimeoutMs) {
+        printf("COOP_AVOID timeout in state %d\n", m_coopState);
+        fflush(stdout);
+        m_coopState = COOP_AVOID_NORMAL;
+        m_coopActivePeer = -1;
+        m_coopPendingStopRequest = false;
+    }
+    if (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME) {
+        shouldCheckArrival = true;
+        resumeTarget = m_coopActivePeer;
+        resumeSeq = m_coopActiveSeq;
+    }
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    if (shouldCheckArrival) {
+        Pose goal;
+        if (!getCurrentGoal(goal)) {
+            sendCoopResumeRequest(resumeTarget, resumeSeq);
+            pthread_mutex_lock(&m_coop_mutex);
+            if (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME &&
+                m_coopActivePeer == resumeTarget) {
+                m_coopState = COOP_AVOID_NORMAL;
+                m_coopActivePeer = -1;
+            }
+            pthread_mutex_unlock(&m_coop_mutex);
+        }
+    }
+}
+
+void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
+                                            int sourceRobotId, int seq,
+                                            const double *dparams, int ndparams,
+                                            const int8_t *iparams, int niparams,
+                                            const uint8_t *bparams, int nbparams) {
+    if (targetRobotId != robotId || sourceRobotId == robotId) {
+        return;
+    }
+    switch (commandId) {
+    case COOP_AVOID_CMD_POSE_REQUEST:
+        respondCoopPoseRequest(sourceRobotId, seq);
+        break;
+    case COOP_AVOID_CMD_POSE_RESPONSE:
+    {
+        if (ndparams < 3) {
+            break;
+        }
+        bool matched = false;
+        int reason = 0;
+        bool pendingStop = false;
+        int pendingSource = -1;
+        int pendingSeq = 0;
+        pthread_mutex_lock(&m_coop_mutex);
+        if (m_coopState == COOP_AVOID_WAIT_PEER_POSE &&
+            m_coopActiveSeq == seq &&
+            m_coopActivePeer == sourceRobotId) {
+            m_coopPeerPose.x = dparams[0];
+            m_coopPeerPose.y = dparams[1];
+            m_coopPeerPose.theta = dparams[2];
+            m_coopPeerHasGoal = (niparams >= 3 && iparams[2] != 0 && ndparams >= 6);
+            if (m_coopPeerHasGoal) {
+                m_coopPeerGoal.x = dparams[3];
+                m_coopPeerGoal.y = dparams[4];
+                m_coopPeerGoal.theta = dparams[5];
+            }
+            m_coopPeerPoseValid = true;
+            reason = m_coopTriggerReason;
+            pendingStop = m_coopPendingStopRequest;
+            pendingSource = m_coopPendingStopSource;
+            pendingSeq = m_coopPendingStopSeq;
+            matched = true;
+        }
+        pthread_mutex_unlock(&m_coop_mutex);
+        if (!matched) {
+            break;
+        }
+        if (pendingStop && robotId == 0) {
+            pauseForCoopPeer(pendingSource, pendingSeq);
+            break;
+        }
+        if (peerLikelyBlocksCurrentRoute(reason)) {
+            pthread_mutex_lock(&m_coop_mutex);
+            m_coopState = COOP_AVOID_WAIT_STOP_ACK;
+            m_coopStateTimeMs = coopNowMs();
+            pthread_mutex_unlock(&m_coop_mutex);
+            sendCoopStopRequest(sourceRobotId, seq, reason);
+        } else {
+            pthread_mutex_lock(&m_coop_mutex);
+            if (m_coopState == COOP_AVOID_WAIT_PEER_POSE &&
+                m_coopActiveSeq == seq) {
+                m_coopState = COOP_AVOID_NORMAL;
+                m_coopActivePeer = -1;
+            }
+            pthread_mutex_unlock(&m_coop_mutex);
+        }
+        break;
+    }
+    case COOP_AVOID_CMD_STOP_REQUEST:
+    {
+        bool shouldPause = true;
+        pthread_mutex_lock(&m_coop_mutex);
+        if ((m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
+             m_coopState == COOP_AVOID_WAIT_STOP_ACK) && robotId == 1) {
+            m_coopPendingStopRequest = true;
+            m_coopPendingStopSource = sourceRobotId;
+            m_coopPendingStopSeq = seq;
+            shouldPause = false;
+        }
+        pthread_mutex_unlock(&m_coop_mutex);
+        if (shouldPause) {
+            pauseForCoopPeer(sourceRobotId, seq);
+        }
+        break;
+    }
+    case COOP_AVOID_CMD_STOP_ACK:
+        pthread_mutex_lock(&m_coop_mutex);
+        if (m_coopState == COOP_AVOID_WAIT_STOP_ACK &&
+            m_coopActiveSeq == seq &&
+            m_coopActivePeer == sourceRobotId) {
+            m_coopState = COOP_AVOID_PEER_PAUSED_BY_ME;
+            m_coopStateTimeMs = coopNowMs();
+        }
+        pthread_mutex_unlock(&m_coop_mutex);
+        break;
+    case COOP_AVOID_CMD_RESUME_REQUEST:
+        resumeAfterCoopPeer();
+        sendCoopResumeAck(sourceRobotId, seq);
+        break;
+    case COOP_AVOID_CMD_RESUME_ACK:
+        pthread_mutex_lock(&m_coop_mutex);
+        if (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME &&
+            m_coopActivePeer == sourceRobotId) {
+            m_coopState = COOP_AVOID_NORMAL;
+            m_coopActivePeer = -1;
+        }
+        pthread_mutex_unlock(&m_coop_mutex);
+        break;
+    default:
+        break;
+    }
+}
+
 void CNaviInterface::deleteGoal() {
     pthread_mutex_lock(&m_goal_mutex);
 
@@ -5389,35 +5977,58 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                     fflush(stdout);
 
                     // 导航到每个拐点（逐个下发）
-                    for (int i = 0; i < turnPoints.size(); ++i)
+                    size_t turnIndex = 0;
+                    while (turnIndex < turnPoints.size())
                     {
-                        IPoint p_grid = turnPoints[i];
-                        Pose p_real = pObject->astarPlanner.GridToGlobal((int)p_grid.x, (int)p_grid.y);
+                        pObject->updateCoopAvoidance();
+                        if (pObject->isStoppedForCoopPeer()) {
+                            usleep(100000);
+                            continue;
+                        }
 
-                        printf("[Turn %lu/%lu] Navigating to Grid (%.0f, %.0f) => World (%.2f, %.2f)\n",
-                            i + 1, turnPoints.size(), p_grid.x, p_grid.y, p_real.x, p_real.y);
-                        fflush(stdout);
-
-                        // 等待前一个导航完成
-                        cout << "Waiting for previous navigation to complete..." << endl;
-                        while (pObject->m_waypoints.size() > 0 && !pObject->targetErr) ;
                         if (pObject->targetErr) {
                             printf("Previous target failed, skipping.\n");fflush(stdout);
                             pObject->targetErr = false;
                             if (!pObject->m_waypoints.empty()) pObject->m_waypoints.pop();
+                            turnIndex++;
                             continue;
                         }
 
-                        pObject->setvisionrecenter();
-                        pObject->setGoal(p_real);
+                        if (pObject->m_waypoints.size() == 0) {
+                            IPoint p_grid = turnPoints[turnIndex];
+                            Pose p_real = pObject->astarPlanner.GridToGlobal((int)p_grid.x, (int)p_grid.y);
 
-                        // 可选：记录路径
-                        IPoint iPoint = pObject->astarPlanner.GlobalToGrid(p_real.x, p_real.y);
-                        pObject->fullCoverageAlg.pathIPoint.push(iPoint);
+                            printf("[Turn %lu/%lu] Navigating to Grid (%.0f, %.0f) => World (%.2f, %.2f)\n",
+                                turnIndex + 1, turnPoints.size(), p_grid.x, p_grid.y, p_real.x, p_real.y);
+                            fflush(stdout);
+
+                            pObject->markCoverageIndex((int)turnIndex);
+                            pObject->setvisionrecenter();
+                            pObject->setGoal(p_real);
+
+                            IPoint iPoint = pObject->astarPlanner.GlobalToGrid(p_real.x, p_real.y);
+                            pObject->fullCoverageAlg.pathIPoint.push(iPoint);
+                        }
+
+                        cout << "Waiting for current navigation to complete..." << endl;
+                        while (pObject->m_waypoints.size() > 0 && !pObject->targetErr) {
+                            pObject->updateCoopAvoidance();
+                            if (pObject->isStoppedForCoopPeer()) {
+                                break;
+                            }
+                            usleep(10000);
+                        }
+                        if (pObject->isStoppedForCoopPeer()) {
+                            continue;
+                        }
+                        if (!pObject->targetErr && pObject->m_waypoints.size() == 0) {
+                            turnIndex++;
+                        }
                     }
 
                     // 返回起点
                     pObject->clearNavigationStateAndStop();
+                    pObject->resetCoverageState();
                     pObject->enableCoverage = false;
                 }
             }
@@ -5753,4 +6364,12 @@ void NAVI_NavigatePathByGridPoints(const vector<Pose>& gridPath){ g_NaviInterfac
 void NAVI_SetrobotId(int robotId){ g_NaviInterface.robotId = robotId;}
 IPoint NAVI_GlobalToGrid(double x, double y) {
     return g_NaviInterface.astarPlanner.GlobalToGrid(x, y);
+}
+void NAVI_HandleCoopAvoidMessage(int commandId, int targetRobotId, int sourceRobotId,
+                                 int seq, const double *dparams, int ndparams,
+                                 const int8_t *iparams, int niparams,
+                                 const uint8_t *bparams, int nbparams) {
+    g_NaviInterface.handleCoopAvoidMessage(commandId, targetRobotId, sourceRobotId,
+                                           seq, dparams, ndparams,
+                                           iparams, niparams, bparams, nbparams);
 }

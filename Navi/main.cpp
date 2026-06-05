@@ -39,8 +39,10 @@ using namespace std;
 #define LCM_CMD_SendMapNames 102
 #define LCM_CMD_BeginLocalization 103
 #define LCM_CMD_FullPathCoverage 127
+#define COOP_AVOID_LCM_URI "udpm://239.255.76.67:7668?ttl=1"
 
 lcm_t *lcm;
+lcm_t *coop_lcm;
 char g_strfileName[512];
 static char nowusestrfileName[512];
 char strfileName0[512];
@@ -53,6 +55,16 @@ bool UpdateMapBeginCallBackFunc(void);
 void *LCMRecvTask(void *arg) {
     while (1) {
         lcm_handle(lcm);
+    }
+}
+
+void *CoopLCMRecvTask(void *arg) {
+    while (1) {
+        if (coop_lcm != NULL) {
+            lcm_handle(coop_lcm);
+        } else {
+            usleep(100000);
+        }
     }
 }
 
@@ -878,8 +890,8 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
         int robotId = robotctrldata->iparams[0]; // 0 主机器人，1 副机器人
         
         //NAVI_NavigatePathByGridPoints(subPath);
-        NAVI_SetPlanFullPath(2);
         NAVI_SetrobotId(robotId);
+        NAVI_SetPlanFullPath(2);
         break;
     }
     case 122://读取对角坐标后生成路径文件
@@ -917,6 +929,26 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
     }
 }
 
+void CoopAvoidHandle(const lcm_recv_buf_t *rbuf, const char *channel,
+                     const robot_control_t *robotctrldata, void *user) {
+    int sourceRobotId = -1;
+    int seq = 0;
+    if (robotctrldata->niparams >= 2 && robotctrldata->iparams != NULL) {
+        sourceRobotId = robotctrldata->iparams[0];
+        seq = robotctrldata->iparams[1];
+    }
+    NAVI_HandleCoopAvoidMessage(robotctrldata->commandid,
+                                robotctrldata->robotid,
+                                sourceRobotId,
+                                seq,
+                                robotctrldata->dparams,
+                                robotctrldata->ndparams,
+                                robotctrldata->iparams,
+                                robotctrldata->niparams,
+                                robotctrldata->bparams,
+                                robotctrldata->nbparams);
+}
+
 void RevisePoseHandle(const lcm_recv_buf_t *rbuf, const char *channel,
                       const pose_t *revise_pose, void *user) {
 
@@ -931,6 +963,7 @@ void RevisePoseHandle(const lcm_recv_buf_t *rbuf, const char *channel,
 
 int LCMInit(void) {
     lcm = lcm_create( NULL );
+    coop_lcm = lcm_create(COOP_AVOID_LCM_URI);
     // TODO 测试跨机
     // lcm = lcm_create("udpm://239.255.76.67:7667?ttl=1");
     /////////////////
@@ -938,10 +971,15 @@ int LCMInit(void) {
         printf("lcm_create failed\n");fflush(stdout);
         return 1;
     }
+    if (!coop_lcm) {
+        printf("coop_lcm_create failed\n");fflush(stdout);
+        return 1;
+    }
 
     laser_t_subscribe(lcm, "HOKUYO_LIDAR", &LaserDataHandle, NULL);
     pose_t_subscribe(lcm, "POSE", &PoseDataHandle, NULL);
     robot_control_t_subscribe(lcm, "ROBOT_CONTROL", &RobotCtrlHandle, NULL);
+    robot_control_t_subscribe(coop_lcm, COOP_AVOID_CHANNEL, &CoopAvoidHandle, NULL);
     // pose_t_subscribe	      (lcm, "REVISE_POSE",
     // &RevisePoseHandle, NULL); path_t_subscribe         (lcm,"VIRTUAL_WALL",
     // &ReviseWallHandle, NULL);
@@ -1098,6 +1136,7 @@ int main(void) {
     printf("version Debug V1.2.1.9 system begin\n");fflush(stdout);
     /* lcm 数据接收线程 */
     pthread_t lcmrecv_thread;
+    pthread_t coop_lcmrecv_thread;
     pthread_t udprecv_thread;
     int status;
     pthread_attr_t thread_attribute;
@@ -1186,6 +1225,14 @@ int main(void) {
 
     if (status != 0) {
         fprintf(stderr, "Initial thread terminating with an error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    status = pthread_create(&coop_lcmrecv_thread, &thread_attribute,
+                            CoopLCMRecvTask, NULL);
+
+    if (status != 0) {
+        fprintf(stderr, "Coop LCM thread terminating with an error\n");
         exit(EXIT_FAILURE);
     }
 

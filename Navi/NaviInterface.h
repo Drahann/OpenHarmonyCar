@@ -12,6 +12,7 @@
 #include "CleanPlanner.h"
 #include "particlefilter/ParticleFilter.h"
 #include <queue>
+#include <stdint.h>
 #include "Astarplanner.h"
 #include "FullPathCoverage.h"
 #include "Eigen/LU"
@@ -19,6 +20,29 @@
 #define GET_ROOM_BOUNDARY 1
 #define COVERAGEALG 1
 #define ROBOTSIZE 7
+
+#define COOP_AVOID_CHANNEL "COOP_AVOID"
+#define COOP_AVOID_CMD_POSE_REQUEST  -40
+#define COOP_AVOID_CMD_POSE_RESPONSE -39
+#define COOP_AVOID_CMD_STOP_REQUEST  -38
+#define COOP_AVOID_CMD_STOP_ACK      -37
+#define COOP_AVOID_CMD_RESUME_REQUEST -36
+#define COOP_AVOID_CMD_RESUME_ACK    -35
+
+enum CoopAvoidState
+{
+	COOP_AVOID_NORMAL = 0,
+	COOP_AVOID_WAIT_PEER_POSE,
+	COOP_AVOID_WAIT_STOP_ACK,
+	COOP_AVOID_PEER_PAUSED_BY_ME,
+	COOP_AVOID_STOPPED_FOR_PEER
+};
+
+enum CoopAvoidTrigger
+{
+	COOP_AVOID_TRIGGER_NOPATH = 1,
+	COOP_AVOID_TRIGGER_MATCH_JUMP = 2
+};
 
 
 using namespace std;
@@ -296,6 +320,25 @@ public:
 	vector<Pose> gridPath;
 
 	int robotId;
+	pthread_mutex_t m_coop_mutex;
+	CoopAvoidState m_coopState;
+	int m_coopSeq;
+	int m_coopActiveSeq;
+	int m_coopActivePeer;
+	int m_coopTriggerReason;
+	long m_coopStateTimeMs;
+	bool m_coopPendingStopRequest;
+	int m_coopPendingStopSource;
+	int m_coopPendingStopSeq;
+	bool m_coopSavedGoalValid;
+	Pose m_coopSavedGoal;
+	int m_coopSavedCoverageIndex;
+	int m_coverageTurnIndex;
+	bool m_coverageActive;
+	bool m_coopPeerPoseValid;
+	bool m_coopPeerHasGoal;
+	Pose m_coopPeerPose;
+	Pose m_coopPeerGoal;
 
 	static void * PlanThreadProc(LPVOID pPara);
 	static void * CoverageThreadProc(LPVOID pPara);
@@ -409,6 +452,27 @@ public:
 	void	NavigatePathByGridPoints(const vector<Pose>& gridPath);
 
 	vector<IPoint> ReadFullPathFromFile(const string& filepath);
+	void	handleCoopAvoidMessage(int commandId, int targetRobotId, int sourceRobotId,
+								 int seq, const double *dparams, int ndparams,
+								 const int8_t *iparams, int niparams,
+								 const uint8_t *bparams, int nbparams);
+	void	triggerCoopAvoidance(int reason);
+	void	updateCoopAvoidance(void);
+	bool	isStoppedForCoopPeer(void);
+	bool	isPeerPausedByMe(void);
+	void	markCoverageIndex(int index);
+	void	resetCoverageState(void);
+	void	respondCoopPoseRequest(int sourceRobotId, int seq);
+	void	sendCoopPoseRequest(int seq, int reason);
+	void	sendCoopStopRequest(int targetRobotId, int seq, int reason);
+	void	sendCoopStopAck(int targetRobotId, int seq);
+	void	sendCoopResumeRequest(int targetRobotId, int seq);
+	void	sendCoopResumeAck(int targetRobotId, int seq);
+	bool	getCurrentGoal(Pose &goal);
+	bool	peerLikelyBlocksCurrentRoute(int reason);
+	bool	pauseForCoopPeer(int sourceRobotId, int seq);
+	void	resumeAfterCoopPeer(void);
+	void	publishZeroVelocity(void);
 };
 
 void	NAVI_SetLocationType(LocationType type);
@@ -488,3 +552,7 @@ void NAVI_SetgridPath(const vector<Pose>& gridPath);
 void NAVI_SetrobotId(int robotId);
 
 IPoint NAVI_GlobalToGrid(double x, double y);
+void NAVI_HandleCoopAvoidMessage(int commandId, int targetRobotId, int sourceRobotId,
+								 int seq, const double *dparams, int ndparams,
+								 const int8_t *iparams, int niparams,
+								 const uint8_t *bparams, int nbparams);
