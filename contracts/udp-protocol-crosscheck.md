@@ -106,3 +106,23 @@ byte1=IP[0]、byte2=IP[1]、byte4=IP[2]（endX 低字节）、byte6=IP[3]（endY
 - **契约**：`udp-protocol.md`（→ v0.2）、`map-format.md`、`multi-robot-collab.md`。
 - **App 代码**：`model/protocol.ets`（补 `loadMap=5`、107/108 改名为 `distAreaCorner1/2`、更新注释）、`constants/protocol.ets`（地图 URL 改为 `MAP_FILE_NAME` + 坐标单位常量）。
 - **工具**：`tools/mock-purplepi/`（心跳改 500ms、地图路径放宽）。
+
+---
+
+## 十、2026-06-05 补记：A 文档确认 + 协同避障
+
+成员A push 了 `purplepi-control`（含《接口功能与对接问题说明.md》及源码，`origin/purplepi-control`）。据此：
+
+- **§八 三项全部收口**：
+  1. **地图文件名 = `defultMap.txt`**（`Navi/main.cpp:517/642` 实际保存；`.txt.txt` 启动即删 `:1094-1096`）。
+     App `MAP_FILE_NAME` **已改回 `defultMap.txt`**（此前误取 `.txt.txt`，会拉图失败——本次修复）。
+  2. **坐标原点 = 建图/定位初始位姿**；`theta=0`=+X、正角 CCW；子机经 **`cmd 5`** 加载图归零 (0,0,0)
+     （`cmd 2/'j'/'l'` 沿用当前心跳位姿，不归零）。
+  3. **命令 5/106/108 加载地图来源**：5=本机图、106=本机图+主机目标点、108=主机/从机各自加载本机图；
+     子机图来自 `cmd105/124` 的 HTTP 拉取。
+- 地图**首行实为 `range resolution height width`（4 值）**，App"取末两整数为行列"折中获 A 背书。
+- 多机地图传输 = **方案 B**（`cmd124` wget 拉 `defultMap.txt`+`roadFile.txt`）。
+- ✅ **`'h'`/104 也带坐标**（`byte1=vertexId`、`byte3-6=x,y`），与本报告 §二一致；App 编码器本就按 endX/endY 打包。
+- **协同避障（commit `59fc335`）不影响本协议**：A 在 `Navi` 内新增**独立 LCM 频道 `COOP_AVOID`**
+  （`udpm://239.255.76.67:7668`，负命令号 -40..-35）做双车实时避障，**明确未改 `udp2lcm`** → App↔紫派 9 字节 UDP 协议
+  **保持不变**。语义/可视化影响（自主暂停不可误判为卡死、心跳无暂停标志位）见 `multi-robot-collab.md` §双车协同避障。

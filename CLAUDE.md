@@ -21,7 +21,8 @@
   字节布局与命令码已从 App 代码 `app-harmony/.../MakeData.ets`、`dataConstants.ets` 中提取核对。
 - App 的 `robotState` 枚举值刻意对齐 ASCII（`fullpath_startRoute=102='f'` …），byte0 既是 App 状态
   也是下发给紫派的命令码。
-- 地图：紫派 HTTP `:8000` 暴露 `/data/test/defultMap.txt`，文本格式 0=空旷/1=障碍，首行为行列数。
+- 地图：紫派 HTTP `:8000`（web 根=`/data/test`）暴露 `defultMap.txt`（URL **不带** `/data/test` 前缀）；文本 0=空旷/1=障碍、
+  **密排单字符**，首行 `range resolution height width`（App 取**末两个**=行 列）。详见 `contracts/map-format.md`。
 - 紫派内部用 LCM 信道通信（`ROBOT_CONTROL/PATH/POSE/CURRENTPOSE/...`）+ 命令号，见 `contracts/lcm/`。
 - 香橙派→服务器→App 的视频/识别数据链路中，**"服务器"归属未定**，见 `contracts/server-api.md`。
 

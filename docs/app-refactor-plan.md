@@ -1,8 +1,54 @@
 # 鸿蒙 App 重构计划（app-harmony）
 
-> **状态**：**功能内核已落地（2026-06-02）**，UI 待接入。详见下方「执行进度」。
+> **状态**：功能内核 + 协议对账在 `main`（2026-06-03，`8dcc698`）；分布式 FleetMission 黑板骨架已落地（2026-06-05，分支 `app-harmony-core`，未提交）。详见「下一次会话从这里开始」与「执行进度」。
 > **决策**：① 多机协同改用 `@ohos.data.distributedDataObject`；② 彻底分层重构（非重写）。
 > **执行方式**：建议 `/clear` 后在新上下文按本文件从 Step 0 起逐步执行；每步对照旧版（`W:\CarApp\CarApp`）行为，用 `tools/mock-purplepi` 验证。
+
+---
+
+## 下一次会话从这里开始（handoff · 2026-06-05）
+
+> 按"新上下文执行大任务"的习惯：`/clear` 后读 `MEMORY.md` + 本节即可接续，不必重新长篇探查。
+
+**当前状态**
+- 功能内核 + 契约 v0.2 + 协议对账在 `main`（`8dcc698`）。**FleetMission 黑板骨架 + 对账成员A 2026-06-05 文档**已落地，
+  **已提交并 push 到 `app-harmony-core`**（见下「本轮已完成」）；尚未合并 `main`。
+- 成员A 已 push `purplepi-control`（`origin/purplepi-control`：`1608796` 接口文档 + `59fc335` 协同避障）。
+  其权威接口说明在 `purplepi-control/接口功能与对接问题说明.md`；**本侧开放问题写在 `contracts/integration-qa.md`（待 A 答）**。
+- 旧 App `W:\CarApp\CarApp` 仍作行为参照。
+
+**本轮已完成（2026-06-05；handoff 列的「不被 A 阻塞」4 项全做完）**
+1. ✅ `model/mission.ets`：`Mission` 扩为 FleetMission 黑板——加 `phase`(MissionPhase)、`frame`、`map`(MapRef)、
+   `area`(Rect)、`assignments`(Assignment[])，`RobotRuntime` 加 `progress/status`；快照字段名对齐契约。
+2. ✅ `service/DeviceCollabService.ets` → `service/FleetMissionService.ets`：保留设备发现 + distributedDataObject
+   黑板同步；**删 `startRemoteControl`（startAbility 跨端拉起作废）**。`EntryAbility` 引用已切换。
+3. ✅ `service/RobotTransport.ets`：心跳改 `Map<ip, loop>` **多目标**；`startHeartbeat/setHeartbeatPayload/
+   stopHeartbeat` 均按 ip 操作（`stopHeartbeat()` 无参=全停）。
+4. ✅ 删 `robotrunability/RobotRunAbility.ets` + `module.json5` 条目 + 孤立 `robotRunAbility_*` 字符串
+   （agent 角色移交紫派常驻代理，属另一 hap，超出本 hap）。
+5. ✅ **对账成员A 2026-06-05 文档**（`origin/purplepi-control`：`1608796` 接口文档 + `59fc335` 协同避障）：
+   - 修真 bug：`MAP_FILE_NAME` `defultMap.txt.txt`→**`defultMap.txt`**（旧值会拉图失败）；mock/smoke/README/契约一并更正 URL（web 根=/data/test、无前缀）。
+   - 收口 `frame`（5cm/格、原点=建图初始位姿、`r`=度[-180,180]、0°=+X CCW）→ `mission.ets` + `map-format.md`(v0.2)。
+   - 确认 地图传输=**方案B**、子机 `cmd5` 归零、子区域=单矩形、agent 可行 → `multi-robot-collab.md`(**v0.4**) + `udp-protocol-crosscheck.md` §十。
+   - 分析**协同避障**（`59fc335`）：robot↔robot 独立 LCM `COOP_AVOID`、**未改 udp2lcm → App 协议/代码无需改**；仅记语义（自主暂停不可误判为卡死）。
+   - 开放问题 → 新建 `contracts/integration-qa.md`（避让态可见性 / >2 车 tie-break / roadFile / 方案A 落地）供 A 答。
+- 回写：`app-harmony/README.md`、`entry/src/test/LocalUnit.test.ets`（快照往返用例）；契约 `multi-robot-collab.md` v0.3→v0.4。
+  `node tools/verify/verify.mjs` **17/17 仍过**；`python tools/mock-purplepi/smoke_test.py` **3/3 过**。
+- ⚠️ **整体 ArkTS 编译只能在 DevEco（无 CLI hvigor）**——本轮改的 .ets 未经真编译；下次须在 DevEco 跑一次
+  构建 + hypium 单测确认无类型/linter 错误。
+
+**可立即做（不被 A 阻塞）—— UI 阶段（原 Step 3/4）**
+- `component/`：`MapCanvas`（地图渲染/缩放/平移/选点）、`Joystick`（每实例独立节流）、`DeviceList`（发现/入会）。
+- 单一参数化 `ControlPage`（mode∈{astar|fullpath|distributed} 组合上述组件）+ 真 `HomePage`（修 onPageShow 累积 bug）/ `SetIPPage`。
+- 动态屏幕：`display.getDefaultDisplaySync()` 取代写死分辨率；`MapCanvas` 用 `model/geometry` 换算 + `RobotTransport` 多目标。
+- 把 `EntryAbility.onWindowStageCreate` 的 `loadContent` 指向真实页面（现为占位 `LoadingPage`）。
+
+**原"被 A 阻塞"项 —— ✅ 已全部收口（A 2026-06-05 文档，见「本轮已完成 5.」）**
+- 坐标系 `frame`、地图文件名、地图传输 A/B、子机归零、agent 可行、子区域=矩形：均已确认并写入契约/代码。
+- 仍开放（**不阻塞 UI 推进**，待 A 答，见 `contracts/integration-qa.md`）：协同避障"暂停"态如何让 App 可见、>2 车 tie-break、`roadFile.txt` 是否需 App 关心。
+
+**验证**：`node tools/verify/verify.mjs`（纯逻辑）；`python tools/mock-purplepi/mock_purplepi.py`（联调）；
+`entry/src/test` hypium（需 DevEco）。整体 ArkTS 构建只能在 DevEco（无 CLI hvigor）。
 
 ---
 
@@ -29,8 +75,8 @@
 - UI（Step 3/4）：`component/`（MapCanvas/Joystick/DeviceList）+ 单一参数化 `ControlPage` + 真 HomePage/
   SetIPPage；动态屏幕（`display`）取代写死分辨率；把 Ability 的 loadContent 指向真实页面。
 - 仪表化测试目标 ohosTest 脚手架（当前 `entry/build-profile` 只留 default 目标）。
-- 分布式（Step 5，**方案已定稿**，见下「分布式方案」与 `contracts/multi-robot-collab.md`）：实现 `FleetMissionService`
-  （共享黑板）+ 紫派侧无界面 agent；真机多车联调。
+- 分布式（Step 5，**方案已定稿**，见下「分布式方案」与 `contracts/multi-robot-collab.md`）：✅ App 侧 `FleetMissionService`
+  黑板骨架 + `Mission` 协同字段已落地（2026-06-05）；**待**：紫派侧无界面 agent（⚠️ A）+ 真机多车联调。
 - 真车全链路（Step 7）。
 - 回写 `contracts/`：地图首行格式、密排栅格、命令码 5/107/108/120 语义；坐标系元数据（单位/原点/0°）；子机"从原点出发"位姿初始化。
 
