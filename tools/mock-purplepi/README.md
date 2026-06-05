@@ -11,7 +11,7 @@
    - 收到命令 1（运动）解析 `runState/speed`，命令 3（目标点）解析 `endX/endY`，打印出来便于核对。
    - 可选：超过 3s 没收到 App 指令就打印"急停"，验证保活逻辑。
 2. **HTTP 服务**：`:8000` 托管一张示例地图（取 `contracts/fixtures/defultMap.txt`），
-   路径对齐 `/data/test/defultMap.txt`，供 App `createHttp` 拉取。
+   URL 路径 `/defultMap.txt`（紫派 web 根=/data/test，URL 无前缀），供 App `createHttp` 拉取。
 
 ## 用法（实现后）
 

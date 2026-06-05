@@ -3,7 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { RobotTransport } from '../service/RobotTransport';
-import { DeviceCollabService } from '../service/DeviceCollabService';
+import { FleetMissionService } from '../service/FleetMissionService';
 import { Storage } from '../service/storage';
 
 const DOMAIN: number = 0x0000;
@@ -19,8 +19,8 @@ export default class EntryAbility extends UIAbility {
     Storage.init();
     RobotTransport.getInstance().bind()
       .catch((e: BusinessError) => hilog.error(DOMAIN, TAG, `udp bind failed: ${e.code} ${e.message}`));
-    DeviceCollabService.getInstance().init(this.context)
-      .catch((e: Object) => hilog.error(DOMAIN, TAG, `collab init failed: ${JSON.stringify(e)}`));
+    FleetMissionService.getInstance().init(this.context)
+      .catch((e: Object) => hilog.error(DOMAIN, TAG, `fleet init failed: ${JSON.stringify(e)}`));
   }
 
   onDestroy(): void {

@@ -6,12 +6,12 @@
     心跳 byte0=3 带坐标(x/y/r, int16 大端)，做缓慢移动轨迹。
   - 命令 1(运动) 打印 runState/speed；命令 3(目标点) 打印 endX/endY；其余命令打印命令码。
   - 超过 3s 未收到 App 指令则打印"急停"（验证保活逻辑）。
-  - HTTP :8000 托管示例地图，路径 /data/test/defultMap.txt。
+  - HTTP :8000 托管示例地图，URL 路径 /defultMap.txt（紫派 web 根=/data/test，URL 无前缀）。
 
 仅用 Python 标准库，跨平台。用法：
     python mock_purplepi.py            # UDP:5001 + HTTP:8000，地图取 contracts/fixtures/defultMap.txt
     python mock_purplepi.py --udp-port 5001 --http-port 8000 --map /path/to/map.txt
-App 内把目标 IP 设为本机 IP，地图 URL 指向 http://<本机IP>:8000/data/test/defultMap.txt
+App 内把目标 IP 设为本机 IP，地图 URL 指向 http://<本机IP>:8000/defultMap.txt
 """
 
 import argparse
@@ -30,7 +30,7 @@ PACKET_BYTES = 9
 HEARTBEAT_INTERVAL = 0.5   # s（对账：紫派 udp.c usleep(500000)=500ms）
 FAILSAFE_TIMEOUT = 3.0     # s，紫派侧 3s 未收指令急停
 HEARTBEAT_STATE_HAS_POSE = 3
-MAP_HTTP_PATH = "/defultMap.txt.txt"  # 紫派 http.server web 根=/data/test（对账更正）
+MAP_HTTP_PATH = "/defultMap.txt"  # 紫派 web 根=/data/test，URL 无前缀（✅A确认 defultMap.txt）
 
 # 命令码 -> 名称（对齐契约命令码表）
 COMMANDS = {

@@ -42,10 +42,11 @@ export const CONNECT_TIMEOUT_MS: number = 3000;
 export const MAP_HTTP_PORT: number = 8000;
 /**
  * 地图文件名。紫派 `chdir("/data/test")` + `python -m http.server` → web 根 = /data/test，
- * URL 不带 /data/test 前缀。⚠️ 拼写待 A 确认（App 历史用 defultMap.txt.txt，A 注释写 defaultMap.txt.txt）。
- * 见 contracts/udp-protocol-crosscheck.md 第八节。
+ * URL 不带 /data/test 前缀（即 `http://<紫派IP>:8000/defultMap.txt`）。
+ * ✅ 成员A确认（接口功能与对接问题说明.md §六.1 + `Navi/main.cpp:517/642` 实际保存 `defultMap.txt`）：
+ *   确切名 = `defultMap.txt`（单 .txt）。`defultMap.txt.txt` 是历史残留，紫派启动即删（`main.cpp:1094-1096`），勿用。
  */
-export const MAP_FILE_NAME: string = 'defultMap.txt.txt';
+export const MAP_FILE_NAME: string = 'defultMap.txt';
 /** 栅格值：空旷可通行 */
 export const MAP_GRID_FREE: string = '0';
 /** 栅格值：障碍物 */
@@ -55,7 +56,7 @@ export const MAP_GRID_WALL: string = '1';
 export const COORD_UNITS_PER_METER: number = 20;
 
 /** 旧实现里的测试地址（"服务器"归属待定，见 contracts/server-api.md）。 */
-export const MAP_LEGACY_TEST_URL: string = 'http://116.63.15.79/defultMap.txt.txt';
+export const MAP_LEGACY_TEST_URL: string = 'http://116.63.15.79/defultMap.txt';
 
 /** 由机器人 IP 拼出地图拉取 URL（紫派 :8000，web 根=/data/test）。 */
 export function mapUrlFor(ip: string): string {

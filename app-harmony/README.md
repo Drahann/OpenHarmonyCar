@@ -14,13 +14,12 @@ constants/   protocol.ets   端口/字节布局/命令偏移/保活超时/地图
              ui.ets         节流/速度/到点判定/地图渲染色等可调参数
 model/       protocol.ets   RobotCommand 枚举 + UdpSendData/UdpReceiveData + encodeSend/decodeReceive
              geometry.ets   Point/MapTransform + canvasToMap/mapToCanvas（纯函数，可单测互逆）
-             mission.ets    @Observed Mission/EndPoint/RobotRuntime + 可序列化快照（协同同步用）
-service/     RobotTransport.ets   唯一 UDP socket：收发 + 单点 on('message') 分发 + 1s 保活心跳
+             mission.ets    @Observed Mission/EndPoint/RobotRuntime/Assignment + 协同字段(phase/frame/map/area/assignments)；其快照 = contracts 的 FleetMission 黑板
+service/     RobotTransport.ets   唯一 UDP socket：收发 + 单点 on('message') 分发 + **多目标** 1s 保活心跳
              MapService.ets       HTTP 拉图 + 解析 + 坐标变换参数（去全局 context/Txt2Canvas）
-             DeviceCollabService.ets 设备发现/跨端拉起(networkId) + distributedDataObject 同步 Mission
+             FleetMissionService.ets 设备发现(networkId) + distributedDataObject 同步 FleetMission 黑板（**共享黑板，不再 startAbility 跨端拉起**）
              storage.ets          持久化（英文 key、getter 无副作用）
-entryability/        EntryAbility        入口：初始化 Storage / RobotTransport / DeviceCollabService
-robotrunability/     RobotRunAbility     跨端拉起目标：仅取 sessionId，状态走 distributedDataObject
+entryability/        EntryAbility        入口：初始化 Storage / RobotTransport / FleetMissionService
 entrybackupability/  EntryBackupAbility  备份扩展（标准模板）
 pages/       LoadingPage.ets   占位首页（UI 阶段替换为 HomePage + 参数化 ControlPage）
 utils/       componentUtils.ets PromptActionClass（弹窗助手，UI 阶段复用）
@@ -49,7 +48,7 @@ utils/       componentUtils.ets PromptActionClass（弹窗助手，UI 阶段复�
   python ../tools/mock-purplepi/mock_purplepi.py     # UDP:5001 + HTTP:8000
   python ../tools/mock-purplepi/smoke_test.py        # 自检 mock
   ```
-  App 内目标 IP 指向运行 mock 的机器；地图 URL 用 `http://<ip>:8000/data/test/defultMap.txt`。
+  App 内目标 IP 指向运行 mock 的机器；地图 URL 用 `http://<ip>:8000/defultMap.txt`（web 根=/data/test，无前缀）。
   ⚠️ `MapService.pollMapUntilReady` 的就绪阈值是按真实 ~1800² 地图设的（`MAP_READY_MIN_BYTES`），
   用小样例地图联调时请直接调 `fetchMapText`/`parseMap` 或传入较小的 `minBytes`。
 
@@ -66,4 +65,5 @@ utils/       componentUtils.ets PromptActionClass（弹窗助手，UI 阶段复�
 - 地图首行格式：契约写"行列数"（2 数），旧代码读第 3/4 token。已折中为"取首行末两个整数"，
   待真实地图 fixture 核对（见 `MapService.parseMap` 注释与 `contracts/fixtures`）。
 - 地图栅格行为**密排单字符**（解析按字符索引），契约示例用空格分隔仅为示意。
-- 命令码 `5 / 107 / 108`（及旧代码出现过的未文档化 `120`）语义待与紫派确认。
+- 命令码 `5 / 107 / 108` 已与紫派对账（见 [`../contracts/udp-protocol-crosscheck.md`](../contracts/udp-protocol-crosscheck.md)：
+  5=加载地图，107/108=覆盖矩形对角点1/2，旧 `120`=死命令）；**仍待 A** 的是坐标系 `frame`（单位/原点/0°方向）。

@@ -39,7 +39,7 @@ def main():
 
         # ① HTTP 拉图
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{HTTP_PORT}/defultMap.txt.txt", timeout=3) as r:
+            with urllib.request.urlopen(f"http://127.0.0.1:{HTTP_PORT}/defultMap.txt", timeout=3) as r:
                 body = r.read().decode("utf-8", "replace")
             check("HTTP 200 + 首行行列数", r.status == 200 and body.splitlines()[0].strip().endswith("40"), body[:20])
             check("HTTP 地图含障碍行", "1111" in body)
