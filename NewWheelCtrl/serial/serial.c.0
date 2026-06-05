@@ -1,0 +1,91 @@
+/*
+ * Test_WheelCtrl.c
+ * 程序功能：测试轮控模块，实现自由操控电机
+ */
+
+#include "serial.h"
+#include <math.h>
+
+// TODO 屏蔽停止指令
+bool stopFlag = false;
+////////////////////////
+
+// 设置运行速度
+byte speed = 0x30;  // 运行速度，百分比
+
+// curStatus：机器人当前的运行状态，1 表示前进，2 表示左转，3 表示右转
+// curSpeed：机器人当前的线速度，通常以百分比形式表示（相当于最大速度的百分比）
+int curStatus = -1, curSpeed = 0; // 这里的速度指百分比速度
+double curOmega = 0.0;  // 当前的角速度，即机器人的旋转速度，初始状态下为0表示机器人没有旋转（角速度为0）
+
+int main()
+{
+    // 串口初始化
+    if (!whellInit()) {
+        goto err;
+    }
+
+    printf("Test WheelCtrl!\n");
+    printf("****************************************\n");
+    printf("The command is as follows:\n");
+    printf("1. Go ahead\n");
+    printf("2. Turn left\n");
+    printf("3. Turn right\n");
+    printf("4. Stop\n");
+    printf("0. Exit\n");
+    printf("****************************************\n");
+
+    int command = 0;
+    printf("Please enter the command:\n");
+    scanf("%d", &command);
+    while (command != 0)
+    {
+        switch (command)
+        {
+        case 1:
+            // 状态 1：双轮前进，设置相同速度
+            wheelSend(0x01, speed, 0x01, speed);
+            curSpeed = speed;
+            curOmega = 0;
+            break;
+        case 2:
+            // 状态 2：左转，右轮运动，左轮停止
+            wheelSend(0x02, DEFAULT_SPEED, 0x01, DEFAULT_SPEED);
+            curOmega = (double)DEFAULT_SPEED * FULLSPEED / 100 / RADIUS;    // 正角速度，表示顺时针旋转
+            curSpeed = 0;
+            break;
+        case 3:
+            // 状态 3：右转，左轮运动，右轮停止
+            wheelSend(0x01, DEFAULT_SPEED, 0x02, DEFAULT_SPEED);
+            curOmega = (double)-DEFAULT_SPEED * FULLSPEED / 100 / RADIUS;   // 负角速度，表示逆时针旋转
+            curSpeed = 0;
+            break;
+        case 4:
+            // 状态 4：停止但允许接收新命令
+            wheelSend(0x00, 0x00, 0x00, 0x00);
+            curOmega = 0;
+            curSpeed = 0;
+            stopFlag = false;
+            printf("Stop but can recieve cmd\n");
+            break;
+        default:
+            // 指令非法
+            printf("Invalid command!\n");
+            break;
+        }
+        printf("Please enter the command:\n");
+        scanf("%d", &command);
+    }
+
+    // 退出程序
+    wheelSend(0x00, 0x00, 0x00, 0x00);
+    curOmega = 0;
+    curSpeed = 0;
+    stopFlag = false;
+    printf("Exit!\n");
+    printf("Welcome to use next time!\n");
+
+err:
+    // close(fd);
+    return 0;
+}
