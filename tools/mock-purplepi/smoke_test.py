@@ -14,6 +14,14 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOCK = os.path.join(HERE, "mock_purplepi.py")
+sys.path.insert(0, HERE)
+from mock_purplepi import gen_map_text  # noqa: E402  白盒：直接验证地图生成
+
+try:
+    sys.stdout.reconfigure(errors="replace")  # Windows GBK 控制台：非 GBK 字符替换为 ? 而非崩溃
+except Exception:
+    pass
+
 UDP_PORT = 5001
 HTTP_PORT = 8000
 
@@ -32,6 +40,12 @@ def check(name, cond, detail=""):
 
 
 def main():
+    # ⓪ 白盒：地图生成（首行 4-token 格式 + 1800² 过 App 就绪阈值 324e4）
+    big = gen_map_text(1800, 1800)
+    check("gen-map 首行 4 值(range resolution height width)", len(big.splitlines()[0].split()) == 4,
+          big.splitlines()[0])
+    check("gen-map 1800x1800 过就绪阈值(>324e4B)", len(big) > 3_240_000, f"{len(big)}B")
+
     proc = subprocess.Popen([sys.executable, MOCK],
                             stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     try:
@@ -39,7 +53,7 @@ def main():
 
         # ① HTTP 拉图
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{HTTP_PORT}/defultMap.txt.txt", timeout=3) as r:
+            with urllib.request.urlopen(f"http://127.0.0.1:{HTTP_PORT}/defultMap.txt", timeout=3) as r:
                 body = r.read().decode("utf-8", "replace")
             check("HTTP 200 + 首行行列数", r.status == 200 and body.splitlines()[0].strip().endswith("40"), body[:20])
             check("HTTP 地图含障碍行", "1111" in body)
@@ -67,6 +81,23 @@ def main():
         finally:
             cli.close()
         check("UDP 收到带坐标心跳(state=3)", got_pose)
+
+        # ③ 发现 ping（提案 0x06）：回身份 byte1=车号(默认1)
+        disc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        disc.settimeout(3.0)
+        disc.bind(("0.0.0.0", 0))
+        disc.sendto(struct.pack(">BBBhhh", 6, 0, 0, 0, 0, 0), ("127.0.0.1", UDP_PORT))
+        got_disc = False
+        try:
+            d, _a = disc.recvfrom(64)
+            ds, did, _s, _x, _y, _r = struct.unpack(">BBBhhh", d[:9])
+            got_disc = (ds == 6 and did == 1)
+            print(f"  ..  discovery reply state={ds} car_id={did}")
+        except socket.timeout:
+            pass
+        finally:
+            disc.close()
+        check("UDP 发现 ping 回身份(0x06, car_id=1)", got_disc)
     finally:
         proc.terminate()
         try:
