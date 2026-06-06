@@ -17,7 +17,7 @@
 通读 `style/` 五套子目录，自行判断融合（参考定位：`new`=F&F 极简基底、`google-maps-mobile-2024`=地图屏、`medical-mobile-app`=应用骨架、`area-161-designs`=绿色数据产品配色、`plants-ecommerce-ios`=iOS 组件/字体）。先在 U1 定稿统一主题 token 与 `docs/ui-design.md`，后续各屏遵循它。
 
 ## UI 清单（按序做"下一项未完成"）
-- [ ] **U1 风格融合**：通读 style/ 五套 → 产出统一主题 token（`constants/theme.ets` 或扩展 `constants/ui.ets`：色板/字号/字体/间距/圆角/阴影）+ `docs/ui-design.md`（融合决策 + 各屏风格来源 + 组件规范 + 导航结构）。
+- [x] **U1 风格融合** ✅（2026-06-07 run1）：`constants/theme.ets`（AppColor/FontSize/FontFamily/Space/Radius/Elevation 统一 token）+ `docs/ui-design.md`（融合决策 + 各屏风格来源 + 组件规范 + 导航结构）。融合=F&F极简底+Maps地图范式+Area墨绿主色+iOS圆角+高饱和语义色。
 - [ ] **U2 动态屏幕**：`display.getDefaultDisplaySync()` 工具，取代写死分辨率（旧 `Screen.ets` 的 2199×1533），派生半屏宽等常量供 `MapCanvas` 用。
 - [ ] **U3 `component/MapCanvas.ets`**：地图渲染（`MapService.parseMap`/`forEachWallRect`）+ 缩放/平移 + 选点（`geometry.canvasToMap`）+ 多车位姿/朝向叠加（`mission.RobotRuntime`）。
 - [ ] **U4 `component/Joystick.ets`**：摇杆遥控，**每实例独立节流**（`THROTTLE_INTERVAL_MS`），输出 `MoveDirection`+speed 经 `RobotTransport`（多目标）。
@@ -38,3 +38,4 @@ session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `3da
 
 ## 运行日志（每次追加一行）
 - 2026-06-06 20:1x（设定·本会话）：建定时任务 `3daa5173`（session-only，每 6h，首次≈+5h=06-07 01:12）+ 写本进度文档。**下一步 = U1 风格融合**。
+- 2026-06-07 ~01:12（自动·run1）：完成 **U1 风格融合**——`constants/theme.ets`（统一 token）+ `docs/ui-design.md`（五套融合决策/各屏/组件/导航）；顺手 `.gitignore` 补忽略 `.claude/` 运行文件并 untrack `scheduled_tasks.lock`。`verify.mjs` 仍 17/17。**下一步 = U2 动态屏幕（display.getDefaultDisplaySync 工具）**。

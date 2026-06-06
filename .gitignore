@@ -5,6 +5,9 @@ _tmp_*
 
 # Claude Code 本地设置（机器相关，不进 git；共享设置可放 .claude/settings.json）
 .claude/settings.local.json
+# Claude Code 定时任务运行文件（本机运行态，不进 git）
+.claude/scheduled_tasks.json
+.claude/scheduled_tasks.lock
 .DS_Store
 Thumbs.db
 .vscode/
