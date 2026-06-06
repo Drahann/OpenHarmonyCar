@@ -38,7 +38,7 @@
   构建 + hypium 单测确认无类型/linter 错误。
 
 **可立即做（不被 A 阻塞）—— UI 阶段（原 Step 3/4）**
-- `component/`：`MapCanvas`（地图渲染/缩放/平移/选点）、`Joystick`（每实例独立节流）、`DeviceList`（发现/入会）。
+- `component/`：`MapCanvas`（地图渲染/缩放/平移/选点）、`Joystick`（每实例独立节流）、`DeviceList`（**广播发现 + 点击连接**，见 §连接与设备发现；多车/入会）。
 - 单一参数化 `ControlPage`（mode∈{astar|fullpath|distributed} 组合上述组件）+ 真 `HomePage`（修 onPageShow 累积 bug）/ `SetIPPage`。
 - 动态屏幕：`display.getDefaultDisplaySync()` 取代写死分辨率；`MapCanvas` 用 `model/geometry` 换算 + `RobotTransport` 多目标。
 - 把 `EntryAbility.onWindowStageCreate` 的 `loadContent` 指向真实页面（现为占位 `LoadingPage`）。
@@ -49,6 +49,26 @@
 
 **验证**：`node tools/verify/verify.mjs`（纯逻辑）；`python tools/mock-purplepi/mock_purplepi.py`（联调）；
 `entry/src/test` hypium（需 DevEco）。整体 ArkTS 构建只能在 DevEco（无 CLI hvigor）。
+
+---
+
+## 连接与设备发现（方案 B · 定 2026-06-06）
+
+**问题**：旧设计要手动输入车 IP（`storage` 的 `robot_ip_*`，默认 `172.168.11.99`）。但同一局域网/热点下设备本可互相发现——不该让用户填 IP。连接 UI 尚未实现，趁此定方案。
+
+**根因**：紫派 `udp2lcm` 收到首包才记住 App IP 并回心跳；App 要发首包又得先知道车 IP → 死循环。**发现 = 打破死循环**。既有资产：`RobotTransport.on('message')` 的 `info.remoteInfo.address` 已能拿到回包车 IP——只要让车先发一包，IP 自动到手。
+
+**已定方案 = B（UDP 广播/组播探测 + 点击连接）**：
+1. App socket 开广播，向 `255.255.255.255:5001`（或组播组）发**发现请求**。
+2. 子网内各车回一帧**发现响应**（带车号/状态）。App 从源 IP + 车号收集在线车，列成 `DeviceList`。
+3. 用户点一台 → App 对其 `connect()` + `startHeartbeat()`（`RobotTransport` 已多目标，天然支持列表里多台分别连）。
+4. 手动输入 IP **降级为"高级/兜底"**（公共 AP 客户端隔离、固定 IP、调试时用）。
+
+**为什么是 B**：与现有紫派栈耦合最小、跨平台、契合"手机热点/同局域网"；个人热点一般不隔离客户端，广播可达。远期 agent 落地后多车协同走软总线（networkId），IP 对协同隐形；广播路保留作无 agent 直连兜底。
+
+**待 A 确认 + 协议提案**：见 `contracts/integration-qa.md` Q5（`udp2lcm` 能否收广播/组播；新增**不触发 3s 急停**的"发现 ping" 9 字节草案）。**A 确认前**可先用现有 `cmd 0` 广播做临时发现（副作用：会连上一片车、其余 3s 超时急停，仅联调用），确认后切到专用发现码并写入 `udp-protocol.md`。
+
+**对 UI/存储的影响**：`component/DeviceList` 做成"发现列表"（非纯手填）；`SetIPPage` 退为高级设置；`storage` 仍存"最近连过的车"作快捷重连。
 
 ---
 
