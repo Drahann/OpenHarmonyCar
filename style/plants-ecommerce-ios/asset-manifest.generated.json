@@ -1,0 +1,44 @@
+[
+  {
+    "group": "assets",
+    "name": "plant-potted-head",
+    "file": "assets/plant-potted-head.png",
+    "contentType": "image/png",
+    "bytes": 159
+  },
+  {
+    "group": "assets",
+    "name": "plant-ledger-block",
+    "file": "assets/plant-ledger-block.png",
+    "contentType": "image/png",
+    "bytes": 172912
+  },
+  {
+    "group": "assets",
+    "name": "plant-friendly-fern",
+    "file": "assets/plant-friendly-fern.png",
+    "contentType": "image/png",
+    "bytes": 1082030
+  },
+  {
+    "group": "assets",
+    "name": "plant-mini-cacti",
+    "file": "assets/plant-mini-cacti.png",
+    "contentType": "image/png",
+    "bytes": 162185
+  },
+  {
+    "group": "references",
+    "name": "reference-1-267",
+    "file": "references/reference-1-267.png",
+    "contentType": "image/png",
+    "bytes": 669609
+  },
+  {
+    "group": "references",
+    "name": "reference-1-57",
+    "file": "references/reference-1-57.png",
+    "contentType": "image/png",
+    "bytes": 680827
+  }
+]

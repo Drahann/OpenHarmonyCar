@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Style Guide - Fonts & Colors</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background-color: var(--color-primary-purple);
+      color: var(--color-white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      margin: 0;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+    }
+    h1 {
+      font-size: 48px;
+      font-family: var(--font-family-vietnam);
+      font-weight: 700;
+      margin-top: 0;
+      margin-bottom: 40px;
+    }
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+    .color-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .color-swatch {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      margin-bottom: 12px;
+      box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    .color-hex {
+      font-family: var(--font-family-lato);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .typography-section {
+      text-align: left;
+      margin-top: 20px;
+    }
+    .typography-row {
+      display: flex;
+      gap: 80px;
+      margin-top: 30px;
+    }
+    .font-sample {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    .font-sample .aa {
+      font-size: 64px;
+    }
+    .font-sample .name {
+      font-size: 24px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Colors</h1>
+    <div class="color-grid">
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #0BAB7C;"></div>
+        <div class="color-hex">#0BAB7C</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #C7F4C2;"></div>
+        <div class="color-hex">#C7F4C2</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #5F48E6;"></div>
+        <div class="color-hex">#5F48E6</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #D7D0FF;"></div>
+        <div class="color-hex">#D7D0FF</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #151921;"></div>
+        <div class="color-hex">#151921</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #1D212D;"></div>
+        <div class="color-hex">#1D212D</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #FBFAF3;"></div>
+        <div class="color-hex">#FBFAF3</div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background-color: #83848B;"></div>
+        <div class="color-hex">#83848B</div>
+      </div>
+    </div>
+
+    <h1>Typography</h1>
+    <div class="typography-row">
+      <div class="font-sample" style="font-family: var(--font-family-vietnam);">
+        <span class="aa">Aa</span>
+        <span class="name">Be Vietnam Pro</span>
+      </div>
+      <div class="font-sample" style="font-family: var(--font-family-lato);">
+        <span class="aa">Aa</span>
+        <span class="name">Lato</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

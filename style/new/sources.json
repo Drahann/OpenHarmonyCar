@@ -1,0 +1,32 @@
+{
+  "figmaFileKey": "65CMrCi7opIqi80NPrKFxu",
+  "nodes": [
+    {
+      "nodeId": "26:1893",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=26-1893&m=dev",
+      "outputs": ["design-26-1893.css"]
+    },
+    {
+      "nodeId": "26:2489",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=26-2489&m=dev",
+      "outputs": ["design-26-2489.css"]
+    },
+    {
+      "nodeId": "26:2195",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=26-2195&m=dev",
+      "outputs": ["design-26-2195.css"]
+    },
+    {
+      "nodeId": "26:2488",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=26-2488&m=dev",
+      "outputs": ["design-26-2488.css"]
+    },
+    {
+      "nodeId": "26:2491",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=26-2491&m=dev",
+      "outputs": ["design-26-2491.css"]
+    }
+  ],
+  "shared": ["ff-tokens.css"]
+}
+

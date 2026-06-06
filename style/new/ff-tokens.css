@@ -1,0 +1,49 @@
+:root {
+  /* ===== F&F (Frame & Form) minimal system ===== */
+  --ff-color-bg: #ffffff;
+  --ff-color-bg-muted: #ececec;
+  --ff-color-text: #000000;
+  --ff-color-text-muted: #767676;
+  --ff-color-divider: #e9e9e9;
+
+  --ff-font-heading: "Instrument Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ff-font-body: "Instrument Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ff-font-label: "Figtree", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ff-font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --ff-max-width: 1280px;
+  --ff-gutter: 15px; /* consistent across nodes */
+
+  /* Type scale from node 26:2491 */
+  --ff-h1: 64px;
+  --ff-h2: 37px;
+  --ff-h3: 30px;
+  --ff-h4: 24px;
+  --ff-h5: 16px;
+  --ff-nav: 20px;
+  --ff-p: 16px;
+  --ff-small: 12px;
+
+  --ff-tracking-tight: -0.05em; /* close to -5% */
+  --ff-tracking: -0.03em;
+}
+
+/* Minimal base helpers */
+.ff-page {
+  background: var(--ff-color-bg);
+  color: var(--ff-color-text);
+  font-family: var(--ff-font-body);
+}
+
+.ff-container {
+  max-width: var(--ff-max-width);
+  margin-inline: auto;
+  padding-inline: var(--ff-gutter);
+}
+
+.ff-divider {
+  border: 0;
+  border-top: 1px solid var(--ff-color-divider);
+  margin: 0;
+}
+

@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 823 103" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Color">
+<circle id="01" cx="51.5" cy="51.5" r="51.5" fill="var(--fill-0, black)"/>
+<circle id="02" cx="171.5" cy="51.5" r="51.5" fill="var(--fill-0, #929292)"/>
+<circle id="03" cx="291.5" cy="51.5" r="51.5" fill="var(--fill-0, #E9E9E9)"/>
+<circle id="04" cx="411.5" cy="51.5" r="51" fill="var(--fill-0, white)" stroke="var(--stroke-0, black)"/>
+<circle id="05" cx="531.5" cy="51.5" r="51.5" fill="var(--fill-0, #DFECC6)"/>
+<circle id="06" cx="651.5" cy="51.5" r="51.5" fill="var(--fill-0, #8E9C78)"/>
+<circle id="07" cx="771.5" cy="51.5" r="51.5" fill="var(--fill-0, #485C11)"/>
+</g>
+</svg>

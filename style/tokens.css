@@ -1,0 +1,131 @@
+:root {
+    /* ===== 通用基础色 ===== */
+    --color-black: #000000;
+    --color-white: #ffffff;
+  
+    /* ===== Area（绿色数据产品）主题：来自 19-499 / 19-30 / 20-895 中绿色着陆页 ===== */
+    --area-text-headline: #000000;          /* Text/Headline */
+    --area-text-paragraph: #6f6f6f;         /* Text/Paragraph */
+    --area-text-caption: #485c11;           /* Text/Captions */
+    --area-text-link: #000000;              /* Text/Link */
+    --area-text-on-accent-1: #ffffff;       /* 文本在主按钮上 */
+  
+    --area-accent-1: #485c11;               /* 深绿主按钮 */
+    --area-accent-2: #dfecc6;               /* 浅绿按钮 / tag 背景 */
+    --area-accent-3: #8e9c78;               /* 中绿卡片背景 / hero 装饰 */
+    --area-accent-4: #000000;               /* 纯黑 */
+    --area-accent-6: #929292;               /* 边框灰 */
+  
+    --area-surface: #ffffff;                /* 白色卡片背景 */
+    --area-surface-light-grey: #e4e4e4;     /* 灰色 surface */
+    --area-surface-page: #edf4f1;           /* 整页淡绿色底 */
+  
+    --area-divider: #e9e9e9;                /* 分割线 */
+  
+    /* 字体家族（Area） */
+    --area-font-display: "Crimson Text", serif;
+    --area-font-heading: "Crimson Text", serif;
+    --area-font-body: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --area-font-caption: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --area-font-label: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --area-font-link: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  
+    /* 字号 / 行高（Area） */
+    --area-font-size-display: 5rem;         /* ~80px Header */
+    --area-font-size-h1: 3.75rem;           /* 60px */
+    --area-font-size-h2: 2.5rem;            /* 40px */
+    --area-font-size-h3: 1.125rem;          /* 18px */
+    --area-font-size-body: 0.9375rem;       /* 15px */
+    --area-font-size-caption: 0.75rem;      /* 12px */
+    --area-font-size-link: 0.875rem;        /* 14px */
+  
+    --area-line-height-tight: 0.9;
+    --area-line-height-body: 1.4;
+  
+    /* 圆角 / 间距 / 阴影（Area） */
+    --area-radius-pill: 1000px;
+    --area-radius-card-lg: 30px;
+    --area-radius-card-md: 20px;
+    --area-radius-card-sm: 10px;
+  
+    --area-space-xs: 4px;
+    --area-space-sm: 8px;
+    --area-space-md: 16px;
+    --area-space-lg: 24px;
+    --area-space-xl: 32px;
+  
+    --area-shadow-soft: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --area-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.1);
+  
+    /* =========================================================================
+     * Colin/Portfolio 彩色作品集主题：来自 20-896（Header 1/2/3/颜色/组件）
+     * ========================================================================= */
+  
+    /* 文字颜色 */
+    --colin-text-main: #000000;             /* 黑色正文 */
+    --colin-text-paragraph-6: #422307;      /* 深棕正文（大段 copy） */
+    --colin-text-headline-2: #029902;       /* 绿色标题 */
+    --colin-text-headline-3: #1c40cf;       /* 蓝色标题 */
+    --colin-text-headline-4: #f83c00;       /* 橙色标题 */
+    --colin-text-headline-5: #7f4d1f;       /* 棕色标题 */
+    --colin-text-headline-6: #dae8ff;       /* 淡蓝标题（深蓝底上） */
+  
+    --colin-text-on-dark: #ffffff;
+  
+    /* 高饱和背景块 */
+    --colin-bg-1: #029902;                  /* 绿块 */
+    --colin-bg-2: #fcbe1d;                  /* 黄块 */
+    --colin-bg-3: #1c40cf;                  /* 蓝块（CTA 按钮） */
+    --colin-bg-4: #f83c00;                  /* 橙块（次级 CTA） */
+    --colin-bg-5: #7f4d1f;                  /* 棕色背景 */
+    --colin-bg-6: #fbf9ea;                  /* 淡米色大背景（Inspo loop 区） */
+    --colin-bg-7: #dae8ff;                  /* 淡蓝块 */
+    --colin-bg-8: #ffffff;                  /* 白底 */
+  
+    --colin-divider: #ebebeb;
+  
+    /* Colin 字体家族 */
+    --colin-font-display: "Bricolage Grotesque", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --colin-font-heading: "Bricolage Grotesque", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --colin-font-paragraph: "Archivo Narrow", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --colin-font-paragraph-alt: "Lisu Bosa", "Times New Roman", serif;
+    --colin-font-label: "Archivo Narrow", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  
+    /* Colin 字号（根据 20‑896 文本样式） */
+    --colin-font-size-h1: 12.5rem;          /* 200px Header 1 */
+    --colin-font-size-h2: 7.5rem;           /* 120px Header 2 */
+    --colin-font-size-h3: 5rem;            /* 80px Header 3 */
+    --colin-font-size-h4: 3.5rem;          /* 56px Header 4 */
+    --colin-font-size-h5: 2rem;            /* 32px Header 5 */
+    --colin-font-size-p1: 2rem;            /* 32px Paragraph 1 */
+    --colin-font-size-p2: 1.5rem;          /* 24px Paragraph 2 */
+    --colin-font-size-p3: 1.25rem;         /* 20px Paragraph 3 */
+    --colin-font-size-p4: 1rem;            /* 16px Paragraph 4 */
+    --colin-font-size-label: 0.75rem;      /* 12px Label */
+    --colin-font-size-caption: 0.625rem;   /* 10px Caption */
+  
+    --colin-line-height-tight: 0.8;
+    --colin-line-height-body: 1.2;
+  
+    /* 导航 / 按钮 / 卡片圆角（Colin） */
+    --colin-radius-nav-pill: 16px;
+    --colin-radius-button: 999px;
+    --colin-radius-card: 24px;
+  
+    /* 阴影（Colin 主要靠纯色块，这里保持轻微阴影即可） */
+    --colin-shadow-soft: 0 2px 4px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* ===== 推荐的主题作用域：在不同页面上包一层容器即可 ===== */
+  
+  .area-theme {
+    background-color: var(--area-surface-page);
+    color: var(--area-text-paragraph);
+    font-family: var(--area-font-body);
+  }
+  
+  .colin-theme {
+    background-color: var(--colin-bg-8);
+    color: var(--colin-text-main);
+    font-family: var(--colin-font-paragraph);
+  }

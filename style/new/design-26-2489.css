@@ -1,0 +1,12 @@
+.ff-thumbnail {
+  background: var(--ff-color-bg-muted);
+}
+
+.ff-thumbnail__cover {
+  width: 100%;
+  aspect-ratio: 3800 / 2138;
+  background-image: url("https://www.figma.com/api/mcp/asset/f1c536e9-f060-4a3e-96b3-1f60c340c68e");
+  background-size: cover;
+  background-position: center;
+}
+
