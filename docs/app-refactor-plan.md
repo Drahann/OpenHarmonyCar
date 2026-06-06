@@ -38,6 +38,8 @@
   构建 + hypium 单测确认无类型/linter 错误。
 
 **可立即做（不被 A 阻塞）—— UI 阶段（原 Step 3/4）**
+
+> **⏰ 本阶段已转为「定时自动推进」（2026-06-06 起）**：进度与任务清单见 **`docs/ui-progress.md`（单一事实源）**；CronCreate `3daa5173` 每 6h 触发 agent 读该文档做下一项（首次≈06-07 01:12）。风格由 agent 通读 `style/` 五套自行融合。**session-only** 定时任务：本会话 /clear 或关闭即失效（见 ui-progress.md「任务自愈」）。下列为 UI 概览。
 - `component/`：`MapCanvas`（地图渲染/缩放/平移/选点）、`Joystick`（每实例独立节流）、`DeviceList`（**广播发现 + 点击连接**，见 §连接与设备发现；多车/入会）。
 - 单一参数化 `ControlPage`（mode∈{astar|fullpath|distributed} 组合上述组件）+ 真 `HomePage`（修 onPageShow 累积 bug）/ `SetIPPage`。
 - 动态屏幕：`display.getDefaultDisplaySync()` 取代写死分辨率；`MapCanvas` 用 `model/geometry` 换算 + `RobotTransport` 多目标。
