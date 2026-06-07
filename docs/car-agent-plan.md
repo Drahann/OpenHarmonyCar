@@ -138,4 +138,4 @@ car-agent/
   `module.json5`（service 扩展，schema 待校验）、`README.md`；transport/黑板接线标 `TODO(shared-core)`。
 - ⏭ **下一步**：① 抽 **shared-core HAR**（app-harmony 的 model/service/utils/constants），让 `car-agent` 与 `app-harmony` 同依赖、
   把 AgentServiceAbility 的 TODO 接上真 `RobotTransport`/`FleetMissionService`；② 本机闭环测试（mock-purplepi 当本机栈 + 假平板写黑板）；
-  ③ 收尾 L1 其余 `console.*` 收敛（pages/MapService/screen/componentUtils 共 12 处）。④ 真机 P5 与 A。
+  ③ 收尾 L1 其余 `console.*` 收敛（已收 MapService/screen；**余 10 处** = componentUtils 6 + HomePage/SetIPPage/ControlPage 4）。④ 真机 P5 与 A。
