@@ -40,6 +40,7 @@ struct ControlPage {
   @State private scanning: boolean = false;
   @State private showDevicePanel: boolean = false;
   @State private mapViewCmd: string = '';
+  @State private mapping: boolean = false;  // 建图进行中（cmd0 开始 → cmd2 结束）
 
   private ip: string = '';
   private mode: ControlMode = ControlMode.astar;
@@ -188,6 +189,20 @@ struct ControlPage {
     this.sendTo(this.ip, RobotCommand.fullpathStartover);
   }
 
+  // ── 建图（R1 回归：紫派 Navi 启动即删图，必须先建图才有地图，见 docs/feature-parity-review.md）──
+  /** 开始建图：cmd0（紫派 LCM30 启动 SLAM）。之后用摇杆驱动小车探索一圈。 */
+  private startBuild(): void {
+    this.sendTo(this.ip, RobotCommand.beforeStart);
+    this.mapping = true;
+  }
+
+  /** 结束建图：cmd2（紫派 停轮控 + 存图32 + 加载导航图10）。完成后主动拉一次图。 */
+  private finishBuild(): void {
+    this.sendTo(this.ip, RobotCommand.afterEnd);
+    this.mapping = false;
+    this.startMapPoll(this.ip);  // 存图后重新拉图（建完即取，绕开就绪阈值的脆性）
+  }
+
   /** 划子区域：107=对角点1，108=对角点2(byte1=robotId)。byte1 经 encodeSend 的 runState 写入。 */
   private sendDistArea(c1: Point, c2: Point, robotId: number): void {
     this.sendTo(this.ip, RobotCommand.distAreaCorner1, undefined, c1.x, c1.y);
@@ -275,8 +290,12 @@ struct ControlPage {
       })
         .position({ x: Space.lg, y: '62%' })
 
-      // 底部操作卡（按 mode 变体）
-      this.OpCard()
+      // 底部卡：无地图 → 建图卡（R1 回归，必须先建图）；有地图 → 按 mode 操作卡
+      if (this.mission.mapReady) {
+        this.OpCard()
+      } else {
+        this.BuildCard()
+      }
 
       // 设备发现面板（浮层）
       if (this.showDevicePanel) {
@@ -286,6 +305,61 @@ struct ControlPage {
     .width('100%')
     .height('100%')
     .backgroundColor(AppColor.pageBg)
+  }
+
+  // 建图卡（R1）：地图未就绪时显示。开始建图(cmd0) → 摇杆探索 → 结束建图(cmd2) → 自动拉图。
+  @Builder
+  BuildCard() {
+    Column({ space: Space.sm }) {
+      if (!this.mapping) {
+        Text('尚无地图')
+          .fontSize(FontSize.h3)
+          .fontColor(AppColor.textBody)
+          .fontWeight(FontWeight.Bold)
+          .width('100%')
+        Text('小车每次启动后地图会被清空，需先建图。点「开始建图」，再用摇杆驱动小车走一圈环境。')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.textSecondary)
+          .width('100%')
+        Button('开始建图')
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .width('100%')
+          .height(TOUCH_MIN)
+          .enabled(this.connectedIps.length > 0)
+          .onClick(() => this.startBuild())
+      } else {
+        Row() {
+          LoadingProgress().width(20).height(20).color(AppColor.primary)
+          Text('建图中… 用摇杆驱动小车探索，走完点「结束建图」')
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.textBody)
+            .margin({ left: Space.sm })
+            .layoutWeight(1)
+        }
+        .width('100%')
+
+        Button('结束建图')
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .width('100%')
+          .height(TOUCH_MIN)
+          .onClick(() => this.finishBuild())
+      }
+    }
+    .width('92%')
+    .padding(Space.md)
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.md)
+    .shadow({
+      radius: Elevation.cardRadius,
+      color: Elevation.cardColor,
+      offsetX: 0,
+      offsetY: Elevation.cardOffsetY
+    })
+    .position({ x: '4%', y: '80%' })
   }
 
   @Builder
