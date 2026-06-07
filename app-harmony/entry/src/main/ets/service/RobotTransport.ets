@@ -14,6 +14,8 @@ import { socket } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { UDP_PORT, CONNECT_TIMEOUT_MS, HEARTBEAT_INTERVAL_MS } from '../constants/protocol';
 import { UdpSendData, UdpReceiveData, RobotCommand, encodeSend, decodeReceive } from '../model/protocol';
+import { Log, Logger } from '../utils/log';
+import { DEBUG_WIRE } from '../constants/debug';
 
 /** 心跳订阅回调：收到一帧（已解析）+ 来源 IP。 */
 export type MessageListener = (data: UdpReceiveData, remoteIp: string) => void;
@@ -61,6 +63,7 @@ export class RobotTransport {
     return inst;
   }
 
+  private readonly log: Logger = Log.scoped('RobotTransport');
   private udp: socket.UDPSocket = socket.constructUDPSocketInstance();
   private bound: boolean = false;
   private listeners: Set<MessageListener> = new Set<MessageListener>();
@@ -87,6 +90,9 @@ export class RobotTransport {
     this.udp.on('message', (info: socket.SocketMessageInfo) => {
       const data: UdpReceiveData = decodeReceive(info.message);
       const ip: string = info.remoteInfo.address;
+      if (DEBUG_WIRE) {
+        this.traceFrame('RX <-', ip, info.message, `state=${data.state} x=${data.x} y=${data.y} r=${data.r}`);
+      }
       this.listeners.forEach((l: MessageListener) => l(data, ip));
     });
     this.bound = true;
@@ -103,12 +109,29 @@ export class RobotTransport {
   /** 立即发送一帧。 */
   send(ip: string, data: UdpSendData): void {
     const buffer: ArrayBuffer = encodeSend(data);
+    if (DEBUG_WIRE) {
+      this.traceFrame('TX ->', ip, buffer,
+        `cmd=${data.state} run=${data.runState ?? 0} spd=${data.speed ?? 0} x=${data.endX ?? 0} y=${data.endY ?? 0}`);
+    }
     const address: socket.NetAddress = { address: ip, port: UDP_PORT };
     this.udp.send({ address, data: buffer }, (err: BusinessError) => {
       if (err) {
-        console.error(`[RobotTransport] send fail code=${err.code} msg=${err.message}`);
+        this.log.e(`send fail code=${err.code} msg=${err.message}`);
       }
     });
+  }
+
+  /** 线缆 trace（仅 DEBUG_WIRE 开时由调用点触发）：hex + 解码摘要。 */
+  private traceFrame(dir: string, ip: string, buffer: ArrayBuffer, summary: string): void {
+    const bytes: Uint8Array = new Uint8Array(buffer);
+    let hex: string = '';
+    for (let i = 0; i < bytes.length; i++) {
+      hex += bytes[i].toString(16).padStart(2, '0');
+      if (i < bytes.length - 1) {
+        hex += ' ';
+      }
+    }
+    this.log.d(`${dir} ${ip} [${hex}] ${summary}`);
   }
 
   /**
@@ -223,7 +246,7 @@ export class RobotTransport {
     const on: socket.UDPExtraOptions = { broadcast: true };
     this.udp.setExtraOptions(on, (err: BusinessError) => {
       if (err) {
-        console.error(`[RobotTransport] enable broadcast fail code=${err.code} msg=${err.message}`);
+        this.log.e(`enable broadcast fail code=${err.code} msg=${err.message}`);
       }
     });
     const sendPing = (): void => this.send(BROADCAST_ADDR, new UdpSendData(ping));
@@ -239,7 +262,7 @@ export class RobotTransport {
     try {
       this.udp.close();
     } catch (e) {
-      console.error(`[RobotTransport] close error: ${JSON.stringify(e)}`);
+      this.log.e(`close error: ${JSON.stringify(e)}`);
     }
     this.bound = false;
   }
