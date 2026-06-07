@@ -97,3 +97,16 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 **现状**：App 用 `pollMapUntilReady` 靠"`defultMap.txt` 字节数 ≥ 阈值(当前 324e4)"判断地图就绪——**脆**：真图若比阈值小则永远判不就绪；建图中途的半成品也可能误判。
 **想法/需 A**：紫派 `SERVICE_COMMAND` 既然有"建图/保存"状态，能否在**存图完成**时给 App 一个明确信号（如心跳里留 1 个状态字节，或一条专门回包），App 收到即拉图？这样取代脆弱的大小阈值。
 **短期**：App 侧已先做"`cmd2 结束建图`后主动拉一次图"绕开阈值脆性（见 `docs/feature-parity-review.md` R1/N2）。
+
+### Q9【关键·待 A 确认】无界面紫派如何与平板建立软总线互信（distributedDataObject 同步前提）
+
+多机协同走软总线黑板（`distributedDataObject`），**前提是平板与紫派在同一"可信网络"里**（官方）。建立可信两条路：① 同分布式账号（自动互信）；② 账号无关 `distributedDeviceManager.bindTarget`（**安全认证：PIN/碰一碰/扫码**）。详见 `docs/distributed-trust.md`。
+
+**🔴 难点**：紫派上跑的是**无界面 agent**，`bindTarget` 的交互确认（PIN）在车上没法点 → **agent 自己绑不了**。互信必须**预先一次性建立**（建立后是持久"信任标签"，agent 常驻直接用）。需 A（紫派侧）确认/配合：
+
+1. 紫派 OpenHarmony 5.0 走**哪条互信路**？支持分布式账号（路径①），还是只能账号无关 `bindTarget`（路径②）？
+2. 若路径②：紫派怎么**接受绑定**——首次配对有没有一个**非无界面的确认步骤**（系统设置/开发期 hdc/一次性配对 App），还是能配成**开发模式同网免 PIN 自动接受**？
+3. 紫派需要哪些权限/配置才能**被发现**（`startDiscovering` 的对端）+ 被绑成可信？
+4. 互信建立后，无界面 agent 用 `distributedDataObject` 同 `sessionId`（`OpenHarmonyCarFleetV1`）同步，紫派侧还要做什么？
+
+**在此之前**：平板 App 会补"设备互信 UI"（发现+发起 `bindTarget`），但**能否真把无界面紫派绑成功取决于上面**；端到端联调前，多机用平板「直发兜底」先测覆盖本身。

@@ -33,6 +33,11 @@ class CollabData {
 
 export type MissionSyncListener = (snapshot: MissionSnapshot) => void;
 
+/** distributedDeviceManager 'discoverSuccess' 事件数据（形状以真机 SDK 为准）。 */
+interface DiscoverSuccessData {
+  device: distributedDeviceManager.DeviceBasicInfo;
+}
+
 export class FleetMissionService {
   private static instance: FleetMissionService | null = null;
 
@@ -87,6 +92,59 @@ export class FleetMissionService {
     } catch (err) {
       hilog.error(DOMAIN, TAG, `getAvailableDeviceListSync err: ${JSON.stringify(err)}`);
       return [];
+    }
+  }
+
+  // ── 设备互信（账号无关路径②，按官方 distributedDeviceManager；见 docs/distributed-trust.md / Q9）──
+  // ⚠️ startDiscovering/bindTarget 的形参与事件名以真机 SDK 为准；未经 DevEco 校验。
+  /** 开始发现同网 OH 设备；每发现一台回调其 DeviceBasicInfo。 */
+  startDiscovering(onFound: (device: distributedDeviceManager.DeviceBasicInfo) => void): void {
+    if (this.deviceManager === null) {
+      return;
+    }
+    try {
+      this.deviceManager.on('discoverSuccess', (data: DiscoverSuccessData) => onFound(data.device));
+      this.deviceManager.on('discoverFailure', (data: object) =>
+        hilog.error(DOMAIN, TAG, `discoverFailure: ${JSON.stringify(data)}`));
+      this.deviceManager.startDiscovering({ 'discoverTargetType': 1 });
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, `startDiscovering err: ${JSON.stringify(err)}`);
+    }
+  }
+
+  stopDiscovering(): void {
+    if (this.deviceManager === null) {
+      return;
+    }
+    try {
+      this.deviceManager.off('discoverSuccess');
+      this.deviceManager.stopDiscovering();
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, `stopDiscovering err: ${JSON.stringify(err)}`);
+    }
+  }
+
+  /**
+   * 发起绑定（安全认证 bindType=1）与目标设备建立持久互信。
+   * ⚠️ 需对端确认（PIN/碰一碰）—— 无界面紫派如何接受绑定，待 A（integration-qa Q9）。
+   */
+  bindDevice(deviceId: string, onResult: (ok: boolean, msg: string) => void): void {
+    if (this.deviceManager === null) {
+      onResult(false, 'no deviceManager');
+      return;
+    }
+    const bindParam: Record<string, Object> = { 'bindType': 1, 'appName': BUNDLE_NAME };
+    try {
+      this.deviceManager.bindTarget(deviceId, bindParam, (err: BusinessError) => {
+        if (err) {
+          onResult(false, `${err.code} ${err.message}`);
+        } else {
+          onResult(true, 'bound');
+        }
+      });
+    } catch (err) {
+      const e: BusinessError = err as BusinessError;
+      onResult(false, `${e.code} ${e.message}`);
     }
   }
 
