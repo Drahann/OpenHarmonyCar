@@ -105,9 +105,14 @@
 - 已修：`107→108` 与 `4 顶点→102` 加了**命令间延时**（`CMD_SEQ_GAP_MS`/`FULLPATH_START_DELAY_MS`），对照旧 App，避免"暂存后使用"的 UDP 乱序/未处理完。
 - 不会崩：`FleetMissionService.init` 无可信对端时只是没 peer，不报错；distributed UI（划矩形/进度条）正常。
 
-**6.3 真·多机协同：⚠️ 今天不具备（两道缺口，均非明天单车阻塞）**
-1. **车载 agent 未部署**：code-complete 但没装上紫派（需 DevEco 工程集成 + 真机，见 [[car-agent-plan]] / Q6）。
-2. **App 侧也没接黑板**：即便 agent 在，`ControlPage` 现在只 `this.ip` 直发一台，**没把各车 assignments 写进黑板** → 多车各自领区域的链路 App 这端是断的。→ 多机要补：distributed 模式下平板把 `assignments` `publishMission` 到黑板（每车 agent 读自己的），而非直发。
+**6.3 真·多机协同（黑板链路）：App 侧已接通，待 agent 部署 + 软总线互信**
+- ✅ **App 已接黑板（commit 63dc165）**：distributed 模式 `ControlPage` 入会 `FLEET_SESSION_ID` + 划矩形→`assignArea`→默认
+  写黑板（`publishMission`，`phase=covering` + `Assignment(carId,robotId)`）让各车 agent 读自己 carId 那块；订阅黑板取各车回写位姿更新地图；
+  可切「平板直发兜底」(`distUseAgent`)。agent 端本机命令也加了 300ms 错开。
+- ⏳ **还差两件（owner 明天处理）**：① 把 **car-agent 装上紫派**（owner 明天装）；② **软总线设备互信**——平板与紫派 OH
+  要在可信分布式网络里（`DISTRIBUTED_DATASYNC` 授权 + 设备配对/互信），`distributedDataObject` 才会同步（**Q6.3，属设备配置、非代码**）。
+- **明天能否测多机**：装了 agent + 互信配好 → "平板划区→黑板→agent→车覆盖→位姿回平板"闭环可测（即便单车也能验证整条链路）；
+  **互信没配好就同步不了** → 临时把开关切到「平板直发兜底」先验证覆盖本身。
 
 **6.4 注意项（不阻塞，记着）**
 - **进度条恒 0%**：心跳不带覆盖进度，单车覆盖时进度条不动（覆盖照跑）。真进度需软总线（agent 回写）或 A 在心跳留进度字节（≈Q8）。
