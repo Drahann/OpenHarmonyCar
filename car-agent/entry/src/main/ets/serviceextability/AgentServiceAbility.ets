@@ -24,6 +24,7 @@ import { Log, Logger } from '../utils/log';
 const LOCAL_STACK_IP: string = '127.0.0.1';   // 本机 udp2lcm
 const FLEET_SESSION_ID: string = 'OpenHarmonyCarFleetV1';  // 约定会话（MVP 无协商入会）
 const WRITEBACK_MIN_MS: number = 300;          // 黑板写回最小间隔（心跳 500ms，避免刷爆软总线）
+const CMD_DISPATCH_GAP_MS: number = 300;       // 本机命令对(cmd5→107→108)间隔，避免紫派"先暂存后使用"乱序
 
 export default class AgentServiceAbility extends ServiceExtensionAbility {
   private readonly log: Logger = Log.scoped('AgentService');
@@ -65,8 +66,14 @@ export default class AgentServiceAbility extends ServiceExtensionAbility {
     this.mission.applySnapshot(snapshot);
     this.ensureMyRobot();
     const cmds: AgentCmd[] = this.reconciler.reconcile(this.extractView(snapshot));
+    // 命令对(cmd5→107→108)间留间隔：紫派"先暂存后使用"，避免乱序/未处理完（对照 ControlPage 同款延时）
+    let delay: number = 0;
     for (const c of cmds) {
-      this.transport.send(LOCAL_STACK_IP, AgentServiceAbility.toPayload(c));
+      const payload: UdpSendData = AgentServiceAbility.toPayload(c);
+      setTimeout(() => {
+        this.transport.send(LOCAL_STACK_IP, payload);
+      }, delay);
+      delay += CMD_DISPATCH_GAP_MS;
     }
   }
 

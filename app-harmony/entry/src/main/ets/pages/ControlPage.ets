@@ -12,12 +12,14 @@
  */
 
 import { router } from '@kit.ArkUI';
-import { Mission, ControlMode, RobotRuntime, EndPoint, Assignment, RobotStatus } from '../model/mission';
+import { Mission, ControlMode, MissionPhase, RobotRuntime, RobotRuntimeDTO, MissionSnapshot,
+  EndPoint, Assignment, RobotStatus } from '../model/mission';
 import { Point } from '../model/geometry';
 import { RobotCommand, MoveDirection, UdpSendData, UdpReceiveData } from '../model/protocol';
+import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
 import { RobotTransport, DiscoveredRobot, MessageListener } from '../service/RobotTransport';
 import { MapService } from '../service/MapService';
-import { mapUrlFor } from '../constants/protocol';
+import { mapUrlFor, FLEET_SESSION_ID } from '../constants/protocol';
 import { SPEED_ASTAR, SPEED_FULLPATH, SPEED_DEFAULT } from '../constants/ui';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
 import { MapCanvas } from '../component/MapCanvas';
@@ -58,6 +60,10 @@ struct ControlPage {
   private msgListener: MessageListener | null = null;
   private viewNonce: number = 0;
   private distCorners: Point[] = [];
+  // 分布式：FleetMission 软总线黑板（平板写 assignments → 各车 agent 读自己的）
+  private fleet: FleetMissionService = FleetMissionService.getInstance();
+  private remoteListener: MissionSyncListener | null = null;
+  @State private distUseAgent: boolean = true;  // true=经 agent(黑板)；false=平板直发兜底(cmd107/108)
 
   // ── 生命周期 ────────────────────────────────────────────────────────────────
   aboutToAppear(): void {
@@ -80,6 +86,11 @@ struct ControlPage {
       this.transport.unsubscribe(this.msgListener);
       this.msgListener = null;
     }
+    if (this.remoteListener !== null) {
+      this.fleet.unsubscribeMission(this.remoteListener);
+      this.remoteListener = null;
+      this.fleet.leaveSession().catch((e: Object) => console.error(`[ControlPage] leaveSession：${JSON.stringify(e)}`));
+    }
     if (this.cancelPoll !== null) {
       this.cancelPoll();
       this.cancelPoll = null;
@@ -97,6 +108,14 @@ struct ControlPage {
     }
     this.msgListener = (data: UdpReceiveData, from: string) => this.onMessage(data, from);
     this.transport.subscribe(this.msgListener);
+    // 分布式：入软总线会话 + 订阅黑板（各车 agent 回写的位姿/进度）
+    if (this.mode === ControlMode.distributed) {
+      this.remoteListener = (s: MissionSnapshot) => this.onRemoteMission(s);
+      this.fleet.subscribeMission(this.remoteListener);
+      this.fleet.joinSession(FLEET_SESSION_ID).catch((e: Object) => {
+        console.error(`[ControlPage] joinSession 失败：${JSON.stringify(e)}`);
+      });
+    }
     if (this.ip.length > 0) {
       this.connectTo(this.ip);
       this.startMapPoll(this.ip);
@@ -165,8 +184,7 @@ struct ControlPage {
         const c1: Point = this.distCorners[0];
         const c2: Point = this.distCorners[1];
         this.distCorners = [];
-        this.mission.assignments = [new Assignment(1, c1, c2, 0)];
-        this.sendDistArea(c1, c2, 0);
+        this.assignArea(c1, c2);
         this.bump();
       }
     } else if (this.mode === ControlMode.fullpath) {
@@ -240,6 +258,31 @@ struct ControlPage {
     setTimeout(() => {
       this.sendTo(this.ip, RobotCommand.distAreaCorner2, robotId, c2.x, c2.y);
     }, CMD_SEQ_GAP_MS);
+  }
+
+  /** 划好一块覆盖矩形：默认经车载 agent（写 FleetMission 黑板）；distUseAgent=false 时平板直发兜底。 */
+  private assignArea(c1: Point, c2: Point): void {
+    const r: RobotRuntime | undefined = this.robotOf(this.ip);
+    const carId: number = r !== undefined ? r.index : 1;
+    const robotId: number = carId <= 1 ? 0 : 1;  // 主/单车=0，从车=1（A 文档 robotId 主从）
+    this.mission.assignments = [new Assignment(carId, c1, c2, robotId)];
+    if (this.distUseAgent) {
+      // 写黑板：phase=covering 让各车 agent 的 reconcile 进入覆盖；agent 读到自己 carId 的 assignment 后本机发 cmd107/108
+      this.mission.phase = MissionPhase.covering;
+      this.fleet.publishMission(this.mission);
+    } else {
+      this.sendDistArea(c1, c2, robotId);  // 平板直发兜底（无 agent / 软总线不通时）
+    }
+  }
+
+  /** 黑板远端变更（各车 agent 回写位姿/进度）：只取 robots 更新显示；assignments 由平板掌权、不被覆盖。 */
+  private onRemoteMission(s: MissionSnapshot): void {
+    this.mission.robots = s.robots.map((d: RobotRuntimeDTO): RobotRuntime => {
+      const rr: RobotRuntime = new RobotRuntime(d.index, d.ip, d.networkId);
+      rr.applyDTO(d);
+      return rr;
+    });
+    this.bump();
   }
 
   // ── 缩放 FAB ────────────────────────────────────────────────────────────────
@@ -651,6 +694,19 @@ struct ControlPage {
   @Builder
   DistributedOps() {
     Column({ space: Space.sm }) {
+      // 下发方式：经车载 agent(写黑板) 或 平板直发兜底
+      Row() {
+        Text(this.distUseAgent ? '经车载 agent（黑板）' : '平板直发（兜底）')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.textBody)
+        Blank()
+        Toggle({ type: ToggleType.Switch, isOn: this.distUseAgent })
+          .selectedColor(AppColor.primary)
+          .onChange((on: boolean) => {
+            this.distUseAgent = on;
+          })
+      }
+      .width('100%')
       Text(this.distHint())
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textSecondary)

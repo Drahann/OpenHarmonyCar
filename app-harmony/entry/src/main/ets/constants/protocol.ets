@@ -62,3 +62,9 @@ export const MAP_LEGACY_TEST_URL: string = 'http://116.63.15.79/defultMap.txt';
 export function mapUrlFor(ip: string): string {
   return `http://${ip}:${MAP_HTTP_PORT}/${MAP_FILE_NAME}`;
 }
+
+/**
+ * 软总线协同会话 ID（FleetMission 黑板，distributed 模式用）。平板与各车 agent 用同一 ID 入会才能同步。
+ * ⚠️ **必须与 car-agent 的 `AgentServiceAbility.FLEET_SESSION_ID` 完全一致**（改一处改两处）。
+ */
+export const FLEET_SESSION_ID: string = 'OpenHarmonyCarFleetV1';
