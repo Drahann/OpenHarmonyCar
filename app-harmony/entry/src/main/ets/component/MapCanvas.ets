@@ -43,6 +43,8 @@ export struct MapCanvas {
   @Prop @Watch('onMapChanged') mapText: string = '';
   /** 重绘触发器：上层改动任何动态数据后自增，强制本组件重绘。 */
   @Prop @Watch('redraw') renderVersion: number = 0;
+  /** 视图指令（缩放 FAB 用）：形如 `in:<nonce>` / `out:<nonce>` / `reset:<nonce>`，nonce 仅为触发 @Watch。 */
+  @Prop @Watch('onViewCmd') viewCmd: string = '';
   /** 参与显示的机器人（位姿/朝向/状态色/车号）。 */
   @Prop robots: RobotRuntime[] = [];
   /** 已选目标点（单机导航 / 全路径）。 */
@@ -148,6 +150,23 @@ export struct MapCanvas {
 
   // ── 绘制 ────────────────────────────────────────────────────────────────────
   redraw(): void {
+    this.draw();
+  }
+
+  /** 响应上层缩放 FAB 指令（`in`/`out`/`reset`，后缀 nonce 仅触发变更）。 */
+  onViewCmd(): void {
+    const kind: string = this.viewCmd.split(':')[0];
+    if (kind === 'in') {
+      this.scale = this.clampScale(this.scale * 1.25);
+    } else if (kind === 'out') {
+      this.scale = this.clampScale(this.scale / 1.25);
+    } else if (kind === 'reset') {
+      this.scale = 1;
+      this.panX = 0;
+      this.panY = 0;
+    } else {
+      return;
+    }
     this.draw();
   }
 
