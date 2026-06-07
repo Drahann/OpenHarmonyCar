@@ -26,6 +26,8 @@ local.properties
 .appanalyzer
 **/build/
 **/.test/
+# DevEco「自动签名」会把含证书路径/口令的解析结果写进 build-profile.json（注意不是 .json5 源模板），不进 git
+**/build-profile.json
 
 # ===== C/C++ (purplepi-control) =====
 *.o
