@@ -3,7 +3,7 @@
 > 本文件是**定时自动推进**的状态源。每次定时 agent 运行：读本文件 → 做"下一项未完成" → 勾选 + 追加运行日志 + 标下一步。
 > 目标：结合本机 `W:\Project\OpenHarmonyCar\style\` 的**五套设计融合**出 App 最终版 UI，全量实现 ArkTS（**未经 DevEco 验证**，待真机/DevEco 校验）。
 > 计划详见 `docs/app-refactor-plan.md`（UI 阶段、目标架构、§连接与设备发现）。
-> 定时任务：CronCreate `3daa5173`（`12 1,7,13,19 * * *`，每 6h，首次≈2026-06-07 01:12）。**session-only**：若本会话被 /clear 或关闭即失效，需在新会话重建（见末尾"任务自愈"）。
+> 定时任务（2026-06-07 更新）：CronCreate **`2a874726`**（`12 1,7,13,19 * * *`，每 6h；旧 `3daa5173` 已删）。**UI 清单 U1–U11 已全部完成 → 现自动推进 tools 阶段（T1 mock-app…）。** **session-only**（本环境 durable 不生效）+ 约 7 天后自动过期：若本会话被 /clear 或关闭即失效，需在新会话重建（见末尾"任务自愈"）。
 
 ## 执行约定（每次必守）
 - App 代码（`app-harmony/**`）→ **只**提交 `app-harmony-core` 并 push。
@@ -34,7 +34,7 @@
 - [ ] **T2** 视需要补 `replay/` 等；**多车 `mock_fleet` 暂缓**（用户指示）。
 
 ## 任务自愈（若定时任务失效）
-session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `3daa5173`（`CronList` 查），按本文件顶部参数用 `CronCreate` 重建（prompt 见记忆 [[app-refactor-plan]] 或沿用"读本进度文档→做下一项→收尾"的自举式提示）。
+session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `2a874726`（`CronList` 查），按本文件顶部参数（cron `12 1,7,13,19 * * *`）用 `CronCreate` 重建，prompt 用"读 MEMORY+本进度文档 → 做下一项未完成（UI 已完→tools T1 mock-app）→ smoke 测 → 按 [[feedback-docs-main-code-branch]] 提交 → 收尾"的自举式提示（要点见记忆 [[app-refactor-plan]]）。
 
 ## 运行日志（每次追加一行）
 - 2026-06-06 20:1x（设定·本会话）：建定时任务 `3daa5173`（session-only，每 6h，首次≈+5h=06-07 01:12）+ 写本进度文档。**下一步 = U1 风格融合**。
