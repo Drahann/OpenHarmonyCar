@@ -28,7 +28,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-    windowStage.loadContent('pages/LoadingPage', (err: BusinessError) => {
+    // 指向真实首页 HomePage（替换占位 LoadingPage）。其余页（ControlPage/SetIPPage）经 router 跳转。
+    windowStage.loadContent('pages/HomePage', (err: BusinessError) => {
       if (err.code) {
         hilog.error(DOMAIN, TAG, `loadContent failed: ${JSON.stringify(err)}`);
         return;

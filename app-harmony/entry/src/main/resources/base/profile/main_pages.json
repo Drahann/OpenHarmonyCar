@@ -1,5 +1,8 @@
 {
   "src": [
-    "pages/LoadingPage"
+    "pages/LoadingPage",
+    "pages/HomePage",
+    "pages/ControlPage",
+    "pages/SetIPPage"
   ]
 }

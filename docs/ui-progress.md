@@ -24,8 +24,8 @@
 - [x] **U5 `component/DeviceList.ets`** ✅（2026-06-07 run5）：纯展示列表（发现行=在线点+巡检车+IP mono+连接/已连接胶囊、空态、底部"手动添加 IP"兜底、扫描中 spinner），动作经 `onScan/onConnect/onManualAdd` 注入。配套在 `service/RobotTransport` 加 `discover(onUpdate,durationMs,ping)`：开广播→周期向 `255.255.255.255:5001` 发探测→按源 IP 去重收集→自动停+返回手动停函数；**探测命令暂用 cmd0 兜底**（A 确认 Q5 的 0x06 发现 ping 前会触发未选中车 3s 急停，仅联调；确认后换码并同步 contracts）。⚠️ 未经 DevEco。
 - [x] **U6 `pages/HomePage.ets`** ✅（2026-06-07 run6）：顶栏(标题+发现设备)+3 模式 chip(单机导航/全路径/多机协同)+发现车卡片列表(在线点+IP mono+进入箭头)+空态。**修旧累积 bug**：列表恒由 @State `devices` 整体重建（`discover` 已按 IP 去重回传全量），绝不在生命周期 push。点卡 → `router.pushUrl('pages/ControlPage',{mode,ip})`。⚠️ 未经 DevEco。
 - [x] **U7 `pages/ControlPage.ets`** ✅（2026-06-07 run7）：单一参数化页组合 MapCanvas+Joystick+DeviceList，取代旧 4 克隆页。Google Maps 范式：全屏地图 + 顶部连接条 + 右下缩放 FAB(经 MapCanvas `viewCmd` 钩子)+ 摇杆浮层 + 按 mode 变体操作卡（astar 选点/开始(3)/取消(4)；fullpath 开始(102)/停止(103)；distributed 两点划区→107/108(byte1=robotId 经 runState)+各车进度条）。**连接避副作用**：进页不发 cmd0(=建图)，仅中性保活(pending+stop)、收心跳判在线、state==3 更新位姿并 bump 重绘。摇杆多目标下发 + setHeartbeatPayload 防节流间隙急停。⚠️ 未经 DevEco；fullpath 选房间/distributed 进度细化待真机。
-- [ ] **U8 `pages/SetIPPage.ets`**：高级/兜底手填 IP，走 `service/storage`（英文 key、无 getter 副作用）。
-- [ ] **U9 路由与入口**：`resources/.../main_pages.json5` 注册新页；`EntryAbility.onWindowStageCreate` 指向真实 `HomePage`（替换占位 `LoadingPage`）。
+- [x] **U8 `pages/SetIPPage.ets`** ✅（2026-06-07 run8）：F&F 极简表单，手填车 IP（`TextInput` mono）+ `Storage.isValidIp` 校验（无效红框+提示）+ "保存并连接"（`Storage.setRobotIp(0,ip)`→`router.replaceUrl ControlPage(astar,ip)`）。降级入口，正常仍走发现。⚠️ 未经 DevEco。
+- [x] **U9 路由与入口** ✅（2026-06-07 run8）：`resources/base/profile/main_pages.json` 注册 `pages/{LoadingPage,HomePage,ControlPage,SetIPPage}`；`EntryAbility.onWindowStageCreate` `loadContent` 改指 `pages/HomePage`（替换占位 `LoadingPage`）。⚠️ 未经 DevEco。
 - [ ] **U10 资源与图标**：按融合风格补齐/替换 media 与颜色资源（沿用 bundle `com.example.carapp`）。
 - [ ] **U11 自测与回写**：`verify.mjs` 仍过（若动了镜像算法同步它）；回写 `app-harmony/README.md` 架构、`docs/app-refactor-plan.md` 进度、本文件；A-问题入 `integration-qa.md`。
 
@@ -44,3 +44,4 @@ session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `3da
 - 2026-06-07（手动·run4，连续推进）：完成 **U4 `component/Joystick.ets`**——见 U4 勾选项。核心=每实例 `throttleTimer`（修旧全局 taskId 抢占）；解耦传输（产方向回调，传输路由交 ControlPage）。`verify.mjs` 仍 17/17。**下一步 = U5 `component/DeviceList.ets`**（方案B 广播发现+点击连接+手填兜底入口）。
 - 2026-06-07（手动·run5，连续推进）：完成 **U5 `component/DeviceList.ets`** + `RobotTransport.discover()`——见 U5 勾选项。`verify.mjs` 仍 17/17（未动镜像算法；RobotTransport 非镜像）。⚠️ ArkUI 未经 DevEco；广播发现待真机/A 确认。**下一步 = U6 `pages/HomePage.ets`**（机器人列表+模式选择，修旧 onPageShow 累积 bug）。
 - 2026-06-07（手动·run6+7，连续推进）：完成 **U6 `pages/HomePage.ets`** + **U7 `pages/ControlPage.ets`**（耦合：Home 路由 → Control）——见 U6/U7 勾选项。给 MapCanvas 加了 `viewCmd`(@Prop+@Watch) 缩放钩子供 ControlPage FAB 驱动。`verify.mjs` 仍 17/17。⚠️ 路由待 U9 注册后可达；ArkUI 未经 DevEco。**下一步 = U8 `pages/SetIPPage.ets`**（手填 IP 兜底，走 service/storage）。
+- 2026-06-07（手动·run8，连续推进）：完成 **U8 `pages/SetIPPage.ets`** + **U9 路由与入口**——见 U8/U9 勾选项。`main_pages.json` 注册 4 页、入口改指 HomePage（页面路由现自洽可达）。`verify.mjs` 仍 17/17。⚠️ ArkUI 未经 DevEco。**下一步 = U10 资源与图标**（多为 token 驱动+字形图标，预计轻量）。
