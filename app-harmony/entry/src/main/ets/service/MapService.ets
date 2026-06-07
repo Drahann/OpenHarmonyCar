@@ -19,6 +19,9 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { MAP_GRID_FREE, MAP_GRID_WALL } from '../constants/protocol';
 import { MAP_READY_MIN_BYTES, MAP_POLL_INTERVAL_MS } from '../constants/ui';
 import { MapTransform } from '../model/geometry';
+import { Log, Logger } from '../utils/log';
+
+const log: Logger = Log.scoped('MapService');
 
 /** 解析后的地图（纯数据，无画布依赖）。 */
 export class ParsedMap {
@@ -138,7 +141,7 @@ export class MapService {
           schedule();
         }
       }).catch((e: Error) => {
-        console.error(`[MapService] poll error: ${e.message}`);
+        log.e(`poll error: ${e.message}`);
         if (!cancelled) {
           schedule();
         }

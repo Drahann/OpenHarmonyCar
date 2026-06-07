@@ -21,6 +21,9 @@
 
 import { display } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { Log, Logger } from './log';
+
+const log: Logger = Log.scoped('screen');
 
 /** display 查询失败时的回退分辨率（px）——沿用旧 Screen.ets 的量级，仅兜底用。 */
 const FALLBACK_WIDTH_PX: number = 2200;
@@ -102,7 +105,7 @@ function querySync(): ScreenMetrics {
     return new ScreenMetrics(w, h);
   } catch (e) {
     const err: BusinessError = e as BusinessError;
-    console.warn(`[screen] getDefaultDisplaySync 失败，回退 ${FALLBACK_WIDTH_PX}x${FALLBACK_HEIGHT_PX}：code=${err.code}, msg=${err.message}`);
+    log.w(`getDefaultDisplaySync 失败，回退 ${FALLBACK_WIDTH_PX}x${FALLBACK_HEIGHT_PX}：code=${err.code}, msg=${err.message}`);
     return new ScreenMetrics(FALLBACK_WIDTH_PX, FALLBACK_HEIGHT_PX);
   }
 }
