@@ -30,7 +30,7 @@
 - [x] **U11 自测与回写** ✅（2026-06-07 run9）：`verify.mjs` **17/17**（全程未动镜像算法，无需同步）；回写 `app-harmony/README.md`（架构补 component/pages/utils/screen + theme，状态改 UI 全量实现/未经 DevEco）、`docs/app-refactor-plan.md`（UI 阶段完成）、本文件。无新增待 A 问题（发现 ping 仍归 integration-qa.md Q5）。
 
 ## tools 阶段（UI 清单全完成后才进；用户要求**先不做多车 fleet**）
-- [ ] **T1 `tools/mock-app/`**：PC 命令驱动器（交互/脚本发 0-5 / 102-108、打印心跳、保活/急停验证），落地其 README 规格；兼给成员A 用。
+- [x] **T1 `tools/mock-app/`** ✅（2026-06-07 run10）：`mock_app.py`（PC 命令驱动器：交互/`--cmd` 发 connect/go/left/right/stop/goto/cancel/endmap/loadmap/fpstart…/corner1·2/raw、`discover` 广播 0x06、`keepalive on|off` 验证保活/急停；后台打印心跳 state/x/y/r；编解码 `>BBBhhh` 与 protocol.ets/mock-purplepi 一致）+ `smoke_test.py`（白盒编解码 + 黑盒起 mock-purplepi 跑 connect→心跳/goto→位姿推进/0x06→回身份，**8/8**）+ 重写 README。mock-purplepi smoke 仍 **6/6**。⚠️ 真机默认广播；本机自检单播兜底（广播跨虚拟网卡不回环）。发现 ping 0x06 待 A 确认(Q5)。
 - [ ] **T2** 视需要补 `replay/` 等；**多车 `mock_fleet` 暂缓**（用户指示）。
 
 ## 任务自愈（若定时任务失效）
@@ -46,3 +46,4 @@ session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `2a8
 - 2026-06-07（手动·run6+7，连续推进）：完成 **U6 `pages/HomePage.ets`** + **U7 `pages/ControlPage.ets`**（耦合：Home 路由 → Control）——见 U6/U7 勾选项。给 MapCanvas 加了 `viewCmd`(@Prop+@Watch) 缩放钩子供 ControlPage FAB 驱动。`verify.mjs` 仍 17/17。⚠️ 路由待 U9 注册后可达；ArkUI 未经 DevEco。**下一步 = U8 `pages/SetIPPage.ets`**（手填 IP 兜底，走 service/storage）。
 - 2026-06-07（手动·run8，连续推进）：完成 **U8 `pages/SetIPPage.ets`** + **U9 路由与入口**——见 U8/U9 勾选项。`main_pages.json` 注册 4 页、入口改指 HomePage（页面路由现自洽可达）。`verify.mjs` 仍 17/17。⚠️ ArkUI 未经 DevEco。**下一步 = U10 资源与图标**（多为 token 驱动+字形图标，预计轻量）。
 - 2026-06-07（手动·run9，连续推进收尾）：完成 **U10 资源与图标** + **U11 自测与回写**——见 U10/U11 勾选项。**🎉 UI 清单 U1–U11 全部完成。** `verify.mjs` 终检 17/17。⚠️ 全部 ArkUI 未经 DevEco 真编，下一阶段务必先在 DevEco 构建一遍修类型/装饰器/手势 API 偏差，再真机校验。**下一步 = tools 阶段 T1 `tools/mock-app/`**（PC 命令驱动器，先不做多车 fleet）。本会话连续推进 U2→U11（用户要求做到额度~90% 后转定时任务）。
+- 2026-06-07（手动·run10，连续推进）：完成 **tools T1 `tools/mock-app/`**——见 T1 勾选项。mock-app smoke 8/8、mock-purplepi smoke 6/6、verify.mjs 17/17。**新增任务（用户 2026-06-07）：开发车载 OpenHarmony 轻 agent**，按"先文档规划→逐步设计→实现"——本轮已出规划文档 `docs/car-agent-plan.md`（见下条）。**下一步 = 车载 agent 设计细化**（或 tools T2 视需要）。
