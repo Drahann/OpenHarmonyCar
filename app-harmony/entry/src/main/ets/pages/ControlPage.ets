@@ -29,6 +29,10 @@ interface ControlRouteParams {
   ip: string;
 }
 
+// 命令时序：紫派对"先暂存后使用"的命令对需要处理间隔，避免 UDP 乱序/未处理完（对照旧 App 的命令间延时）。
+const CMD_SEQ_GAP_MS: number = 300;            // 107→108 之间
+const FULLPATH_START_DELAY_MS: number = 1000;  // 选完 4 顶点(104)到启动全路径(102)，对照旧 App 1s
+
 @Entry
 @Component
 struct ControlPage {
@@ -44,6 +48,7 @@ struct ControlPage {
   @State private joySpeed: number = SPEED_DEFAULT;  // 摇杆前进速度(%)，可调（cmd1 的 byte2）
   @State private fpAlg: number = 0;                 // 全路径算法：0=牛耕，1=最小生成树（cmd102 的 byte1）
   @State private fpVertices: Point[] = [];          // 全路径已选顶点（4 个：左下/右下/右上/左上）
+  @State private joyHidden: boolean = false;        // 收起摇杆
 
   private ip: string = '';
   private mode: ControlMode = ControlMode.astar;
@@ -179,7 +184,10 @@ struct ControlPage {
     this.mission.endPoints = this.fpVertices.map((v: Point): EndPoint => new EndPoint(v.x, v.y)); // 地图上显示已选顶点
     this.sendTo(this.ip, RobotCommand.fullpathSelect, idx, p.x, p.y); // cmd104：byte1=顶点序号
     if (this.fpVertices.length >= 4) {
-      this.sendTo(this.ip, RobotCommand.fullpathStartRoute, this.fpAlg); // cmd102：byte1=算法号
+      // 等 4 个顶点(104)都被紫派处理完再启动(102)——对照旧 App 启动前留 1s
+      setTimeout(() => {
+        this.sendTo(this.ip, RobotCommand.fullpathStartRoute, this.fpAlg); // cmd102：byte1=算法号
+      }, FULLPATH_START_DELAY_MS);
     }
     this.bump();
   }
@@ -227,8 +235,11 @@ struct ControlPage {
 
   /** 划子区域：107=对角点1，108=对角点2(byte1=robotId)。byte1 经 encodeSend 的 runState 写入。 */
   private sendDistArea(c1: Point, c2: Point, robotId: number): void {
-    this.sendTo(this.ip, RobotCommand.distAreaCorner1, undefined, c1.x, c1.y);
-    this.sendTo(this.ip, RobotCommand.distAreaCorner2, robotId, c2.x, c2.y);
+    this.sendTo(this.ip, RobotCommand.distAreaCorner1, undefined, c1.x, c1.y); // cmd107 先暂存对角点1
+    // 隔开再发 108：紫派要先处理 107 暂存，108 才能据两点生成覆盖矩形（122）
+    setTimeout(() => {
+      this.sendTo(this.ip, RobotCommand.distAreaCorner2, robotId, c2.x, c2.y);
+    }, CMD_SEQ_GAP_MS);
   }
 
   // ── 缩放 FAB ────────────────────────────────────────────────────────────────
@@ -304,19 +315,31 @@ struct ControlPage {
       // 右下缩放 FAB
       this.ZoomFabs()
 
-      // 速度控制（摇杆上方）
-      this.SpeedControl()
+      // 摇杆区（可隐藏）：速度滑块 + 摇杆
+      if (!this.joyHidden) {
+        this.SpeedControl()
+        Joystick({
+          speed: this.joySpeed,
+          disabled: this.connectedIps.length === 0,
+          onDirection: (dir: MoveDirection, speed: number) => this.onJoystick(dir, speed)
+        })
+          .position({ x: Space.lg, y: '62%' })
+      }
+      // 隐藏/显示摇杆切换
+      Button(this.joyHidden ? '显示摇杆' : '收起摇杆')
+        .fontSize(FontSize.label)
+        .fontColor(AppColor.textBody)
+        .backgroundColor(AppColor.surface)
+        .borderRadius(Radius.pill)
+        .height(32)
+        .padding({ left: Space.md, right: Space.md })
+        .position({ x: Space.lg, y: '44%' })
+        .onClick(() => {
+          this.joyHidden = !this.joyHidden;
+        })
 
-      // 摇杆（右下，连接后启用）
-      Joystick({
-        speed: this.joySpeed,
-        disabled: this.connectedIps.length === 0,
-        onDirection: (dir: MoveDirection, speed: number) => this.onJoystick(dir, speed)
-      })
-        .position({ x: Space.lg, y: '62%' })
-
-      // 底部卡：无地图 → 建图卡（R1 回归，必须先建图）；有地图 → 按 mode 操作卡
-      if (this.mission.mapReady) {
+      // 底部卡：建图中 / 无地图 → 建图卡（R1）；有地图且非建图 → 按 mode 操作卡
+      if (this.mission.mapReady && !this.mapping) {
         this.OpCard()
       } else {
         this.BuildCard()
@@ -413,6 +436,18 @@ struct ControlPage {
       .borderRadius(Radius.pill)
       .margin({ left: Space.sm })
       Blank()
+      if (this.mission.mapReady && !this.mapping) {
+        Button('重新建图')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(40)
+          .margin({ right: Space.sm })
+          .padding({ left: Space.md, right: Space.md })
+          .onClick(() => this.startBuild())
+      }
       Button('设备')
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.onPrimary)
