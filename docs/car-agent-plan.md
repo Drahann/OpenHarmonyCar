@@ -84,3 +84,54 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
 
 平板在黑板上给某车划一个覆盖矩形 → 该车 agent 读到 → 发 `107/108` 给本机 `mock-purplepi`/真栈 → 车开始"覆盖"移动 →
 agent 把心跳位姿写回黑板 → 平板地图上看到该车 pin 移动 + 进度。全程不在车上装 CarApp、不靠 startAbility 拉起。
+
+## 6. 设计（P1，进行中）
+
+> 本节是 P1 产出。已落地：**⑤ 共享日志**——`constants/debug.ets` + `utils/log.ets`（`Log.scoped(tag)`）+
+> `RobotTransport` 的 `DEBUG_WIRE` 线缆 trace（logging-plan L1，commit `6137efc`）。以下为其余设计决策。
+
+### 6.1 复用策略（①）——定：抽共享 HAR `shared-core`
+- **目标形态**：DevEco 同一工程内一个 HAR 模块 `shared-core`，`entry`(平板 App) 与 `car-agent`(hap) 都依赖它。
+- **首批迁入（agent 必需、UI 无关）**：`model/protocol`、`model/mission`、`model/geometry`、`constants/protocol`、
+  `constants/debug`、`utils/log`、`service/RobotTransport`、`service/FleetMissionService`（黑板部分）。
+- **迁移方式（避免大爆炸）**：P2 第一步把上述文件移入 `shared-core`，`app-harmony` 改为从 HAR import（路径替换、
+  不改逻辑，`verify.mjs` 仍应 17/17）。**期间若 HAR 配置受阻**，退而求其次：`car-agent` 先**精确复制**这几个文件并加
+  "与 app-harmony 同源，改一处改两处"注释，HAR 化作为后续；但首选 HAR（杜绝漂移）。
+
+### 6.2 reconciler 状态机（②）——黑板 → 本机 UDP，幂等
+- **输入**：FleetMission 黑板变更（订阅）+ 本机 localhost 心跳。**本车** = 按 `index/carId` 在 `robots/assignments` 里定位自己。
+- **派生状态**（由黑板 `phase` + 本车 `assignment` + 本机位姿推导，不另存权威态）：
+  - `idle`：无分配 / `phase∈{idle,scanning}` → 只发中性保活（`pending+stop`）。
+  - `loading`：刚分到任务且未归零 → 发一次 `cmd5`（加载图+位姿归零 0,0,0，子机从 master 起点出发）。
+  - `covering`：有覆盖矩形 `assignment` 且 `phase=covering` → 依次发 `cmd107`(对角点1)、`cmd108`(对角点2,byte1=robotId)。
+  - `nav`：有单点目标 → `cmd3`(endX,endY)；目标清除/`cmd4` 取消 → 回 `idle`。
+  - `done`：`phase=done` 或分配撤销 → `cmd4`/`idle`。
+- **幂等（关键，别每 tick 重发）**：维护 `lastDispatched` = 本车相关黑板切片的签名（如 `assignment` 的 JSON/hash）。
+  仅当签名变化才推进状态、发命令；黑板其它字段变化（别的车位姿）不触发本车下发。
+- **保活**：无论状态如何，对本机栈 ≥1/s 发当前帧（`RobotTransport.startHeartbeat(127.0.0.1, payload)` + 状态切换时 `setHeartbeatPayload`）。
+
+### 6.3 localhost 传输与外部平板直连的互斥（③）
+- agent 用共享 `RobotTransport`，**目标固定 `127.0.0.1:5001`**（本机 `udp2lcm`）。
+- **distributed 模式下 agent 是本机唯一 localhost 客户端**；平板**不**直连该车 5001，改经黑板下发（平板的多目标直连
+  仅用于"无 agent 单车直控"）。否则两个 client 抢 `udp2lcm` 的单 client 记录 + 各自 3s 急停判定会打架。
+- 待 A 确认 `udp2lcm` 是否 bind `0.0.0.0:5001`、是否需给 agent 留独立 localhost 端口（**integration-qa Q6.2**）。
+
+### 6.4 黑板写回节流（④）
+- 本机心跳 500ms 一帧，但**别每帧写黑板**（软总线会被刷爆）。策略：合并 `pose+progress+status` 到一次
+  `MissionSnapshot` 更新（沿用"单一 `missionJson` 字段"），**最小写回间隔**（如 ≥300ms）或"位姿显著变化才写"二选一。
+- `progress` MVP：覆盖模式按"已扫面积/子区域面积"粗估，或先留 0，P3 细化（心跳无 progress 字段，靠 agent 推算）。
+
+### 6.5 `car-agent/` 目录骨架（②给 P2 预览）
+```
+car-agent/
+  entry/src/main/ets/
+    serviceextability/AgentServiceAbility.ets   # 无界面常驻入口（ServiceExtensionAbility）
+    reconciler/Reconciler.ets                   # 6.2 状态机：订阅黑板 → 发本机 UDP；心跳 → 写回黑板
+  entry/src/main/module.json5                   # 声明 ServiceExtensionAbility；权限：分布式 datasync/软总线/Internet(UDP)；无 page
+  （依赖 HAR shared-core：model/ + service/RobotTransport + service/FleetMissionService + utils/log + constants/）
+```
+- **日志**（logging-plan L3）：agent 复用 `Log` + 加滚动文件 sink（`agent.log`，`hdc file recv` 拉）+ reconciler 决策/回写日志。
+
+### 6.6 P1 剩余 / 交接
+- 收尾共享日志 L1 的其余 `console.*` 收敛（pages/MapService/screen/componentUtils 共 12 处）。
+- P1 设计已够 P2 起步（脚手架 + HAR 抽取）。**下一步实操 = P2**（建 `shared-core` HAR + `car-agent` 骨架）。
