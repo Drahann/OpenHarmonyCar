@@ -61,7 +61,7 @@ struct SetIPPage {
           .height(TOUCH_MIN + 8)
           .backgroundColor(AppColor.surface)
           .borderRadius(Radius.sm)
-          .border({ width: 1, color: this.borderColor() })
+          .border({ width: 1, color: this.inputBorderColor() })
           .onChange((v: string) => {
             this.ip = v;
             this.touched = true;
@@ -97,7 +97,7 @@ struct SetIPPage {
     return Storage.isValidIp(this.ip);
   }
 
-  private borderColor(): string {
+  private inputBorderColor(): string {
     if (this.touched && !this.isValid()) {
       return AppColor.danger;
     }

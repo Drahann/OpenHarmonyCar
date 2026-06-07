@@ -65,12 +65,12 @@ export struct MapCanvas {
   @State private side: number = getScreen().mapCanvasSideVp();
   private parsed: ParsedMap | undefined = undefined;
   private ready: boolean = false;
-  // 缩放/平移（施加于基准空间的上下文变换）
-  @State private scale: number = 1;
+  // 缩放/平移（施加于基准空间的上下文变换）。注：成员不能叫 scale —— 与 ArkUI 通用属性 .scale() 冲突。
+  @State private zoom: number = 1;
   @State private panX: number = 0;
   @State private panY: number = 0;
   // 手势基线（onActionStart 记录）
-  private scaleAtStart: number = 1;
+  private zoomAtStart: number = 1;
   private panXAtStart: number = 0;
   private panYAtStart: number = 0;
 
@@ -99,10 +99,10 @@ export struct MapCanvas {
               }),
             PinchGesture({ fingers: 2 })
               .onActionStart(() => {
-                this.scaleAtStart = this.scale;
+                this.zoomAtStart = this.zoom;
               })
               .onActionUpdate((e: GestureEvent) => {
-                this.scale = this.clampScale(this.scaleAtStart * e.scale);
+                this.zoom = this.clampScale(this.zoomAtStart * e.scale);
                 this.draw();
               })
           )
@@ -142,7 +142,7 @@ export struct MapCanvas {
 
   /** 重置视图到铺满（scale=1, pan=0）。供上层在换图/回中按钮调用（经 renderVersion 间接也可）。 */
   resetView(): void {
-    this.scale = 1;
+    this.zoom = 1;
     this.panX = 0;
     this.panY = 0;
     this.draw();
@@ -157,11 +157,11 @@ export struct MapCanvas {
   onViewCmd(): void {
     const kind: string = this.viewCmd.split(':')[0];
     if (kind === 'in') {
-      this.scale = this.clampScale(this.scale * 1.25);
+      this.zoom = this.clampScale(this.zoom * 1.25);
     } else if (kind === 'out') {
-      this.scale = this.clampScale(this.scale / 1.25);
+      this.zoom = this.clampScale(this.zoom / 1.25);
     } else if (kind === 'reset') {
-      this.scale = 1;
+      this.zoom = 1;
       this.panX = 0;
       this.panY = 0;
     } else {
@@ -185,7 +185,7 @@ export struct MapCanvas {
 
     ctx.save();
     ctx.translate(this.panX, this.panY);
-    ctx.scale(this.scale, this.scale);
+    ctx.scale(this.zoom, this.zoom);
 
     // 1) 障碍格（左上原点空间，直接画）
     ctx.fillStyle = AppColor.mapWall;
@@ -236,16 +236,16 @@ export struct MapCanvas {
       ctx.fillRect(x, y, w, h);
       ctx.globalAlpha = 1;
     }
-    ctx.lineWidth = RECT_LINE_WIDTH / this.scale;
+    ctx.lineWidth = RECT_LINE_WIDTH / this.zoom;
     ctx.strokeStyle = color;
     ctx.strokeRect(x, y, w, h);
   }
 
   private drawTarget(ctx: CanvasRenderingContext2D, t: MapTransform, half: number, m: Point): void {
     const b: Point = this.worldToBase(m, t, half);
-    const rad: number = TARGET_RADIUS / this.scale;
+    const rad: number = TARGET_RADIUS / this.zoom;
     ctx.strokeStyle = AppColor.mapTarget;
-    ctx.lineWidth = 2 / this.scale;
+    ctx.lineWidth = 2 / this.zoom;
     // 环 + 十字
     ctx.beginPath();
     ctx.arc(b.x, b.y, rad, 0, Math.PI * 2);
@@ -261,14 +261,14 @@ export struct MapCanvas {
   private drawRobot(ctx: CanvasRenderingContext2D, t: MapTransform, half: number, r: RobotRuntime): void {
     const b: Point = this.worldToBase({ x: r.x, y: r.y }, t, half);
     const color: string = this.statusColor(r.status);
-    const rad: number = PIN_RADIUS / this.scale;
+    const rad: number = PIN_RADIUS / this.zoom;
 
     // 朝向指示线（世界 0°=+X、CCW 朝 +Y；画布 y 向下，故 dy 取负）
     const rRad: number = r.r * Math.PI / 180;
-    const hx: number = b.x + Math.cos(rRad) * (PIN_HEADING_LEN / this.scale);
-    const hy: number = b.y - Math.sin(rRad) * (PIN_HEADING_LEN / this.scale);
+    const hx: number = b.x + Math.cos(rRad) * (PIN_HEADING_LEN / this.zoom);
+    const hy: number = b.y - Math.sin(rRad) * (PIN_HEADING_LEN / this.zoom);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3 / this.scale;
+    ctx.lineWidth = 3 / this.zoom;
     ctx.beginPath();
     ctx.moveTo(b.x, b.y);
     ctx.lineTo(hx, hy);
@@ -281,12 +281,12 @@ export struct MapCanvas {
     ctx.fill();
     // 白描边增强对比
     ctx.strokeStyle = AppColor.surface;
-    ctx.lineWidth = 1.5 / this.scale;
+    ctx.lineWidth = 1.5 / this.zoom;
     ctx.stroke();
 
     // 车号角标
     ctx.fillStyle = AppColor.onPrimary;
-    ctx.font = `${LABEL_FONT_VP / this.scale}vp sans-serif`;
+    ctx.font = `${LABEL_FONT_VP / this.zoom}vp sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`${r.index}`, b.x, b.y);
@@ -319,8 +319,8 @@ export struct MapCanvas {
     const lx: number = fingers[0].localX;
     const ly: number = fingers[0].localY;
     // 逆变换：屏幕(组件)坐标 → 基准空间 → 中心原点 → 真实世界
-    const bx: number = (lx - this.panX) / this.scale;
-    const by: number = (ly - this.panY) / this.scale;
+    const bx: number = (lx - this.panX) / this.zoom;
+    const by: number = (ly - this.panY) / this.zoom;
     const half: number = this.side / 2;
     const c: Point = { x: bx - half, y: by - half };
     const m: Point = canvasToMap(c, this.parsed.toTransform(), half);
