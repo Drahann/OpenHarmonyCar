@@ -90,3 +90,26 @@
 3. 回写 `operation-guide.md`（建图步骤）。
 4. **N1/N2 写进 `contracts/integration-qa.md`（Q7/Q8）**与 A 异步沟通；待 A 后再联合开发。
 5. R3/R4 视情况补。
+
+## 6. 分布式（多机协同）逻辑复审 —— 明天测试会不会出问题？
+
+**结论：单车直发可测、不会崩；真·多机协同今天不具备（agent 未部署 + App 未写黑板），别期待车间协同。**
+
+**6.1 新 App 现状（核对 `ControlPage`）**
+- distributed 模式选点：连点 2 个对角点 → `sendDistArea(c1,c2,0)` = `cmd107`(对角点1) + `cmd108`(对角点2,robotId=0)，**直发 `this.ip`（单台连上的车），不经软总线黑板**。
+- `ControlPage` **从不调用** `FleetMissionService.publishMission/joinSession` —— 黑板只在 `EntryAbility` `init`（建 dataObject、不入会），**App 侧根本没往黑板写 assignments**。
+- 紫派侧（A 文档）：`108` → 加载本机地图 + 据两对角点发 `122` 生成矩形覆盖 + `123` 跟踪。
+
+**6.2 明天单车测试：✅ 能跑（与旧 App 等价的直发路径）**
+- 流程：建图(R1) → 切「多机协同」mode → 地图上点 2 个对角点 → 该车直接开始矩形覆盖。**不依赖 agent/软总线。**
+- 已修：`107→108` 与 `4 顶点→102` 加了**命令间延时**（`CMD_SEQ_GAP_MS`/`FULLPATH_START_DELAY_MS`），对照旧 App，避免"暂存后使用"的 UDP 乱序/未处理完。
+- 不会崩：`FleetMissionService.init` 无可信对端时只是没 peer，不报错；distributed UI（划矩形/进度条）正常。
+
+**6.3 真·多机协同：⚠️ 今天不具备（两道缺口，均非明天单车阻塞）**
+1. **车载 agent 未部署**：code-complete 但没装上紫派（需 DevEco 工程集成 + 真机，见 [[car-agent-plan]] / Q6）。
+2. **App 侧也没接黑板**：即便 agent 在，`ControlPage` 现在只 `this.ip` 直发一台，**没把各车 assignments 写进黑板** → 多车各自领区域的链路 App 这端是断的。→ 多机要补：distributed 模式下平板把 `assignments` `publishMission` 到黑板（每车 agent 读自己的），而非直发。
+
+**6.4 注意项（不阻塞，记着）**
+- **进度条恒 0%**：心跳不带覆盖进度，单车覆盖时进度条不动（覆盖照跑）。真进度需软总线（agent 回写）或 A 在心跳留进度字节（≈Q8）。
+- **`robotId=0` 写死**：单车覆盖发 `cmd108` byte1=0。**待 A 确认**：单车独立覆盖 robotId=0 是否正确，还是要匹配该车配置 id（多机时 0/1 区分主从）。→ 记 integration-qa。
+- **连多台只控主车**：`sendDistArea` 只发 `this.ip`；DeviceList 连了第 2 台也收不到覆盖命令（多机分区靠 6.3 的黑板链路，未通）。
