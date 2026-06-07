@@ -4,7 +4,9 @@
 DevEco Studio + ArkTS + hvigor 构建。
 
 > **状态（2026-06）**：按 [`../docs/app-refactor-plan.md`](../docs/app-refactor-plan.md) 完成**功能内核**重构
-> （分层 + 去全局态 + 地道分布式）。**UI 层（组件/页面）待接入**——当前只有占位 `LoadingPage`。
+> （分层 + 去全局态 + 地道分布式）+ **UI 层 U1–U11 全量实现**（统一主题 token、动态屏幕、
+> `MapCanvas/Joystick/DeviceList` 组件、单一参数化 `ControlPage`、`HomePage/SetIPPage`、路由入口）。
+> ⚠️ **全部 ArkUI 代码未经 DevEco 真编译**——以 DevEco 构建 + 真机校验为准（进度见 `../docs/ui-progress.md`）。
 > 旧原型 `W:\CarApp\CarApp` 原封保留作行为参照，不在本仓库内。
 
 ## 架构（`entry/src/main/ets/`）
@@ -19,14 +21,23 @@ service/     RobotTransport.ets   唯一 UDP socket：收发 + 单点 on('messag
              MapService.ets       HTTP 拉图 + 解析 + 坐标变换参数（去全局 context/Txt2Canvas）
              FleetMissionService.ets 设备发现(networkId) + distributedDataObject 同步 FleetMission 黑板（**共享黑板，不再 startAbility 跨端拉起**）
              storage.ets          持久化（英文 key、getter 无副作用）
-entryability/        EntryAbility        入口：初始化 Storage / RobotTransport / FleetMissionService
+             theme.ets      统一主题 token（AppColor/FontSize/FontFamily/Space/Radius/Elevation/TOUCH_MIN；融合见 ../docs/ui-design.md）
+entryability/        EntryAbility        入口：初始化 Storage / RobotTransport / FleetMissionService；loadContent→HomePage
 entrybackupability/  EntryBackupAbility  备份扩展（标准模板）
-pages/       LoadingPage.ets   占位首页（UI 阶段替换为 HomePage + 参数化 ControlPage）
-utils/       componentUtils.ets PromptActionClass（弹窗助手，UI 阶段复用）
+component/   MapCanvas.ets  地图渲染 + 缩放/平移 + 选点 + 多车位姿叠加（复用 MapService/geometry 纯函数）
+             Joystick.ets   摇杆遥控，**每实例独立节流**（取代旧全局 taskId），产 (MoveDirection,speed) 回调
+             DeviceList.ets 设备发现列表（方案B 广播发现+点击连接，配 RobotTransport.discover）
+pages/       LoadingPage.ets  占位（入口已改指 HomePage，保留作启动占位）
+             HomePage.ets     机器人列表 + 模式选择（修旧 onPageShow 累积 bug）→ 路由 ControlPage(mode,ip)
+             ControlPage.ets  **单一参数化页**（mode∈{astar|fullpath|distributed}）组合三组件，取代旧 4 克隆页
+             SetIPPage.ets    手填 IP 兜底（走 storage、isValidIp 校验）
+utils/       componentUtils.ets PromptActionClass（弹窗助手）
+             screen.ets         动态屏幕度量（display 取屏 + 懒加载缓存 + 方形地图画布边长/半视口派生，取代写死分辨率）
 ```
 
-服务层与模型层**无 UI 依赖、可单测**。UI 阶段将在其上实现 `MapCanvas / Joystick / DeviceList`
-组件与单一参数化 `ControlPage`，取代旧版 4 个克隆页面。
+服务层与模型层**无 UI 依赖、可单测**。UI 层 `component/` + `pages/` 在其上装配，统一从 `constants/theme.ets`
+取设计 token；图标用字形/自绘、配色用 token，故 `resources/media` 无需新增第三方资源。
+⚠️ ArkUI 装配（组件/页面/手势）**未经 DevEco 编译**，待真机校验。
 
 ## 打开 / 构建
 
