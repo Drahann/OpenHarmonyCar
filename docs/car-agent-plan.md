@@ -133,9 +133,13 @@ car-agent/
 - **日志**（logging-plan L3）：agent 复用 `Log` + 加滚动文件 sink（`agent.log`，`hdc file recv` 拉）+ reconciler 决策/回写日志。
 
 ### 6.6 进度 / 交接
-- ✅ **Reconciler 纯决策逻辑**（`car-agent/.../reconciler/Reconciler.ets`）+ Node 镜像 `tools/verify/verify-reconciler.mjs` **9/9**。
-- ✅ **P2 脚手架**：`car-agent/` 模块——`AgentServiceAbility.ets`（无界面常驻骨架 + `translate` AgentCmd→9字节字段）、
-  `module.json5`（service 扩展，schema 待校验）、`README.md`；transport/黑板接线标 `TODO(shared-core)`。
-- ⏭ **下一步**：① 抽 **shared-core HAR**（app-harmony 的 model/service/utils/constants），让 `car-agent` 与 `app-harmony` 同依赖、
-  把 AgentServiceAbility 的 TODO 接上真 `RobotTransport`/`FleetMissionService`；② 本机闭环测试（mock-purplepi 当本机栈 + 假平板写黑板）；
-  ③ 收尾 L1 其余 `console.*` 收敛（已收 MapService/screen；**余 10 处** = componentUtils 6 + HomePage/SetIPPage/ControlPage 4）。④ 真机 P5 与 A。
+- ✅ **Reconciler 纯决策逻辑** + Node 镜像 `tools/verify/verify-reconciler.mjs` **9/9**。
+- ✅ **P2 脚手架** + **P3 实现：agent 代码完成（code-complete）**——`AgentServiceAbility.ets` 完整装配
+  （bind 本机 UDP+中性保活 / 入软总线持黑板 / 黑板变更→extractView→reconcile→toPayload→send 一次性下发 /
+  心跳→节流300ms写回黑板 / onDestroy 退会停保活；carId 可由 Want 覆盖；会话用约定 `FLEET_SESSION_ID`）。
+- ✅ **自带共享层**（HAR 受阻的 sanctioned 复制，§6.1）：model/{protocol,mission,geometry}、constants/{protocol,debug}、
+  utils/log、service/RobotTransport 复制自 app-harmony（同源·改两处）；service/FleetMissionService 为**无界面适配版**
+  （基类 Context、不交互申请权限——DISTRIBUTED_DATASYNC 须预授权）。`verify.mjs` 17/17。
+- ⏭ **剩余（DevEco/真机）**：① **DevEco 工程集成**（car-agent 作为模块/独立工程纳入构建、补 `resources/`含 perm_datasync、签名）；
+  ② **编译修正**（首次 hvigor 必有 ArkTS/装饰器/API 报错）；③ 本机闭环测试（mock-purplepi 当本机栈 + 假平板写黑板）；
+  ④ 真机 P5 与 A（Q6）。另：app-harmony 的 L1 `console.*` 余 10 处收敛（独立小事）。
