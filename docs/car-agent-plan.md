@@ -132,6 +132,10 @@ car-agent/
 ```
 - **日志**（logging-plan L3）：agent 复用 `Log` + 加滚动文件 sink（`agent.log`，`hdc file recv` 拉）+ reconciler 决策/回写日志。
 
-### 6.6 P1 剩余 / 交接
-- 收尾共享日志 L1 的其余 `console.*` 收敛（pages/MapService/screen/componentUtils 共 12 处）。
-- P1 设计已够 P2 起步（脚手架 + HAR 抽取）。**下一步实操 = P2**（建 `shared-core` HAR + `car-agent` 骨架）。
+### 6.6 进度 / 交接
+- ✅ **Reconciler 纯决策逻辑**（`car-agent/.../reconciler/Reconciler.ets`）+ Node 镜像 `tools/verify/verify-reconciler.mjs` **9/9**。
+- ✅ **P2 脚手架**：`car-agent/` 模块——`AgentServiceAbility.ets`（无界面常驻骨架 + `translate` AgentCmd→9字节字段）、
+  `module.json5`（service 扩展，schema 待校验）、`README.md`；transport/黑板接线标 `TODO(shared-core)`。
+- ⏭ **下一步**：① 抽 **shared-core HAR**（app-harmony 的 model/service/utils/constants），让 `car-agent` 与 `app-harmony` 同依赖、
+  把 AgentServiceAbility 的 TODO 接上真 `RobotTransport`/`FleetMissionService`；② 本机闭环测试（mock-purplepi 当本机栈 + 假平板写黑板）；
+  ③ 收尾 L1 其余 `console.*` 收敛（pages/MapService/screen/componentUtils 共 12 处）。④ 真机 P5 与 A。
