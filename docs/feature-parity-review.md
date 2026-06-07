@@ -41,14 +41,19 @@
 - **为什么硬阻塞**：Navi 启动删图 → 不建图就没有任何地图 → 拉图/导航全废。
 - **旧 App**：`Navigationcomponents`(PendingComponent) 有「开始建图」(cmd0)/「结束建图」(cmd2)/「重新建图」。
 - **新 App**：`ControlPage` 没有这组（我当初为"进页不误触建图"去掉了 cmd0，连入口一起丢了）。
-- **要补**：`ControlPage` 加**建图流程**——地图未就绪时显示建图卡：「开始建图」(cmd0) → 提示用摇杆驱动探索 →
-  「结束建图」(cmd2) → 触发拉图 → 地图就绪后转正常操作。建图与 mode 无关（建好图才谈导航/覆盖）。
+- **已补（commit f014768）**：`ControlPage` 建图卡——地图未就绪时显示：「开始建图」(cmd0) → 摇杆驱动探索 →
+  「结束建图」(cmd2) → 触发拉图 → 地图就绪后转正常操作。
 
-### 🟠 R2 全路径选房间 `cmd104`
-- **紫派**：`104` 选房间顶点(`125`)是 `102` 全路径(`127`)的**前置**（按房间顶点规划）。
-- **旧 App**：`distriFullPathPage` 有选房间。
-- **新 App**：fullpath 只有开始覆盖/停止，**无选房间** → fullpath 实际跑不全。
-- **要补**：fullpath 模式下支持在地图上选房间顶点 → `cmd104`（byte1=vertexId, x,y）。
+### 🟠→✅ R2 全路径**选算法 + 选 4 顶点**（cmd102 algNum + cmd104）—— 已补
+> ⚠️ **二次复审更正**：首轮我写成"只缺选房间"，**漏了「选算法」**（用户指出）。说明首轮扫描不够全 —— 完整流程比我以为的多一步。
+- **旧 App**（`Navigationcomponents`）：① 选算法「牛耕算法 / 最小生成树」(`FullPathAlgorithmFlags`) → `cmd102` byte1=algNum(0/1)；
+  ② 点地图选 **4 个顶点**（左下→右下→右上→左上，`cmd104` byte1=序号），满 4 个后 1s 自动 `cmd102` 启动。
+- **新 App 原状**：只有 开始覆盖(cmd102,algNum=0)/停止，**既无选算法也无选顶点** → fullpath 跑不对。
+- **已补（commit ad68c72）**：FullpathOps = 算法 chip(牛耕/最小生成树) + 点地图选 4 顶点(cmd104×4) → 满 4 自动 cmd102(algNum) + 重选顶点 + 停止。
+
+### ✅ S1 摇杆速度控制（用户要求）
+- **旧 App**：摇杆速度按 mode 写死（SPEED_*），无用户控制。
+- **已补（commit ad68c72）**：ControlPage 加速度滑块(10–100%)，`@State joySpeed` 经 Joystick 下发 `cmd1` 的 speed；进页给 mode 默认值、用户可调。
 
 ### 🟡 R3 加载已有图 `cmd5`（次要，单车被建图覆盖）
 - 单车每会话都现建图(R1)，故 ControlPage 暂不强依赖 cmd5；**car-agent 已用 cmd5**（子机归零）。
