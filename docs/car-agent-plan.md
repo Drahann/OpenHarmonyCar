@@ -58,10 +58,12 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
 - **P0 规划**（本文件）✅ 2026-06-07。
 - **P1 设计细化**：定 ① 复用策略（HAR vs 复制）+ 目录骨架；② **reconciler 状态机**（黑板 `phase/assignment` → 本机命令序列；
   幂等：黑板未变不重发、变了才发；到点/超时迁移）；③ localhost 传输配置（端口/与外部 App 直连路径的**互斥**，见 §4 风险）；
-  ④ 黑板写回节流（心跳 500ms，写黑板别太频）。产出：本文件「设计」节 + 必要时序图。
+  ④ 黑板写回节流（心跳 500ms，写黑板别太频）；⑤ **先落地共享日志** `utils/log.ets`（[`logging-plan.md`](logging-plan.md) **L1**，
+  App 与 agent 同用、属共享层基底）。产出：本文件「设计」节 + 必要时序图。
 - **P2 脚手架**：`car-agent/` hap（`module.json5` 声明 ServiceExtensionAbility、权限：分布式 datasync / 软总线 / UDP；无 page）；
   接好共享 `model`/`service`；能起、入会、打印黑板。
-- **P3 实现核心**：reconciler（黑板变更 → localhost UDP）+ 心跳回写（localhost 心跳 → 黑板 RobotRuntime）+ 保活。
+- **P3 实现核心**：reconciler（黑板变更 → localhost UDP）+ 心跳回写（localhost 心跳 → 黑板 RobotRuntime）+ 保活
+  + **agent 日志**（[`logging-plan.md`](logging-plan.md) **L3**：无界面刚需——复用 `Log` + 滚动文件 sink + reconciler 决策/回写日志）。
 - **P4 测试**：纯映射逻辑（assignment→命令序列）进 `tools/verify` 镜像；起 `mock-purplepi` 当本机栈、
   另起一个"假平板"（可扩 `tools/mock-app` 或新 `mock-tablet` 写黑板）跑 **agent↔mock-purplepi** 闭环；
   软总线双机用两实例桩。
