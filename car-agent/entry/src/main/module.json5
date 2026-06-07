@@ -1,0 +1,41 @@
+// 🚧 car-agent 模块清单——无界面常驻服务（ServiceExtensionAbility）。
+// ⚠️ 未经 DevEco 验证：紫派(RK3566/OH5.0) 的 deviceTypes、service 扩展的开机自起方式、
+//    DISTRIBUTED_DATASYNC 的 reason 字符串资源（$string:perm_datasync 待在 resources 补）均待 DevEco + 成员A 校验。
+//    见 docs/car-agent-plan.md §6.5 与 contracts/integration-qa.md Q6。
+{
+  "module": {
+    "name": "car_agent",
+    "type": "entry",
+    "description": "车载无界面 agent（紫派常驻）",
+    "mainElement": "AgentServiceAbility",
+    "deviceTypes": [
+      "default"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET"
+      },
+      {
+        "name": "ohos.permission.DISTRIBUTED_DATASYNC",
+        "reason": "$string:perm_datasync",
+        "usedScene": {
+          "abilities": [
+            "AgentServiceAbility"
+          ],
+          "when": "inuse"
+        }
+      }
+    ],
+    "extensionAbilities": [
+      {
+        "name": "AgentServiceAbility",
+        "srcEntry": "./ets/serviceextability/AgentServiceAbility.ets",
+        "type": "service",
+        "exported": true,
+        "description": "车载 agent 常驻服务：黑板↔本机 UDP 桥"
+      }
+    ]
+  }
+}
