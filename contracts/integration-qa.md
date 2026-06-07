@@ -73,3 +73,14 @@ App 想在同一局域网/热点下**自动发现车、点击即连**，不再�
 3. 若 A 更愿意走 **mDNS**（紫派跑 responder 广告 `_inspbot._udp`，App 用 `@ohos.net.mdns` 浏览）也行——与 1/2 二选一，看哪个省事。
 
 A 确认后，把最终发现命令写进 `udp-protocol.md`（协议变更）。
+
+### Q6【新立项·待 A 确认】车载无界面轻 agent（紫派常驻）落地前提
+
+App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，入会软总线持 `FleetMission` 黑板，把协同决策翻成本机 9 字节 UDP 下发给 `udp2lcm`、把心跳位姿写回黑板）。取代旧"每车装整 CarApp + startAbility 拉起"。规划见 `docs/car-agent-plan.md`。落地前需 A 确认：
+
+1. **OH 5.0 能否常驻一个无界面 ArkTS hap**（ServiceExtensionAbility）与你的 C/C++ 栈并存、开机自起？RK3566 资源是否吃得消？（你早前口头说"agent 可行"，这里落实形态。）
+2. **本机 UDP 端口互斥**⚠️：`udp2lcm` 是否 bind `0.0.0.0:5001`（这样 agent 可打 `127.0.0.1:5001`）？只记一个 client 吗——若 **agent 与外部平板同时**对该车 5001 发指令会互抢。App 侧设计：**distributed 模式下 agent 是本机唯一 localhost 客户端，平板经黑板下发、不直连该车 UDP**；平板直连 UDP 只用于无 agent 的单车直控。需要为 agent 留独立 localhost 端口避让外部，还是同 5001 即可？
+3. **软总线信任**：平板↔紫派 OH 设备认证 / `networkId` 发现 / `distributedDataObject` 可信组网，紫派侧需做什么配置？
+4. 地图先走**方案B**（agent 触发 `cmd105`→你 `cmd124` wget），方案A（黑板传整图）后置——确认 OK？
+
+这些不阻塞 agent 的本机侧开发（可先用 `mock-purplepi` 当本机栈联调），但**上真车前**需逐条落实。
