@@ -13,10 +13,33 @@
 import { socket } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { UDP_PORT, CONNECT_TIMEOUT_MS, HEARTBEAT_INTERVAL_MS } from '../constants/protocol';
-import { UdpSendData, UdpReceiveData, encodeSend, decodeReceive } from '../model/protocol';
+import { UdpSendData, UdpReceiveData, RobotCommand, encodeSend, decodeReceive } from '../model/protocol';
 
 /** 心跳订阅回调：收到一帧（已解析）+ 来源 IP。 */
 export type MessageListener = (data: UdpReceiveData, remoteIp: string) => void;
+
+/** 广播地址（方案B 局域网发现，见 docs/app-refactor-plan.md §连接与设备发现）。 */
+const BROADCAST_ADDR: string = '255.255.255.255';
+/** 发现期重复探测间隔。 */
+const DISCOVER_PING_INTERVAL_MS: number = 1000;
+
+/** 发现到的一台车（仅 UDP 可知：源 IP + 最近一帧状态/时间；车号协议不携带，按 IP 标识）。 */
+export class DiscoveredRobot {
+  ip: string;
+  /** 最近一帧心跳首字节（状态码）。 */
+  state: number;
+  /** 最近收到时间戳（ms）。 */
+  lastSeen: number;
+
+  constructor(ip: string, state: number, lastSeen: number) {
+    this.ip = ip;
+    this.state = state;
+    this.lastSeen = lastSeen;
+  }
+}
+
+/** 发现回调：每收到/更新一台车即回传当前去重列表。 */
+export type DiscoverListener = (robots: DiscoveredRobot[]) => void;
 
 /** 单个目标 IP 的保活循环：定时器句柄 + 当前重发的指令（可中途更新，不打断计时器）。 */
 class HeartbeatLoop {
@@ -148,6 +171,66 @@ export class RobotTransport {
     }
     this.heartbeats.forEach((loop: HeartbeatLoop) => clearInterval(loop.timer));
     this.heartbeats.clear();
+  }
+
+  /**
+   * 局域网广播发现（方案B）。开广播 → 周期性向 255.255.255.255:5001 发探测包 → 收集回包车（按源 IP 去重），
+   * 每次更新回调 onUpdate；durationMs 后自动停止。返回手动停止函数。
+   *
+   * ⚠️ 探测命令暂用 `cmd 0`（beforeStart）作兜底：A 确认 integration-qa.md Q5（新增不触发 3s 急停的
+   *    0x06 发现 ping）前，cmd0 广播会让子网内每台车都判为"被连"，未被选中的车 3s 收不到后续指令即急停
+   *    ——**仅联调可用**。A 确认后把默认 ping 换成专用发现码并同步 contracts/udp-protocol.md。
+   */
+  discover(onUpdate: DiscoverListener, durationMs: number = CONNECT_TIMEOUT_MS,
+    ping: RobotCommand = RobotCommand.beforeStart): () => void {
+    const found: Map<string, DiscoveredRobot> = new Map<string, DiscoveredRobot>();
+    let pinger: number = -1;
+    let ender: number = -1;
+    let active: boolean = true;
+
+    const probe: MessageListener = (data: UdpReceiveData, ip: string) => {
+      if (!active) {
+        return;
+      }
+      const now: number = Date.now();
+      const exist: DiscoveredRobot | undefined = found.get(ip);
+      if (exist === undefined) {
+        found.set(ip, new DiscoveredRobot(ip, data.state, now));
+      } else {
+        exist.state = data.state;
+        exist.lastSeen = now;
+      }
+      onUpdate(Array.from(found.values()));
+    };
+
+    const stop = (): void => {
+      if (!active) {
+        return;
+      }
+      active = false;
+      this.unsubscribe(probe);
+      if (pinger !== -1) {
+        clearInterval(pinger);
+      }
+      if (ender !== -1) {
+        clearTimeout(ender);
+      }
+      const off: socket.UDPExtraOptions = { broadcast: false };
+      this.udp.setExtraOptions(off, (_e: BusinessError) => {});
+    };
+
+    this.subscribe(probe);
+    const on: socket.UDPExtraOptions = { broadcast: true };
+    this.udp.setExtraOptions(on, (err: BusinessError) => {
+      if (err) {
+        console.error(`[RobotTransport] enable broadcast fail code=${err.code} msg=${err.message}`);
+      }
+    });
+    const sendPing = (): void => this.send(BROADCAST_ADDR, new UdpSendData(ping));
+    sendPing();
+    pinger = setInterval(sendPing, DISCOVER_PING_INTERVAL_MS);
+    ender = setTimeout(stop, durationMs);
+    return stop;
   }
 
   close(): void {
