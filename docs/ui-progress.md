@@ -3,7 +3,7 @@
 > 本文件是**定时自动推进**的状态源。每次定时 agent 运行：读本文件 → 做"下一项未完成" → 勾选 + 追加运行日志 + 标下一步。
 > 目标：结合本机 `W:\Project\OpenHarmonyCar\style\` 的**五套设计融合**出 App 最终版 UI，全量实现 ArkTS（**未经 DevEco 验证**，待真机/DevEco 校验）。
 > 计划详见 `docs/app-refactor-plan.md`（UI 阶段、目标架构、§连接与设备发现）。
-> 定时任务（2026-06-07 三更新）：CronCreate **`58f9606e`**（`12 16,22,4,10 * * *`，每 6h，下次≈16:12；旧 `55a7ea1a`/`2a874726`/`3daa5173` 已删）。prompt 已**改为顺序无关**（一律以本文件「下一步」为准，便于以后只改文档不动 cron）+ 含**协作姿态**（接口两边共同设计、不迁就 A 现有代码、参考 A 分支 `origin/purplepi-control`）。**UI U1–U11 + tools T1 已完成 → 现优先车载轻 agent P1**（含先做共享日志 L1）；另有 R1 接口复审、tools T2 低优先。**session-only**（本环境 durable 不生效）+ 约 7 天后自动过期；/clear 或关闭即失效，需重建（见末尾"任务自愈"）。
+> 定时任务（2026-06-07 四更新，用户改时点）：CronCreate **`47f98cf8`**（`5 21,3,9,15 * * *`，每 6h，**下次≈21:05**＝从 16:05 起 +5h，用于续做本会话可能未完的任务；旧 `58f9606e`…已删）。prompt **顺序无关**（一律以本文件「下一步」为准，便于以后只改文档不动 cron）+ 含**协作姿态**（接口两边共同设计、不迁就 A、参考 `origin/purplepi-control`）。**UI U1–U11 + tools T1 完成；车载 agent P1 进行中**（共享日志 L1 已落地，设计见 `car-agent-plan.md` §6）；另有 R1 接口复审、tools T2 低优先。**session-only**（本环境 durable 不生效）+ 约 7 天后自动过期；/clear 或关闭即失效，需重建（见末尾"任务自愈"）。
 
 ## 执行约定（每次必守）
 - App 代码（`app-harmony/**`）→ **只**提交 `app-harmony-core` 并 push。
@@ -39,7 +39,7 @@
 - [ ] **R1 App↔紫派接口优雅性复审**：逐项审我们已写的 App 协议/地图/命令处理是否为迁就 A 现状做了不优雅妥协（如地图首行"取末两个整数"折中、命令码 5/107/108 语义与 byte1 复用、坐标单位、发现 ping 用 cmd0 兜底、地图就绪阈值 324e4 等）→ 能否两边一起改得更干净；结论与建议写进 `contracts/`（开放问题入 `integration-qa.md`）与 A 沟通。
 
 ## 任务自愈（若定时任务失效）
-session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `58f9606e`（`CronList` 查），按本文件顶部参数（cron `12 16,22,4,10 * * *`）用 `CronCreate` 重建，prompt 用"读 MEMORY+`CLAUDE.md`+本进度文档+`docs/car-agent-plan.md`+`docs/logging-plan.md` → 做本文件「下一步」的下一项未完成（当前=车载 agent P1，含先做共享日志 L1）→ 守协作姿态（接口两边共同设计、不迁就 A、参考 `origin/purplepi-control`）→ smoke 测 → 按 [[feedback-docs-main-code-branch]] 提交 → 收尾"的自举式提示（要点见记忆 [[app-refactor-plan]] / [[car-agent-plan]]）。
+session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `47f98cf8`（`CronList` 查），按本文件顶部参数（cron `5 21,3,9,15 * * *`）用 `CronCreate` 重建，prompt 用"读 MEMORY+`CLAUDE.md`+本进度文档+`docs/car-agent-plan.md`+`docs/logging-plan.md` → 做本文件「下一步」的下一项未完成（当前=车载 agent P1，含先做共享日志 L1）→ 守协作姿态（接口两边共同设计、不迁就 A、参考 `origin/purplepi-control`）→ smoke 测 → 按 [[feedback-docs-main-code-branch]] 提交 → 收尾"的自举式提示（要点见记忆 [[app-refactor-plan]] / [[car-agent-plan]]）。
 
 ## 运行日志（每次追加一行）
 - 2026-06-06 20:1x（设定·本会话）：建定时任务 `3daa5173`（session-only，每 6h，首次≈+5h=06-07 01:12）+ 写本进度文档。**下一步 = U1 风格融合**。
@@ -54,3 +54,4 @@ session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `58f
 - 2026-06-07（手动·run10，连续推进）：完成 **tools T1 `tools/mock-app/`**——见 T1 勾选项。mock-app smoke 8/8、mock-purplepi smoke 6/6、verify.mjs 17/17。**新增任务（用户 2026-06-07）：开发车载 OpenHarmony 轻 agent**，按"先文档规划→逐步设计→实现"——本轮已出规划文档 `docs/car-agent-plan.md`（见下条）。**下一步 = 车载 agent 设计细化**（或 tools T2 视需要）。
 - 2026-06-07（手动·run11，仅出方案）：用户问"是否需要日志"，决定**先写方案、之后由定时任务实现**。出 `docs/logging-plan.md`（盘点现状 30 处 ad-hoc/console×hilog 混用、无 TAG/级别/开关/线缆 trace/文件 sink；分阶段 **L1 共享 `utils/log.ets`+`RobotTransport` 线缆 trace（最高价值）/ L2 黑板 trace / L3 agent 文件 sink+决策日志（无界面刚需）/ L4 mock 增强**）。**L1 已并入车载 agent P1 ⑤（共享层基底，App+agent 同用）**。不改代码。**下一步 = 车载 agent P1（含先做共享日志 L1）**。
 - 2026-06-07（手动·run12，仅文档/协作姿态）：用户定**协作姿态**——接口两边共同设计、不一味迁就 A 现有代码、两边同推共建优美项目、只需在 contracts 写明并交流；想了解 A 实现参考其分支 `origin/purplepi-control`（完整代码）。落地：`CLAUDE.md` 加该原则、新增复审任务 **R1**（接口优雅性复审）、定时任务 prompt 改顺序无关并含该姿态（cron 换 `58f9606e`，schedule/下次 16:12 不变）。不改代码。**下一步仍 = 车载 agent P1（含 L1）**；R1 择机做。
+- 2026-06-07（手动·run13，开 P1，用户"直接开始"）：**车载 agent P1 启动**——⑤ 共享日志 **L1 落地**：`constants/debug.ets`（LOG_DOMAIN/级别/`DEBUG_WIRE`）+ `utils/log.ets`（`Log.scoped`）+ `RobotTransport` 线缆 trace（commit `6137efc`，code 仅 app-harmony-core）；其余 console.* 收敛(12 处)留作 L1 余项。**P1 设计写入 `car-agent-plan.md` §6**（①复用=抽共享 HAR shared-core ②reconciler 幂等状态机 ③localhost 5001 与平板直连互斥 ④黑板写回节流 ⑤目录骨架）。`verify.mjs` 17/17。定时任务按用户改为 **21:05**（cron `47f98cf8`）续做。**下一步 = P2 脚手架**（建 shared-core HAR + car-agent 骨架）或收 L1 余项。
