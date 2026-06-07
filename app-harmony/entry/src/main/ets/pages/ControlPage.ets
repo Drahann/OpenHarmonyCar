@@ -41,6 +41,9 @@ struct ControlPage {
   @State private showDevicePanel: boolean = false;
   @State private mapViewCmd: string = '';
   @State private mapping: boolean = false;  // 建图进行中（cmd0 开始 → cmd2 结束）
+  @State private joySpeed: number = SPEED_DEFAULT;  // 摇杆前进速度(%)，可调（cmd1 的 byte2）
+  @State private fpAlg: number = 0;                 // 全路径算法：0=牛耕，1=最小生成树（cmd102 的 byte1）
+  @State private fpVertices: Point[] = [];          // 全路径已选顶点（4 个：左下/右下/右上/左上）
 
   private ip: string = '';
   private mode: ControlMode = ControlMode.astar;
@@ -60,6 +63,7 @@ struct ControlPage {
       this.mode = (params.mode as ControlMode) ?? ControlMode.astar;
     }
     this.mission.mode = this.mode;
+    this.joySpeed = this.speedForMode();  // 摇杆速度按 mode 给默认值，用户可在滑块调
     if (this.ip.length > 0) {
       this.mission.robots = [new RobotRuntime(1, this.ip)];
     }
@@ -160,8 +164,30 @@ struct ControlPage {
         this.sendDistArea(c1, c2, 0);
         this.bump();
       }
+    } else if (this.mode === ControlMode.fullpath) {
+      this.selectVertex(p);
     }
-    // fullpath：点选=选房间，需 cmd104+房间号，待真机房间编号方案；此处暂不处理点选。
+  }
+
+  /** 全路径选顶点（4 个：左下→右下→右上→左上）。每点发 cmd104(byte1=序号)；满 4 个自动启动 cmd102(byte1=算法)。 */
+  private selectVertex(p: Point): void {
+    if (this.fpVertices.length >= 4) {
+      return; // 已满，需先「重选顶点」
+    }
+    const idx: number = this.fpVertices.length;
+    this.fpVertices = this.fpVertices.concat(p);
+    this.mission.endPoints = this.fpVertices.map((v: Point): EndPoint => new EndPoint(v.x, v.y)); // 地图上显示已选顶点
+    this.sendTo(this.ip, RobotCommand.fullpathSelect, idx, p.x, p.y); // cmd104：byte1=顶点序号
+    if (this.fpVertices.length >= 4) {
+      this.sendTo(this.ip, RobotCommand.fullpathStartRoute, this.fpAlg); // cmd102：byte1=算法号
+    }
+    this.bump();
+  }
+
+  private resetVertices(): void {
+    this.fpVertices = [];
+    this.mission.endPoints = [];
+    this.bump();
   }
 
   // ── 指令下发 ────────────────────────────────────────────────────────────────
@@ -179,10 +205,6 @@ struct ControlPage {
 
   private cancelRoute(): void {
     this.sendTo(this.ip, RobotCommand.endRoute);
-  }
-
-  private startFullpath(): void {
-    this.sendTo(this.ip, RobotCommand.fullpathStartRoute);
   }
 
   private stopFullpath(): void {
@@ -272,7 +294,7 @@ struct ControlPage {
         endPoints: this.mission.endPoints,
         assignments: this.mission.assignments,
         area: this.mission.area,
-        enablePick: this.mode !== ControlMode.fullpath,
+        enablePick: this.mission.mapReady,
         onPickPoint: (p: Point) => this.onPick(p)
       })
 
@@ -282,9 +304,12 @@ struct ControlPage {
       // 右下缩放 FAB
       this.ZoomFabs()
 
+      // 速度控制（摇杆上方）
+      this.SpeedControl()
+
       // 摇杆（右下，连接后启用）
       Joystick({
-        speed: this.speedForMode(),
+        speed: this.joySpeed,
         disabled: this.connectedIps.length === 0,
         onDirection: (dir: MoveDirection, speed: number) => this.onJoystick(dir, speed)
       })
@@ -490,27 +515,102 @@ struct ControlPage {
 
   @Builder
   FullpathOps() {
-    Row() {
-      Text('全路径覆盖')
-        .fontSize(FontSize.body)
+    Column({ space: Space.sm }) {
+      // ① 选算法（牛耕 / 最小生成树 → cmd102 byte1）
+      Row({ space: Space.sm }) {
+        this.AlgChip('牛耕算法', 0)
+        this.AlgChip('最小生成树', 1)
+      }
+      .width('100%')
+      // ② 点地图选 4 个顶点（左下→右下→右上→左上 → cmd104），满 4 个自动启动
+      Text(this.fpHint())
+        .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textBody)
-      Blank()
-      Button('停止')
-        .fontColor(AppColor.primary)
-        .backgroundColor(AppColor.surface)
-        .border({ width: 1, color: AppColor.primary })
-        .borderRadius(Radius.pill)
-        .height(TOUCH_MIN)
-        .margin({ right: Space.sm })
-        .onClick(() => this.stopFullpath())
-      Button('开始覆盖')
-        .fontColor(AppColor.onPrimary)
-        .backgroundColor(AppColor.primary)
-        .borderRadius(Radius.pill)
-        .height(TOUCH_MIN)
-        .onClick(() => this.startFullpath())
+        .width('100%')
+      Row() {
+        Button('重选顶点')
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .onClick(() => this.resetVertices())
+        Blank()
+        Button('停止')
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .onClick(() => this.stopFullpath())
+      }
+      .width('100%')
     }
     .width('100%')
+  }
+
+  @Builder
+  AlgChip(label: string, alg: number) {
+    Text(label)
+      .fontSize(FontSize.bodySm)
+      .fontColor(this.fpAlg === alg ? AppColor.onPrimary : AppColor.primary)
+      .backgroundColor(this.fpAlg === alg ? AppColor.primary : AppColor.surface)
+      .border(this.fpAlg === alg ? undefined : { width: 1, color: AppColor.primary })
+      .borderRadius(Radius.pill)
+      .height(TOUCH_MIN)
+      .layoutWeight(1)
+      .textAlign(TextAlign.Center)
+      .onClick(() => {
+        this.fpAlg = alg;
+      })
+  }
+
+  // 速度控制（摇杆上方）：调 cmd1 的 speed（前进速度 %）。
+  @Builder
+  SpeedControl() {
+    Column({ space: Space.xs }) {
+      Text(`速度 ${this.joySpeed}%`)
+        .fontSize(FontSize.caption)
+        .fontColor(AppColor.textSecondary)
+      Slider({ value: this.joySpeed, min: 10, max: 100, step: 5 })
+        .width(150)
+        .blockColor(AppColor.primary)
+        .selectedColor(AppColor.primary)
+        .trackColor(AppColor.divider)
+        .onChange((v: number) => {
+          this.joySpeed = Math.round(v);
+        })
+    }
+    .padding(Space.sm)
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.md)
+    .shadow({
+      radius: Elevation.softRadius,
+      color: Elevation.softColor,
+      offsetX: 0,
+      offsetY: Elevation.softOffsetY
+    })
+    .position({ x: Space.lg, y: '50%' })
+  }
+
+  private fpHint(): string {
+    const n: number = this.fpVertices.length;
+    if (n >= 4) {
+      return '已选 4 顶点，全路径覆盖已启动';
+    }
+    return `点地图选第 ${n + 1} 个顶点（${this.fpCornerName(n)}），共需 4 个`;
+  }
+
+  private fpCornerName(i: number): string {
+    if (i === 0) {
+      return '左下';
+    }
+    if (i === 1) {
+      return '右下';
+    }
+    if (i === 2) {
+      return '右上';
+    }
+    return '左上';
   }
 
   @Builder
