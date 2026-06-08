@@ -33,6 +33,22 @@
 **App 侧已落地（2026-06-08）**：`pages/DeviceTrustPage.ets`（发现+配对面板，HomePage「设备互信」入口）
 + `FleetMissionService.bindDevice` 补 `targetPkgName/appOperation/customDescription`（对齐老 App 证实形参）。⚠️ 未经 DevEco。
 
+## 官方文档依据（2026-06-08 查证 OpenHarmony 文档）
+
+- **🔑 同 bundleName 约束 —— 确证**：`distributedDataObject` 跨设备同步**仅限同一应用**，此前为推断，现有官方背书。
+  - 中文指南原文："分布式数据对象的数据同步**发生在同一个应用程序下**，且同 sessionId 之间。"
+  - 英文指南："implements data object collaboration for the **same application** across multiple devices that form a Super Device"；示例用相同 `bundleName`/`abilityName`。
+  - → **车载 agent 必须与平板 App 同 `bundleName = com.example.carapp`**，否则黑板根本不同步。
+  - 来源：OpenHarmony docs `application-dev/database/data-sync-of-distributed-data-object.md`（en + zh-cn）。
+- **PIN 方向 —— 依据**：账号无关 PIN 认证时，**PIN 在被认证的"远端设备"(=车) 显示**、**在"发起端"(=平板) 输入**
+  （device-manager 文档："a PIN code is **displayed on the remote device**, and **entering this PIN code on the requesting device** completes…"）。
+  → **车屏看 PIN、平板输 PIN**（与"车接显示器看 PIN"吻合）。**平板这端是输入框，不是显示 PIN。** `DeviceTrustPage` 指引文案已据此更正。
+- **能否自渲染 PIN —— 结论：第三方应用不能**：自定义认证 UI 的钩子（`on('uiStateChange')`/`setUserOperation`）是**系统 API**
+  （需系统应用权限），普通第三方应用**拿不到 PIN 值**、由**系统弹窗**呈现（与老 App 实证一致——老 App 未自渲染、无 `uiStateChange`）。
+  → **不做"在 App 内显示 PIN"**：① PIN 在车端不在平板（方向不对）；② 自定义 UI 需系统权限。所谓"双重保险"改为
+  **"平板清晰文案指引 + 车端系统弹窗"**。（⚠️ 新 API `@ohos.distributedDeviceManager` 精确 system-API 标注未逐字取到，
+  但老 App 实证 + 旧 API 标注一致；若确需自定义 PIN UI，真机核实——不建议。）
+
 ## 一、官方两条互信路径
 
 | 路径 | 怎么建立 | App 要不要做绑定 UI | 适用 |
