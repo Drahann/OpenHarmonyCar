@@ -19,10 +19,10 @@ import { RobotTransport, MessageListener } from '../service/RobotTransport';
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
 import { Mission, MissionSnapshot, RobotRuntime, AssignmentDTO, EndPointDTO } from '../model/mission';
 import { UdpSendData, UdpReceiveData, RobotCommand, MoveDirection } from '../model/protocol';
+import { FLEET_SESSION_ID } from '../constants/protocol';
 import { Log, Logger } from '../utils/log';
 
 const LOCAL_STACK_IP: string = '127.0.0.1';   // 本机 udp2lcm
-const FLEET_SESSION_ID: string = 'OpenHarmonyCarFleetV1';  // 约定会话（MVP 无协商入会）
 const WRITEBACK_MIN_MS: number = 300;          // 黑板写回最小间隔（心跳 500ms，避免刷爆软总线）
 const CMD_DISPATCH_GAP_MS: number = 300;       // 本机命令对(cmd5→107→108)间隔，避免紫派"先暂存后使用"乱序
 

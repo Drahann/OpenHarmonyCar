@@ -65,6 +65,7 @@ export function mapUrlFor(ip: string): string {
 
 /**
  * 软总线协同会话 ID（FleetMission 黑板，distributed 模式用）。平板与各车 agent 用同一 ID 入会才能同步。
- * ⚠️ **必须与 car-agent 的 `AgentServiceAbility.FLEET_SESSION_ID` 完全一致**（改一处改两处）。
+ * ⚠️ **平板与 car-agent 必须同值**：car-agent 的 `constants/protocol.ets` 是本文件同源副本（改一处改两处），
+ *    其 `AgentServiceAbility` 从该常量 import（不再各自硬编码，杜绝值漂移）。
  */
 export const FLEET_SESSION_ID: string = 'OpenHarmonyCarFleetV1';
