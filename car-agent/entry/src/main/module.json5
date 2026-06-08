@@ -1,6 +1,8 @@
-// 🚧 car-agent 模块清单——无界面常驻服务（ServiceExtensionAbility）。
+// 🚧 car-agent 模块清单——运行时=无界面常驻服务（AgentServiceAbility / ServiceExtensionAbility）
+//    + 一次性配对界面（PairingAbility / UIAbility，仅配网期手动拉起，见 docs/distributed-trust.md）。
 // ⚠️ 未经 DevEco 验证：紫派(RK3566/OH5.0) 的 deviceTypes、service 扩展的开机自起方式、
-//    DISTRIBUTED_DATASYNC 的 reason 字符串资源（$string:perm_datasync 待在 resources 补）均待 DevEco + 成员A 校验。
+//    以及所有 $资源引用（$string:perm_datasync / $media:app_icon / $string:app_name /
+//    $color:start_window_background）均待 DevEco 工程集成时在 resources 补 + 成员A 校验。
 //    见 docs/car-agent-plan.md §6.5 与 contracts/integration-qa.md Q6。
 {
   "module": {
@@ -8,6 +10,7 @@
     "type": "entry",
     "description": "车载无界面 agent（紫派常驻）",
     "mainElement": "AgentServiceAbility",
+    "pages": "$profile:pairing_pages",
     "deviceTypes": [
       "default"
     ],
@@ -26,6 +29,18 @@
           ],
           "when": "inuse"
         }
+      }
+    ],
+    "abilities": [
+      {
+        "name": "PairingAbility",
+        "srcEntry": "./ets/pairingability/PairingAbility.ets",
+        "description": "一次性设备互信配对界面（仅配网期手动拉起；运行时用 headless 的 AgentServiceAbility）",
+        "icon": "$media:app_icon",
+        "label": "$string:app_name",
+        "startWindowIcon": "$media:app_icon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true
       }
     ],
     "extensionAbilities": [

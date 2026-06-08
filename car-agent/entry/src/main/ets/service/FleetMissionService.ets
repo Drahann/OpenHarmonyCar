@@ -10,11 +10,10 @@
 import { common } from '@kit.AbilityKit';
 import { distributedDeviceManager } from '@kit.DistributedServiceKit';
 import { distributedDataObject } from '@kit.ArkData';
-import { hilog } from '@kit.PerformanceAnalysisKit';
 import { Mission, MissionSnapshot } from '../model/mission';
+import { Log, Logger } from '../utils/log';
 
-const DOMAIN: number = 0xFF00;
-const TAG: string = 'FleetMission(agent)';
+const log: Logger = Log.scoped('FleetMission(agent)');
 const BUNDLE_NAME: string = 'com.example.carapp';
 
 /** distributedDataObject 同步的数据形状：单一 JSON 字段承载 MissionSnapshot。 */
@@ -51,7 +50,7 @@ export class FleetMissionService {
     try {
       this.deviceManager = distributedDeviceManager.createDeviceManager(BUNDLE_NAME);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, `createDeviceManager err: ${JSON.stringify(err)}`);
+      log.e(`createDeviceManager err: ${JSON.stringify(err)}`);
     }
   }
 
@@ -62,7 +61,7 @@ export class FleetMissionService {
     try {
       return this.deviceManager.getAvailableDeviceListSync();
     } catch (err) {
-      hilog.error(DOMAIN, TAG, `getAvailableDeviceListSync err: ${JSON.stringify(err)}`);
+      log.e(`getAvailableDeviceListSync err: ${JSON.stringify(err)}`);
       return [];
     }
   }
@@ -75,7 +74,7 @@ export class FleetMissionService {
       }
     });
     this.dataObject.on('status', (sessionId: string, networkId: string, status: string) => {
-      hilog.info(DOMAIN, TAG, `peer ${networkId} ${status}`);
+      log.i(`peer ${networkId} ${status}`);
     });
   }
 

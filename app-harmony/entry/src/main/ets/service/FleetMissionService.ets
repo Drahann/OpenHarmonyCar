@@ -18,11 +18,10 @@ import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { distributedDeviceManager } from '@kit.DistributedServiceKit';
 import { distributedDataObject } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
 import { Mission, MissionSnapshot } from '../model/mission';
+import { Log, Logger } from '../utils/log';
 
-const DOMAIN: number = 0xFF00;
-const TAG: string = 'FleetMission';
+const log: Logger = Log.scoped('FleetMission');
 const BUNDLE_NAME: string = 'com.example.carapp';
 /**
  * 互信弹窗上显示的发起方名称（对端**系统 PIN 弹窗**展示用，非 bundle）。
@@ -74,7 +73,7 @@ export class FleetMissionService {
       atManager.requestPermissionsFromUser(context, COLLAB_PERMISSIONS)
         .then(() => resolve())
         .catch((err: BusinessError) => {
-          hilog.error(DOMAIN, TAG, `request permissions failed: ${err.code} ${err.message}`);
+          log.e(`request permissions failed: ${err.code} ${err.message}`);
           resolve(); // 不阻塞启动
         });
     });
@@ -84,7 +83,7 @@ export class FleetMissionService {
     try {
       this.deviceManager = distributedDeviceManager.createDeviceManager(BUNDLE_NAME);
     } catch (err) {
-      hilog.error(DOMAIN, TAG, `createDeviceManager err: ${JSON.stringify(err)}`);
+      log.e(`createDeviceManager err: ${JSON.stringify(err)}`);
     }
   }
 
@@ -96,7 +95,7 @@ export class FleetMissionService {
     try {
       return this.deviceManager.getAvailableDeviceListSync();
     } catch (err) {
-      hilog.error(DOMAIN, TAG, `getAvailableDeviceListSync err: ${JSON.stringify(err)}`);
+      log.e(`getAvailableDeviceListSync err: ${JSON.stringify(err)}`);
       return [];
     }
   }
@@ -111,10 +110,10 @@ export class FleetMissionService {
     try {
       this.deviceManager.on('discoverSuccess', (data: DiscoverSuccessData) => onFound(data.device));
       this.deviceManager.on('discoverFailure', (data: object) =>
-        hilog.error(DOMAIN, TAG, `discoverFailure: ${JSON.stringify(data)}`));
+        log.e(`discoverFailure: ${JSON.stringify(data)}`));
       this.deviceManager.startDiscovering({ 'discoverTargetType': 1 });
     } catch (err) {
-      hilog.error(DOMAIN, TAG, `startDiscovering err: ${JSON.stringify(err)}`);
+      log.e(`startDiscovering err: ${JSON.stringify(err)}`);
     }
   }
 
@@ -126,7 +125,7 @@ export class FleetMissionService {
       this.deviceManager.off('discoverSuccess');
       this.deviceManager.stopDiscovering();
     } catch (err) {
-      hilog.error(DOMAIN, TAG, `stopDiscovering err: ${JSON.stringify(err)}`);
+      log.e(`stopDiscovering err: ${JSON.stringify(err)}`);
     }
   }
 
@@ -170,7 +169,7 @@ export class FleetMissionService {
       }
     });
     this.dataObject.on('status', (sessionId: string, networkId: string, status: string) => {
-      hilog.info(DOMAIN, TAG, `peer ${networkId} ${status}`);
+      log.i(`peer ${networkId} ${status}`);
     });
   }
 
