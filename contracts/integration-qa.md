@@ -130,3 +130,15 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 - **优先级**：**非阻塞**——现状能工作。A 哪天动 cmd105 解析时顺手改即可；改后回写 `udp-protocol.md`（协议变更，需两端同步）。
   新写的车载 agent 触发 cmd105 时按最终布局实现（暂先按现状 [1,2,4,6]）。
 - **请 A**：接受（顺手改）/ 维持现状（维持则 App 与 agent 继续按 [1,2,4,6] 打包，不阻塞）。
+
+### Q11【接口不一致·建议】多车覆盖（LCM122）能否像单车全路径（LCM127）那样选覆盖算法？
+
+来自 App 流程复审（`docs/safety-flow-review.md` §3）。**现状不一致**：单车全路径 `cmd102` 带 `byte1=algNum`（牛耕 0 / 最小生成树 1 → LCM **127**）、App 已有算法选择 UI；但多车分布式覆盖 `cmd107/108` → LCM **122**（按两对角点生成矩形覆盖路径）**协议里没有算法参数**（A 文档 §三 122 无 algNum），App 多车界面因此**没有算法选项**。
+- **问**：LCM122 是否支持选覆盖算法（牛耕/最小生成树/…）？
+- 若支持 → App 想在 `cmd107`（byte1/2 当前空）或 `cmd108`（byte2 当前空）带一个 `algNum`，让**单/多车算法选择一致**（DistributedOps 复用 fullpath 的算法 chip）。这是**协议变更/接口建议，需两端同步**。
+- 若 122 固定算法 → App 多车就不显示算法选项（接受不一致）。请 A 定。
+
+### Q6.2 复核【distributed 本机 localhost 互斥】
+
+`docs/safety-flow-review.md` §2 发现：ControlPage 在 distributed 模式仍直连保活 master（`connectTo(this.ip)`），而 master 也有自己的 agent（其 udp2lcm 的唯一 localhost 客户端）→ 平板 + master-agent 两个客户端抢 master 的单 client 记录 + 3s 急停。
+- **请 A 确认**（呼应 Q6.2）：distributed 模式下 master 是否应**仅由其 agent 独占** localhost、**平板不直连任何车**（含 master）、全经黑板？若是，App 将在 distributed 模式去掉对 master 的直连保活（改纯黑板）。
