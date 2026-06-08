@@ -111,7 +111,9 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 
 **在此之前**：平板 App 会补"设备互信 UI"（发现+发起 `bindTarget`），但**能否真把无界面紫派绑成功取决于上面**；端到端联调前，多机用平板「直发兜底」先测覆盖本身。
 
-**↳ App 侧补记（2026-06-08，用户定）**：互信方向与车端确认手段**已定**——**平板=发起方**（`bindTarget`）、**紫派=接受方**；紫派**配网期接 HDMI 显示器**在系统配对弹窗确认 PIN（**团队既有成熟流程，此前设备认证一直这么做**）。故上面 🔴"无界面没法确认 PIN"**消解**：配对一次性、用显示器完成，之后 headless agent 凭持久信任标签直接 `distributedDataObject` 同步、运行时无需界面。传输层**保留 DDO 软总线**（评估过纯 LAN socket 退路、`FleetMissionService` 接口传输无关可随时切，留作软总线反复受阻时再用）。详见 `docs/distributed-trust.md`「决策」。**仍请 A 答上面 1–4**（紫派走账号路/账号无关、被发现+接受绑定需哪些权限配置、绑定确认是否就是 HDMI 上可点的系统弹窗、互信后 DDO 同步紫派还需做什么）。
+**↳ App 侧补记（2026-06-08，用户定）**：互信方向与车端确认手段**已定**——**平板=发起方**（`bindTarget`）、**紫派=接受方**；紫派**配网期接 HDMI 显示器**在系统配对弹窗确认 PIN（**团队既有成熟流程，此前设备认证一直这么做**）。故上面 🔴"无界面没法确认 PIN"**消解**：配对一次性、用显示器完成，之后 headless agent 凭持久信任标签直接 `distributedDataObject` 同步、运行时无需界面。传输层**保留 DDO 软总线**（评估过纯 LAN socket 退路、`FleetMissionService` 接口传输无关可随时切，留作软总线反复受阻时再用）。详见 `docs/distributed-trust.md`「决策」。
+
+**A/用户答（2026-06-08，依老 App 经验）**：① 走**账号无关 PIN 认证**（`bindType=1`）、同一 **WiFi 局域网**；② 绑定时紫派**接显示器+鼠标**，**系统 PIN 弹窗**在车屏确认（查老 App 代码证实：本 App 不自渲染 PIN、无 `uiStateChange`，系统弹窗代劳）；③ **🔑 关键：`distributedDataObject` 同步要两端同 `bundleName`** → **车载 agent 须打包为 `com.example.carapp`**（与平板同），平板 `bindTarget` 的 `targetPkgName='com.example.carapp'`。**残留待真机/A**：紫派 DM 是否确有可点系统弹窗、接受方是否要"目标包(agent)在运行"才弹 PIN（已用"agent hap 内置**一次性配对 UIAbility**"兜底）、被发现+接受绑定的权限配置。**App 侧已落地**：发现+配对面板 `pages/DeviceTrustPage.ets`（HomePage「设备互信」入口）+ `FleetMissionService.bindDevice` 补 `targetPkgName/appOperation/customDescription`。
 
 ---
 

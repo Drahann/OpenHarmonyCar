@@ -43,7 +43,9 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
 
 ## 2. 形态与复用（关键设计取向）
 
-- **形态**：独立瘦 hap，入口 = **无 Page 的 ServiceExtensionAbility / 常驻 Ability**（headless）。不含 `component/`、`pages/`。
+- **形态**：瘦 hap，运行时入口 = **无 Page 的 ServiceExtensionAbility / 常驻 Ability**（headless）。
+  **🔑 bundleName 必须 = `com.example.carapp`**（与平板 App 同——`distributedDataObject` 跨设备同步要求两端同 bundle；见 `docs/distributed-trust.md` 决策·已答④ / integration-qa Q9）。
+  除 headless 入口外，**另含一次性配对 UIAbility**（仅配网期拉起，处理设备互信 PIN 的保险——以防接受方需"目标包在运行"才弹系统 PIN；运行时不用），故有一个极简 page。
 - **最大复用 app-harmony 的 UI 无关层**——这是省力关键，app-harmony 的 `model/` + `service/` 本就无 UI 依赖：
   - `model/protocol.ets`（`encodeSend`/`decodeReceive`、命令枚举）——**逐字节同款，必须共享**。
   - `model/mission.ets`（`FleetMission`/`MissionSnapshot`/DTO）——黑板 schema，**两端反序列化同一 JSON，必须共享**。
