@@ -53,24 +53,42 @@ function mapToCanvas(m, t, half) {
   };
 }
 
-// ── 镜像：service/MapService.ets parseMap ───────────────────────────────────
-function parseMap(text, canvasW, canvasH) {
-  const lines = text.split('\n');
-  const headerNums = lines[0].trim().split(/\s+/).map((t) => parseInt(t, 10)).filter((n) => !Number.isNaN(n));
-  const height = headerNums[headerNums.length - 2];
-  const width = headerNums[headerNums.length - 1];
-  let yMin = Infinity, yMax = -Infinity, xMin = Infinity, xMax = -Infinity;
-  for (let y = 1; y < lines.length; y++) {
-    const d = lines[y];
-    if (d.includes('1')) {
-      if (!Number.isFinite(yMin)) yMin = y; else yMax = Math.max(yMax, y);
-      for (let x = 0; x < width; x++) {
-        if (d[x] === '1') { xMin = Math.min(xMin, x); xMax = Math.max(xMax, x); }
-      }
-    }
+// ── 镜像：service/MapService.ets parseMap（首行按位置 parts[2]/[3]；数据行归一化 空格(-1/0) 或 密排(1/0)）──
+function parseRow(line) {
+  const t = line.trim();
+  if (t.length === 0) return new Uint8Array(0);
+  if (t.indexOf(' ') >= 0) {              // 空格分隔（defultMap.txt）：-1=障碍
+    const toks = t.split(/\s+/);
+    const cells = new Uint8Array(toks.length);
+    for (let i = 0; i < toks.length; i++) cells[i] = parseInt(toks[i], 10) < 0 ? 1 : 0;
+    return cells;
   }
+  const cells = new Uint8Array(t.length); // 密排（defultMap.txt.txt）：'1'=障碍
+  for (let i = 0; i < t.length; i++) cells[i] = t[i] === '1' ? 1 : 0;
+  return cells;
+}
+function parseMap(text, canvasW, canvasH) {
+  const rawLines = text.split('\n');
+  const grid = [];
+  for (let y = 0; y < rawLines.length; y++) grid.push(y === 0 ? new Uint8Array(0) : parseRow(rawLines[y]));
+  const headerParts = (rawLines[0] ?? '').trim().split(/\s+/);
+  let height = parseInt(headerParts[2], 10);  // 位置：range resolution height width ...
+  let width = parseInt(headerParts[3], 10);
+  if (!(height > 0) || !(width > 0)) {        // 回退：首行非标准 → 按数据推断
+    let maxCols = 0, dataRows = 0;
+    for (let y = 1; y < grid.length; y++) if (grid[y].length > 0) { dataRows++; if (grid[y].length > maxCols) maxCols = grid[y].length; }
+    height = dataRows; width = maxCols;
+  }
+  let yMin = Infinity, yMax = -Infinity, xMin = Infinity, xMax = -Infinity;
+  for (let y = 1; y < grid.length; y++) {
+    const row = grid[y], w = Math.min(width, row.length);
+    let hasWall = false;
+    for (let x = 0; x < w; x++) if (row[x] === 1) { hasWall = true; if (x < xMin) xMin = x; if (x > xMax) xMax = x; }
+    if (hasWall) { if (!Number.isFinite(yMin)) { yMin = y; yMax = y; } else yMax = Math.max(yMax, y); }
+  }
+  if (!Number.isFinite(xMin) || !Number.isFinite(yMin)) { xMin = 0; xMax = Math.max(0, width - 1); yMin = 1; yMax = Math.max(1, height); }
   const drawHeight = yMax - yMin + 1, drawWidth = xMax - xMin + 1;
-  const squareSize = Math.max(drawWidth, drawHeight);
+  const squareSize = Math.max(1, Math.max(drawWidth, drawHeight));
   const diff = (drawWidth - drawHeight) / 2;
   if (diff > 0) { yMin -= Math.trunc(diff); yMax += Math.ceil(diff); }
   else { xMin += Math.trunc(diff); xMax -= Math.floor(diff); }
@@ -143,6 +161,24 @@ console.log('地图解析（fixtures/defultMap.txt, 画布 1000x1000）：');
   check('squareSize=40', m.squareSize === 40, `squareSize=${m.squareSize}`);
   check('gridSize=25', m.gridSize === 25, `gridSize=${m.gridSize}`);
   check('txtAverSize=40', m.txtAverSize === 40, `txtAverSize=${m.txtAverSize}`);
+}
+
+// ── ③b 真机地图格式（7 值首行 + 空格分隔 -1/0）：防回归"取末两个=负偏移 / 把 -1 当密排字符"──
+console.log('真机地图格式（首行 range resolution height width metersPerPixel x0 y0 + 空格分隔 -1/0）：');
+{
+  const realMap = [
+    '0.05 0.05 4 5 0.05 -45 -44',  // range res height=4 width=5 mpp x0=-45 y0=-44
+    '-1 -1 -1 -1 -1',
+    '-1 0 0 0 -1',
+    '-1 0 0 0 -1',
+    '-1 -1 -1 -1 -1',
+  ].join('\n');
+  const rm = parseMap(realMap, 1000, 1000);
+  check('首行按位置取 rows=4（parts[2]，不是取末两个的 x0=-45）', rm.rows === 4, `rows=${rm.rows}`);
+  check('首行按位置取 cols=5（parts[3]，不是 y0=-44）', rm.cols === 5, `cols=${rm.cols}`);
+  check('空格分隔 -1 识别为障碍：xMin=0', rm.startX === 0, `startX=${rm.startX}`);
+  check('空格分隔 -1 识别为障碍：xMax=4', rm.endX === 4, `endX=${rm.endX}`);
+  check('未把负偏移当行列（rows/cols 均 >0）', rm.rows > 0 && rm.cols > 0, `rows=${rm.rows} cols=${rm.cols}`);
 }
 
 // ── ④ 共享层副本同步（car-agent 自带共享层 vs app-harmony 权威；§6.1 "改一处改两处" 守卫）──
