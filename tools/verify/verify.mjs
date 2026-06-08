@@ -1,12 +1,14 @@
 // 纯逻辑验证（可在 PC 上用 Node 直接跑）。
 //
 // 这里的函数是 app-harmony 里几个纯算法 .ets 的【逐行镜像】，用来在没有 DevEco/真机时
-// 立即验证：① UDP 9 字节编解码（大端）② 坐标换算互逆 ③ 地图首行/包围盒解析。
+// 立即验证：① UDP 9 字节编解码（大端）② 坐标换算互逆 ③ 地图首行/包围盒解析
+//   ④ 共享层副本同步：car-agent 复制的 model/constants/utils/RobotTransport 与 app-harmony 逐字节一致 + BUNDLE_NAME 一致。
 // 镜像对象：
 //   - model/protocol.ets   encodeSend / decodeReceive
 //   - model/geometry.ets   canvasToMap / mapToCanvas
 //   - service/MapService.ets parseMap（首行 + 包围盒 + 正方形化部分）
 // ⚠️ 改了上述 .ets 的算法，请同步改这里，保持镜像一致。
+// ⚠️ 改了 app-harmony 的共享层文件（④ 列出的），务必同步到 car-agent —— 本脚本 ④ 会逐字节守卫。
 //
 // 用法： node tools/verify/verify.mjs
 
@@ -141,6 +143,33 @@ console.log('地图解析（fixtures/defultMap.txt, 画布 1000x1000）：');
   check('squareSize=40', m.squareSize === 40, `squareSize=${m.squareSize}`);
   check('gridSize=25', m.gridSize === 25, `gridSize=${m.gridSize}`);
   check('txtAverSize=40', m.txtAverSize === 40, `txtAverSize=${m.txtAverSize}`);
+}
+
+// ── ④ 共享层副本同步（car-agent 自带共享层 vs app-harmony 权威；§6.1 "改一处改两处" 守卫）──
+// car-agent 精确复制了 app-harmony 的 UI 无关层（HAR 化前的权宜）。app-harmony 改了这些文件却
+// 忘了同步 car-agent，会导致两端协议/常量漂移 → 真机集成时静默故障。此处逐字节守卫。
+console.log('共享层副本同步（car-agent vs app-harmony，逐字节）：');
+{
+  const ROOT = join(__dirname, '..', '..');
+  const appEts = (f) => join(ROOT, 'app-harmony', 'entry', 'src', 'main', 'ets', f);
+  const agEts = (f) => join(ROOT, 'car-agent', 'entry', 'src', 'main', 'ets', f);
+  const SHARED = [
+    'model/protocol.ets', 'model/mission.ets', 'model/geometry.ets',
+    'constants/protocol.ets', 'constants/debug.ets', 'utils/log.ets', 'service/RobotTransport.ets',
+  ];
+  for (const f of SHARED) {
+    let same = false, detail = '';
+    try { same = readFileSync(appEts(f), 'utf8') === readFileSync(agEts(f), 'utf8'); }
+    catch (e) { detail = String(e?.message ?? e); }
+    check(`copy 同步 ${f}`, same, detail || '内容不一致 → 把 app-harmony 的改动同步到 car-agent');
+  }
+  // FleetMissionService 是 agent 的"无界面适配版"，刻意不同 → 不逐字节比，只查关键常量 BUNDLE_NAME 一致
+  // （distributedDataObject 跨设备同步要求两端同 bundleName，见 docs/distributed-trust.md）。
+  const bundleRe = /const BUNDLE_NAME[^']*'([^']+)'/;
+  const appBundle = (readFileSync(appEts('service/FleetMissionService.ets'), 'utf8').match(bundleRe) || [])[1];
+  const agBundle = (readFileSync(agEts('service/FleetMissionService.ets'), 'utf8').match(bundleRe) || [])[1];
+  check('FleetMissionService BUNDLE_NAME 两端一致（DDO 同 bundle 前提）',
+    appBundle !== undefined && appBundle === agBundle, `app=${appBundle} agent=${agBundle}`);
 }
 
 console.log(`\n结果：${passed} 通过, ${failed} 失败`);

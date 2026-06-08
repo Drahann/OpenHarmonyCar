@@ -100,6 +100,7 @@ agent 把心跳位姿写回黑板 → 平板地图上看到该车 pin 移动 + �
 - **迁移方式（避免大爆炸）**：P2 第一步把上述文件移入 `shared-core`，`app-harmony` 改为从 HAR import（路径替换、
   不改逻辑，`verify.mjs` 仍应 17/17）。**期间若 HAR 配置受阻**，退而求其次：`car-agent` 先**精确复制**这几个文件并加
   "与 app-harmony 同源，改一处改两处"注释，HAR 化作为后续；但首选 HAR（杜绝漂移）。
+  - **（2026-06-08 现状 = 精确复制）漂移守卫已自动化**：`verify.mjs` ④ 逐字节比对 7 份副本（model/{protocol,mission,geometry}、constants/{protocol,debug}、utils/log、service/RobotTransport）+ 校验 `FleetMissionService.BUNDLE_NAME` 两端一致，漂移即红（现 25/25）。HAR 化前的安全网。**曾捕获并修复 `constants/protocol.ets` 的 `FLEET_SESSION_ID` 漂移**（agent 原在 `AgentServiceAbility` 本地硬编码 → 改为收进 constants 并 import）。
 
 ### 6.2 reconciler 状态机（②）——黑板 → 本机 UDP，幂等
 - **输入**：FleetMission 黑板变更（订阅）+ 本机 localhost 心跳。**本车** = 按 `index/carId` 在 `robots/assignments` 里定位自己。
