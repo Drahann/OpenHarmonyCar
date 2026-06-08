@@ -24,6 +24,12 @@ import { Mission, MissionSnapshot } from '../model/mission';
 const DOMAIN: number = 0xFF00;
 const TAG: string = 'FleetMission';
 const BUNDLE_NAME: string = 'com.example.carapp';
+/**
+ * 互信弹窗上显示的发起方名称（对端**系统 PIN 弹窗**展示用，非 bundle）。
+ * ⚠️ distributedDataObject 跨设备同步要求两端**同 bundleName** → 车载 agent 亦须打包为 `com.example.carapp`
+ *    （= BUNDLE_NAME），故 bindTarget 的 targetPkgName 用 BUNDLE_NAME。见 docs/distributed-trust.md / Q9。
+ */
+const APP_BIND_DISPLAY_NAME: string = '巡检机器人平板';
 const COLLAB_PERMISSIONS: Permissions[] = ['ohos.permission.DISTRIBUTED_DATASYNC'];
 
 /** distributedDataObject 同步的数据形状：单一 JSON 字段承载 MissionSnapshot。 */
@@ -125,15 +131,23 @@ export class FleetMissionService {
   }
 
   /**
-   * 发起绑定（安全认证 bindType=1）与目标设备建立持久互信。
-   * ⚠️ 需对端确认（PIN/碰一碰）—— 无界面紫派如何接受绑定，待 A（integration-qa Q9）。
+   * 发起绑定（安全认证 bindType=1，无账号 PIN 码）与目标设备建立**持久**互信（跨重启）。
+   * 对端确认：紫派**配网期接 HDMI 显示器**，在**系统 PIN 弹窗**上确认（团队既有流程；老 App 未自渲染 PIN，系统弹窗代劳）。
+   * `targetPkgName=BUNDLE_NAME`：DDO 同步需两端同 bundle，车载 agent 亦为 com.example.carapp。见 docs/distributed-trust.md / Q9。
+   * ⚠️ 形参与回调以真机 SDK 为准；未经 DevEco 校验。
    */
   bindDevice(deviceId: string, onResult: (ok: boolean, msg: string) => void): void {
     if (this.deviceManager === null) {
       onResult(false, 'no deviceManager');
       return;
     }
-    const bindParam: Record<string, Object> = { 'bindType': 1, 'appName': BUNDLE_NAME };
+    const bindParam: Record<string, Object> = {
+      'bindType': 1,                      // 1 = 无账号 PIN 码认证
+      'targetPkgName': BUNDLE_NAME,       // 对端目标包（车载 agent 同 bundle）
+      'appName': APP_BIND_DISPLAY_NAME,   // 系统弹窗显示的发起方名
+      'appOperation': '认证巡检车',
+      'customDescription': '与巡检车建立分布式互信（软总线）'
+    };
     try {
       this.deviceManager.bindTarget(deviceId, bindParam, (err: BusinessError) => {
         if (err) {

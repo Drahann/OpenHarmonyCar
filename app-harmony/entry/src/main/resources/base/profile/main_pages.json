@@ -3,6 +3,7 @@
     "pages/LoadingPage",
     "pages/HomePage",
     "pages/ControlPage",
-    "pages/SetIPPage"
+    "pages/SetIPPage",
+    "pages/DeviceTrustPage"
   ]
 }

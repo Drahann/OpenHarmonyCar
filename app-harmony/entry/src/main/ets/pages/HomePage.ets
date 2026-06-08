@@ -58,6 +58,21 @@ struct HomePage {
           .fontColor(AppColor.textTitle)
           .fontWeight(FontWeight.Bold)
         Blank()
+        // 设备互信（软总线配对）入口——多机协同前一次性配对，见 DeviceTrustPage / docs/distributed-trust.md
+        Button('设备互信')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .padding({ left: Space.md, right: Space.md })
+          .margin({ right: Space.sm })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/DeviceTrustPage' }).catch((e: Error) => {
+              console.error(`[HomePage] 路由 DeviceTrustPage 失败：${e.message}`);
+            });
+          })
         Button(this.scanning ? '搜索中…' : '发现设备')
           .fontSize(FontSize.bodySm)
           .fontColor(AppColor.onPrimary)
