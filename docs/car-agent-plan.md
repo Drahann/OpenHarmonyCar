@@ -76,6 +76,7 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
   无 agent 的单车直控。需 A 确认 `udp2lcm` 是否 bind `0.0.0.0:5001`（agent 可打 `127.0.0.1:5001`）、是否需独立 localhost 端口避让外部。
 - **OH 5.0 能否常驻无界面 ArkTS hap**：A 早前口头"agent 可行"，需落实 ServiceExtensionAbility 常驻 + 开机自起 + 资源占用（RK3566）。
 - **软总线信任**：平板↔紫派 OH 设备认证/`networkId` 发现、`distributedDataObject` 可信组网门槛。
+  **→ 已定（2026-06-08·用户）**：**保留 DDO 软总线** + **一次性账号无关配对**（平板=发起方、紫派配网期接 **HDMI 显示器**确认 PIN，团队既有成熟流程）；评估过纯 LAN socket 黑板退路（`FleetMissionService` 传输无关、可随时切）。卡点"车无界面没法点 PIN"已消解。详见 `docs/distributed-trust.md`「决策」+ integration-qa Q9。
 - **位姿对齐**：子机"从 master 同物理起点同朝向、顺序出发 → 构造位姿 (0,0,0)"的编排谁来保证（agent 收到 `cmd5` 即归零，已确认）。
 - **地图**：先方案B（agent 触发 `cmd105`→紫派 `cmd124` wget）；方案A（黑板传整图）后置。
 - 这些汇总成 **integration-qa.md 新问题块（Q6 起）**，供 A 异步答。
