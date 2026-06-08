@@ -228,20 +228,28 @@ struct ControlPage {
     attempt(attempts);
   }
 
-  /** 地图是否完整：首行可解出 height 且栅格行数 ≥ height（取代脆弱的字节阈值判就绪）。 */
+  /**
+   * 地图是否完整（就绪判据）。真机首行 = `range resolution height width metersPerPixel x0 y0`，
+   * 按位置取 parts[2]=声明行数；统计非空数据行，要求 ≥ 声明行数的 90%（容忍 cmd2 存图落盘期间尾部缺失）。
+   * 首行非标准（如 fixture `40 40`，parts[2] 缺失）则回退要求 ≥5 行。见 docs/map-pipeline.md。
+   */
   private mapLooksComplete(text: string): boolean {
-    const lines: string[] = text.split('\n');
-    if (lines.length < 2) {
+    const rawLines: string[] = text.split('\n');
+    if (rawLines.length < 3) {
+      log.w(`[mapLooksComplete] 行数不足 ${rawLines.length}`);
       return false;
     }
-    const nums: number[] = lines[0].trim().split(/\s+/)
-      .map((t: string): number => parseInt(t, 10))
-      .filter((n: number): boolean => !Number.isNaN(n));
-    if (nums.length < 2) {
-      return false;
+    const headerH: number = parseInt(rawLines[0].trim().split(/\s+/)[2], 10); // 首行声明行数
+    let dataRows: number = 0;
+    for (let y = 1; y < rawLines.length; y++) {
+      if (rawLines[y].trim().length > 0) {
+        dataRows++;
+      }
     }
-    const height: number = nums[nums.length - 2];
-    return height > 0 && lines.length - 1 >= height;
+    const expected: number = (Number.isNaN(headerH) || headerH <= 0) ? 5 : Math.floor(headerH * 0.9);
+    const ok: boolean = dataRows >= expected && dataRows >= 2;
+    log.i(`[mapLooksComplete] 首行="${rawLines[0].trim()}" headerH=${headerH} dataRows=${dataRows} expected=${expected} ok=${ok}`);
+    return ok;
   }
 
   // ── 摇杆 → 多目标下发 ───────────────────────────────────────────────────────

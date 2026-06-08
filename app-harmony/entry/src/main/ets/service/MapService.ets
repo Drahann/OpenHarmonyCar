@@ -16,17 +16,26 @@
 
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { MAP_GRID_FREE, MAP_GRID_WALL } from '../constants/protocol';
+import { MAP_GRID_WALL } from '../constants/protocol';
 import { MAP_READY_MIN_BYTES, MAP_POLL_INTERVAL_MS } from '../constants/ui';
 import { MapTransform } from '../model/geometry';
 import { Log, Logger } from '../utils/log';
 
 const log: Logger = Log.scoped('MapService');
 
-/** 解析后的地图（纯数据，无画布依赖）。 */
+/**
+ * 解析后的地图（纯数据，无画布依赖）。
+ *
+ * 栅格已**归一化**为 `grid[行][列]`（`1`=障碍 / `0`=空旷），屏蔽源文件两种格式（紫派 `MapServer.cpp::saveProbMap`）：
+ *   - `defultMap.txt`（App 拉的就是它）：首行 7 值 `range resolution height width metersPerPixel x0 y0`
+ *     + **空格分隔**数据，`-1`=障碍 / `0`=空旷；
+ *   - `defultMap.txt.txt`：同首行 + **密排单字符**，`1`=障碍 / `0`=空旷。
+ * 详见 `docs/map-pipeline.md`。`grid` 与原始行对齐：`grid[0]`=首行(头)占位空行、`grid[1..]`=数据行
+ * （与包围盒扫描/`startY` 的行索引一致，保持与旧 App 同一坐标系）。
+ */
 export class ParsedMap {
-  readonly rows: number;      // 地图行数
-  readonly cols: number;      // 地图列数
+  readonly rows: number;      // 地图行数（height，首行 parts[2] 或数据推断）
+  readonly cols: number;      // 地图列数（width，首行 parts[3] 或数据推断）
   readonly startX: number;    // 包围盒（正方形化后）左
   readonly startY: number;    // 上
   readonly endX: number;      // 右
@@ -36,11 +45,11 @@ export class ParsedMap {
   readonly gridHeight: number; // 每格像素高
   readonly gridSize: number;   // 平均格尺寸，供坐标换算
   readonly txtAverSize: number;
-  private readonly lines: string[];
+  private readonly grid: Uint8Array[];  // 归一化栅格，grid[行][列]：1=障碍 0=空旷
 
   constructor(rows: number, cols: number, startX: number, startY: number, endX: number, endY: number,
     squareSize: number, gridWidth: number, gridHeight: number, gridSize: number, txtAverSize: number,
-    lines: string[]) {
+    grid: Uint8Array[]) {
     this.rows = rows;
     this.cols = cols;
     this.startX = startX;
@@ -52,7 +61,7 @@ export class ParsedMap {
     this.gridHeight = gridHeight;
     this.gridSize = gridSize;
     this.txtAverSize = txtAverSize;
-    this.lines = lines;
+    this.grid = grid;
   }
 
   /** 供坐标换算（geometry.canvasToMap / mapToCanvas）使用。 */
@@ -62,18 +71,18 @@ export class ParsedMap {
   }
 
   /**
-   * 遍历需要填充的障碍格子，回调其画布矩形（含 y 轴翻转）。供 MapCanvas 渲染，
-   * 把绘制原语留给组件、把"画哪些格子"的数学留在服务层。移植自旧 MakeCanvas 的绘制循环。
+   * 遍历需要填充的障碍格子，回调其画布矩形（含 y 轴翻转）。供 MapCanvas 渲染。
+   * 读归一化 grid（1=障碍）而非原始字符——屏蔽空格分隔/密排两种源格式。移植自旧 MakeCanvas 的绘制循环。
    */
   forEachWallRect(cb: (px: number, py: number, w: number, h: number) => void): void {
     for (let y = 0; y <= this.squareSize; y++) {
-      const row: string | undefined = this.lines[y + this.startY];
+      const row: Uint8Array | undefined = this.grid[y + this.startY];
       if (row === undefined) {
         continue;
       }
       for (let x = 0; x <= this.squareSize; x++) {
-        if (row[x + this.startX] === MAP_GRID_FREE) {
-          continue; // 空旷不画
+        if (row[x + this.startX] !== 1) {
+          continue; // 只画障碍格
         }
         cb(x * this.gridWidth, (this.squareSize - 1 - y) * this.gridHeight, this.gridWidth, this.gridHeight);
       }
@@ -88,8 +97,9 @@ export class MapService {
       const httpRequest: http.HttpRequest = http.createHttp();
       const options: http.HttpRequestOptions = {
         method: http.RequestMethod.GET,
-        connectTimeout: 10000,
-        readTimeout: 10000,
+        connectTimeout: 30000,
+        readTimeout: 30000,
+        maxLimit: 50 * 1024 * 1024,
         usingCache: false,
         priority: 1000,
         expectDataType: http.HttpDataType.STRING
@@ -161,40 +171,76 @@ export class MapService {
    * 移植自旧 MakeCanvas 的几何部分（去掉画布绘制副作用）。
    */
   static parseMap(text: string, canvasWidth: number, canvasHeight: number): ParsedMap {
-    const lines: string[] = text.split('\n');
-    // 取首行最后两个整数为 行数、列数（见文件头 ⚠️ 注释）
-    const headerNums: number[] = lines[0].trim().split(/\s+/)
-      .map((t: string): number => parseInt(t, 10))
-      .filter((n: number): boolean => !Number.isNaN(n));
-    const height: number = headerNums[headerNums.length - 2]; // 行数
-    const width: number = headerNums[headerNums.length - 1];  // 列数
+    const rawLines: string[] = text.split('\n');
+    // 归一化所有行为栅格：grid[0]=首行(头)占位空行、grid[y>=1]=数据行（与包围盒/startY 同索引系）。
+    const grid: Uint8Array[] = [];
+    for (let y = 0; y < rawLines.length; y++) {
+      grid.push(y === 0 ? new Uint8Array(0) : MapService.parseRow(rawLines[y]));
+    }
+
+    // 首行**按位置**取 height/width（真机 7 值首行 `range resolution height width metersPerPixel x0 y0`；
+    // 旧 App 即取 parts[2]/[3]）。注意：不能"取末两个"——末两个是 x0/y0（世界坐标偏移，常为负）。
+    const headerParts: string[] = (rawLines.length > 0 ? rawLines[0] : '').trim().split(/\s+/);
+    let height: number = MapService.toInt(headerParts[2]);
+    let width: number = MapService.toInt(headerParts[3]);
+    if (!(height > 0) || !(width > 0)) {
+      // 回退：首行非标准/缺失（如 fixture 的 `40 40`）→ 按实际数据推断
+      let maxCols: number = 0;
+      let dataRows: number = 0;
+      for (let y = 1; y < grid.length; y++) {
+        if (grid[y].length > 0) {
+          dataRows++;
+          if (grid[y].length > maxCols) {
+            maxCols = grid[y].length;
+          }
+        }
+      }
+      height = dataRows;
+      width = maxCols;
+    }
+    log.i(`[parseMap] 首行="${headerParts.join(' ')}" → height=${height} width=${width} rows=${rawLines.length}`);
 
     let yMin: number = Infinity;
     let yMax: number = -Infinity;
     let xMin: number = Infinity;
     let xMax: number = -Infinity;
-
-    for (let y = 1; y < lines.length; y++) {
-      const d: string = lines[y];
-      if (d.includes(MAP_GRID_WALL)) {
-        if (!Number.isFinite(yMin)) {
-          yMin = y;
-        } else {
-          yMax = Math.max(yMax, y);
-        }
-        for (let x = 0; x < width; x++) {
-          if (d[x] === MAP_GRID_WALL) {
-            xMin = Math.min(xMin, x);
-            xMax = Math.max(xMax, x);
+    for (let y = 1; y < grid.length; y++) {
+      const row: Uint8Array = grid[y];
+      const w: number = Math.min(width, row.length);
+      let rowHasWall: boolean = false;
+      for (let x = 0; x < w; x++) {
+        if (row[x] === 1) {
+          rowHasWall = true;
+          if (x < xMin) {
+            xMin = x;
+          }
+          if (x > xMax) {
+            xMax = x;
           }
         }
       }
+      if (rowHasWall) {
+        if (!Number.isFinite(yMin)) {
+          yMin = y;
+          yMax = y;
+        } else {
+          yMax = Math.max(yMax, y);
+        }
+      }
+    }
+    // 无障碍格（空图/异常）→ 用整图包围盒兜底，避免 NaN 变换
+    if (!Number.isFinite(xMin) || !Number.isFinite(yMin)) {
+      log.w(`[parseMap] 未发现障碍格，按整图兜底（width=${width} height=${height}）`);
+      xMin = 0;
+      xMax = Math.max(0, width - 1);
+      yMin = 1;
+      yMax = Math.max(1, height);
     }
 
     // 把绘制区域尽量正方形化
     const drawHeight: number = yMax - yMin + 1;
     const drawWidth: number = xMax - xMin + 1;
-    const squareSize: number = Math.max(drawWidth, drawHeight);
+    const squareSize: number = Math.max(1, Math.max(drawWidth, drawHeight));
     const difference: number = (drawWidth - drawHeight) / 2;
     if (difference > 0) {
       yMin -= Math.trunc(difference);
@@ -210,7 +256,40 @@ export class MapService {
     const txtAverSize: number = (width + height) / 2;
 
     return new ParsedMap(height, width, xMin, yMin, xMax, yMax, squareSize,
-      gridWidth, gridHeight, gridSize, txtAverSize, lines);
+      gridWidth, gridHeight, gridSize, txtAverSize, grid);
+  }
+
+  /**
+   * 一行原始文本 → 归一化栅格行（`1`=障碍 / `0`=空旷）。**自动识别**两种源格式：
+   *   - 含空格 → 紫派 `defultMap.txt` 的空格分隔（`-1`=障碍、`0`=空旷、`2`=覆盖非障碍）：仅 `<0` 视为障碍；
+   *   - 无空格 → `defultMap.txt.txt` 的密排单字符：`'1'`=障碍。
+   */
+  private static parseRow(line: string): Uint8Array {
+    const t: string = line.trim();
+    if (t.length === 0) {
+      return new Uint8Array(0);
+    }
+    if (t.indexOf(' ') >= 0) {
+      const toks: string[] = t.split(/\s+/);
+      const cells: Uint8Array = new Uint8Array(toks.length);
+      for (let i = 0; i < toks.length; i++) {
+        cells[i] = parseInt(toks[i], 10) < 0 ? 1 : 0;  // 仅 -1 为障碍；0/2 为空旷
+      }
+      return cells;
+    }
+    const cells: Uint8Array = new Uint8Array(t.length);
+    for (let i = 0; i < t.length; i++) {
+      cells[i] = t[i] === MAP_GRID_WALL ? 1 : 0;  // 密排：'1'=障碍
+    }
+    return cells;
+  }
+
+  /** 安全 parseInt（NaN 透传，便于上层判定）。 */
+  private static toInt(s: string | undefined): number {
+    if (s === undefined) {
+      return NaN;
+    }
+    return parseInt(s, 10);
   }
 
   private static arrayBufferToString(buf: ArrayBuffer): string {

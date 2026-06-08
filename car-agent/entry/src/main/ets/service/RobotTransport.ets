@@ -179,10 +179,11 @@ export class RobotTransport {
     });
   }
 
-  /** 启动/重置某个 ip 的保活循环：每 1s 重发 payload 给该 ip。重复调用同 ip 会重置。 */
+  /** 启动/重置某个 ip 的保活循环：**立即发一帧** + 每 1s 重发 payload 给该 ip。重复调用同 ip 会重置。 */
   startHeartbeat(ip: string, payload: UdpSendData): void {
     this.stopHeartbeat(ip);
     const loop: HeartbeatLoop = new HeartbeatLoop(-1, payload);
+    this.send(ip, payload);  // 立即发首帧：车收首包即捕获 App IP 并开始回心跳，连接态尽快转"已连接"（不等 1s）
     loop.timer = setInterval(() => {
       this.send(ip, loop.payload);
     }, HEARTBEAT_INTERVAL_MS);
