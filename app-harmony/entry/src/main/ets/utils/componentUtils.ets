@@ -1,10 +1,13 @@
 import { BusinessError } from '@kit.BasicServicesKit';
 import { ComponentContent, promptAction } from '@kit.ArkUI';
 import { UIContext } from '@ohos.arkui.UIContext';
+import { Log, Logger } from './log';
 
 /**
  * 自定义弹窗助手（保留自旧 utils/componentUtils.ets，UI 阶段复用）。
  */
+const log: Logger = Log.scoped('Dialog');
+
 export class PromptActionClass {
   static ctx: UIContext;
   static contentNode: ComponentContent<Object>;
@@ -26,10 +29,10 @@ export class PromptActionClass {
     if (PromptActionClass.contentNode !== null) {
       PromptActionClass.ctx.getPromptAction().openCustomDialog(PromptActionClass.contentNode, PromptActionClass.options)
         .then(() => {
-          console.info('OpenCustomDialog complete.');
+          log.i('OpenCustomDialog complete.');
         })
         .catch((error: BusinessError) => {
-          console.error(`OpenCustomDialog error code=${error.code}, message=${error.message}`);
+          log.e(`OpenCustomDialog error code=${error.code}, message=${error.message}`);
         });
     }
   }
@@ -38,10 +41,10 @@ export class PromptActionClass {
     if (PromptActionClass.contentNode !== null) {
       PromptActionClass.ctx.getPromptAction().closeCustomDialog(PromptActionClass.contentNode)
         .then(() => {
-          console.info('CloseCustomDialog complete.');
+          log.i('CloseCustomDialog complete.');
         })
         .catch((error: BusinessError) => {
-          console.error(`CloseCustomDialog error code=${error.code}, message=${error.message}`);
+          log.e(`CloseCustomDialog error code=${error.code}, message=${error.message}`);
         });
     }
   }
@@ -50,10 +53,10 @@ export class PromptActionClass {
     if (PromptActionClass.contentNode !== null) {
       PromptActionClass.ctx.getPromptAction().updateCustomDialog(PromptActionClass.contentNode, options)
         .then(() => {
-          console.info('UpdateCustomDialog complete.');
+          log.i('UpdateCustomDialog complete.');
         })
         .catch((error: BusinessError) => {
-          console.error(`UpdateCustomDialog error code=${error.code}, message=${error.message}`);
+          log.e(`UpdateCustomDialog error code=${error.code}, message=${error.message}`);
         });
     }
   }

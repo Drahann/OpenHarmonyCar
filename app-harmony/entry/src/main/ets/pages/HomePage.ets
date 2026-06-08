@@ -15,6 +15,9 @@ import { router } from '@kit.ArkUI';
 import { ControlMode } from '../model/mission';
 import { RobotTransport, DiscoveredRobot } from '../service/RobotTransport';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
+import { Log, Logger } from '../utils/log';
+
+const log: Logger = Log.scoped('HomePage');
 
 /** 传给 ControlPage 的路由参数。 */
 interface ControlRouteParams {
@@ -70,7 +73,7 @@ struct HomePage {
           .margin({ right: Space.sm })
           .onClick(() => {
             router.pushUrl({ url: 'pages/DeviceTrustPage' }).catch((e: Error) => {
-              console.error(`[HomePage] 路由 DeviceTrustPage 失败：${e.message}`);
+              log.e(`路由 DeviceTrustPage 失败：${e.message}`);
             });
           })
         Button(this.scanning ? '搜索中…' : '发现设备')
@@ -205,7 +208,7 @@ struct HomePage {
     this.endScan();
     const params: ControlRouteParams = { mode: this.selectedMode as string, ip };
     router.pushUrl({ url: 'pages/ControlPage', params }).catch((e: Error) => {
-      console.error(`[HomePage] 路由 ControlPage 失败：${e.message}`);
+      log.e(`路由 ControlPage 失败：${e.message}`);
     });
   }
 }

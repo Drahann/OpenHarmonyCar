@@ -11,6 +11,9 @@ import { router } from '@kit.ArkUI';
 import { Storage } from '../service/storage';
 import { ControlMode } from '../model/mission';
 import { AppColor, FontSize, FontFamily, Space, Radius, TOUCH_MIN } from '../constants/theme';
+import { Log, Logger } from '../utils/log';
+
+const log: Logger = Log.scoped('SetIPPage');
 
 interface ControlRouteParams {
   mode: string;
@@ -111,7 +114,7 @@ struct SetIPPage {
     Storage.setRobotIp(0, this.ip);
     const params: ControlRouteParams = { mode: ControlMode.astar as string, ip: this.ip };
     router.replaceUrl({ url: 'pages/ControlPage', params }).catch((e: Error) => {
-      console.error(`[SetIPPage] 路由 ControlPage 失败：${e.message}`);
+      log.e(`路由 ControlPage 失败：${e.message}`);
     });
   }
 }

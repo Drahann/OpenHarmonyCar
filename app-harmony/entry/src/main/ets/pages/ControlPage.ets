@@ -25,6 +25,9 @@ import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } f
 import { MapCanvas } from '../component/MapCanvas';
 import { Joystick } from '../component/Joystick';
 import { DeviceList } from '../component/DeviceList';
+import { Log, Logger } from '../utils/log';
+
+const log: Logger = Log.scoped('ControlPage');
 
 interface ControlRouteParams {
   mode: string;
@@ -89,7 +92,7 @@ struct ControlPage {
     if (this.remoteListener !== null) {
       this.fleet.unsubscribeMission(this.remoteListener);
       this.remoteListener = null;
-      this.fleet.leaveSession().catch((e: Object) => console.error(`[ControlPage] leaveSession：${JSON.stringify(e)}`));
+      this.fleet.leaveSession().catch((e: Object) => log.e(`leaveSession：${JSON.stringify(e)}`));
     }
     if (this.cancelPoll !== null) {
       this.cancelPoll();
@@ -104,7 +107,7 @@ struct ControlPage {
       await this.transport.bind();
     } catch (e) {
       const err: Error = e as Error;
-      console.error(`[ControlPage] bind 失败：${err.message}`);
+      log.e(`bind 失败：${err.message}`);
     }
     this.msgListener = (data: UdpReceiveData, from: string) => this.onMessage(data, from);
     this.transport.subscribe(this.msgListener);
@@ -113,7 +116,7 @@ struct ControlPage {
       this.remoteListener = (s: MissionSnapshot) => this.onRemoteMission(s);
       this.fleet.subscribeMission(this.remoteListener);
       this.fleet.joinSession(FLEET_SESSION_ID).catch((e: Object) => {
-        console.error(`[ControlPage] joinSession 失败：${JSON.stringify(e)}`);
+        log.e(`joinSession 失败：${JSON.stringify(e)}`);
       });
     }
     if (this.ip.length > 0) {
@@ -748,7 +751,7 @@ struct ControlPage {
         },
         onManualAdd: () => {
           router.pushUrl({ url: 'pages/SetIPPage' }).catch((e: Error) => {
-            console.error(`[ControlPage] 路由 SetIPPage 失败：${e.message}`);
+            log.e(`路由 SetIPPage 失败：${e.message}`);
           });
         }
       })
