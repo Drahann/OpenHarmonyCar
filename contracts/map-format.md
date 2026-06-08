@@ -13,19 +13,26 @@
   （`NaviInterface.cpp:4799-4818`，URL 无前缀）落到本机 `/data/test/`。
 - 全息路径覆盖另会生成 `tmpcoverageMap.txt`（初始）、`coverageMap.txt`（最终）；分布式覆盖的路径文件为 `roadFile.txt`。
 
-## 文本格式（App 侧解析依据）
+## 文本格式（✅ 2026-06-08 据紫派 `Navi/map/MapServer.cpp::saveProbMap` 源码更正 —— 旧描述"4值首行+密排0/1"不准）
+
+紫派 `saveProbMap` **一次写两个文件**（详见 `docs/map-pipeline.md` §1）：
 
 ```
-<range> <resolution> <height> <width>   # 第一行 4 值（A确认，Navi/main.cpp 分片读取）；App 取末两个 = <height 行数> <width 列数>
-000010...                                # 其后每行密排栅格字符（无分隔），行间换行
-011000...
-...
+# defultMap.txt（App 拉的就是它）：首行 7 值 + 空格分隔数据，-1=障碍 / 0=空旷
+range resolution height width metersPerPixel x0 y0
+-1 -1 -1 0 0 -1 ...
+-1 0 0 0 0 -1 ...
+
+# defultMap.txt.txt：同首行 + 密排单字符，1=障碍 / 0=空旷
+range resolution height width metersPerPixel x0 y0
+110001...
+100001...
 ```
 
-- `0` = 空旷可通行；`1` = 障碍物。**栅格为密排单字符**（早期示例的空格分隔仅为示意，实际无分隔），App 按字符索引解析。
-- **首行 App 取末两个整数**作为 `行数(height) 列数(width)`——兼容旧 2-token 写法与 A 的 4-token `range resolution height width`
-  （A 明确背书此折中；见 `app-harmony` `MapService.parseMap`）。地图一般近正方形，约 1800×1800 量级。
-- App 解析时按障碍包围盒裁剪 + 两层遍历。
+- **首行 7 值**：`height`=行数、`width`=列数在**第 3、4 个位置**（`parts[2]`/`parts[3]`）；`x0 y0`=栅格 `[0][0]` 的世界坐标偏移（真机**常为负**，如 `-45 -44`）；`metersPerPixel`≈0.05。
+- **❌ 不要"取末两个整数"**——末两个是 `x0 y0`（负偏移），不是行列！App 必须**按位置取 `parts[2]/[3]`**（旧 App 即如此）。
+- **数据两种格式**：`defultMap.txt`=**空格分隔** `-1`(障碍)/`0`(空旷)/`2`(覆盖，非障碍)；`defultMap.txt.txt`=**密排** `1`(障碍)/`0`。App `MapService.parseRow` 自动识别两种并归一化为 `grid`（1=障碍）。
+- App 按障碍包围盒裁剪 + 正方形化（见 `MapService.parseMap`）。地图约 1800×1800 量级。
 
 ## 坐标系（共三套，换算在 App 侧）
 

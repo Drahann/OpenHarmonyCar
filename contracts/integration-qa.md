@@ -142,3 +142,9 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 
 `docs/safety-flow-review.md` §2 发现：ControlPage 在 distributed 模式仍直连保活 master（`connectTo(this.ip)`），而 master 也有自己的 agent（其 udp2lcm 的唯一 localhost 客户端）→ 平板 + master-agent 两个客户端抢 master 的单 client 记录 + 3s 急停。
 - **请 A 确认**（呼应 Q6.2）：distributed 模式下 master 是否应**仅由其 agent 独占** localhost、**平板不直连任何车**（含 master）、全经黑板？若是，App 将在 distributed 模式去掉对 master 的直连保活（改纯黑板）。
+
+### Q12【关键·真机建图渲染】地图文件格式确认（已据源码自查，请 A 复核）
+
+App 自查 `Navi/map/MapServer.cpp::saveProbMap`（详见 `docs/map-pipeline.md`）：`defultMap.txt` = 首行 `range resolution height width metersPerPixel x0 y0`（**7 值**）+ **空格分隔** `-1`(障碍)/`0`；`defultMap.txt.txt` = 同首行 + **密排** `1`/`0`。**之前 App 误按"4 值首行 + 密排 0/1"解析 → 真机首行取到 `x0 y0`(负) 当行列 + 空格数据被当密排 → 空气图/渲染乱。已修**（按位置取 `parts[2]/[3]`、自动识别空格/密排）。
+1. **请 A 确认**该格式（尤其 `defultMap.txt` 是**空格分隔 -1/0**、首行 7 值），以及 App 应长期拉 `defultMap.txt` 还是 `.txt.txt`（App 已能解两种，建议统一 `defultMap.txt`）。
+2. **`x0 y0` 的单位与符号**：是"栅格 [0][0] 相对世界原点的偏移"吗？单位是**米**还是**格**？符号约定？——用于**定位校正**：心跳世界坐标 → 地图数组坐标需减 x0/y0（见 `map-pipeline.md` §5）。真机若机器人 pin/选点整体偏一个常量即此因，需此信息标定。
