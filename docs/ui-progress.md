@@ -1,9 +1,9 @@
 # App UI 进度（定时任务 · 单一事实源）
 
-> 本文件是**定时自动推进**的状态源。每次定时 agent 运行：读本文件 → 做"下一项未完成" → 勾选 + 追加运行日志 + 标下一步。
+> 本文件是 App 进度的**单一事实源**。**（2026-06-08 起：定时自动推进任务已经用户指令取消，本文件转为手动维护。）** 历史上由定时 agent 推进：读本文件 → 做"下一项未完成" → 勾选 + 追加运行日志 + 标下一步。
 > 目标：结合本机 `W:\Project\OpenHarmonyCar\style\` 的**五套设计融合**出 App 最终版 UI，全量实现 ArkTS（**未经 DevEco 验证**，待真机/DevEco 校验）。
 > 计划详见 `docs/app-refactor-plan.md`（UI 阶段、目标架构、§连接与设备发现）。
-> 定时任务（2026-06-07 四更新，用户改时点）：CronCreate **`47f98cf8`**（`5 21,3,9,15 * * *`，每 6h，**下次≈21:05**＝从 16:05 起 +5h，用于续做本会话可能未完的任务；旧 `58f9606e`…已删）。prompt **顺序无关**（一律以本文件「下一步」为准，便于以后只改文档不动 cron）+ 含**协作姿态**（接口两边共同设计、不迁就 A、参考 `origin/purplepi-control`）。**UI U1–U11 + tools T1 + R1 接口复审完成；车载 agent code-complete**（设计见 `car-agent-plan.md` §6；R1 见 `contracts/interface-review.md`，新立 Q10）；**App + car-agent 代码侧全部 code-complete → 只剩真机测试 / DevEco**（清单见 `car-agent-plan.md` §6.7）；tools T2 低优先。**session-only**（本环境 durable 不生效）+ 约 7 天后自动过期；/clear 或关闭即失效，需重建（见末尾"任务自愈"）。
+> 定时任务（2026-06-07 四更新，用户改时点）：CronCreate **`47f98cf8`**（`5 21,3,9,15 * * *`，每 6h，**下次≈21:05**＝从 16:05 起 +5h，用于续做本会话可能未完的任务；旧 `58f9606e`…已删）。prompt **顺序无关**（一律以本文件「下一步」为准，便于以后只改文档不动 cron）+ 含**协作姿态**（接口两边共同设计、不迁就 A、参考 `origin/purplepi-control`）。**UI U1–U11 + tools T1 + R1 接口复审完成；车载 agent code-complete**（设计见 `car-agent-plan.md` §6；R1 见 `contracts/interface-review.md`，新立 Q10）；**App + car-agent 代码侧全部 code-complete → 只剩真机测试 / DevEco**（清单见 `car-agent-plan.md` §6.7）；tools T2 低优先。**⛔ 定时任务已于 2026-06-08 经用户指令取消**（项目 code-complete、只剩真机测试，无需自动推进）——**不再自动运行，且不要重建**（末尾"任务自愈"已停用）。
 
 ## 执行约定（每次必守）
 - App 代码（`app-harmony/**`）→ **只**提交 `app-harmony-core` 并 push。
@@ -38,8 +38,10 @@
 标准（用户 2026-06-07）：**接口是两边共同设计的，不必一味迁就 A 的现有代码**——A 那边也会按我们的代码改动适配，两边同推共建优美项目，只需在 `contracts/` 写明并交流。详见 `CLAUDE.md`「接口是两边共同设计的」。想了解 A 的实现参考其分支 `origin/purplepi-control`（含 `Lidar/ Navi/ NewWheelCtrl/` + `接口功能与对接问题说明.md`）。
 - [x] **R1 App↔紫派接口优雅性复审** ✅（2026-06-08 run17）：逐项审了协议/地图/命令处理的妥协。**结论**：协议骨架优雅、对齐干净（坐标 5cm 与格 1:1、命令码对 ASCII、大端/5001/3s 急停一致）；多数"妥协"是 9 字节定长帧固有约束（byte 复用、107/108 两帧矩形）非迁就 A。**唯一值得两边一起改 = cmd105 主机 IP 散列字节 [1,2,4,6] → 连续 [1..4]**（新立 **Q10**，非阻塞）。地图首行"取末两个"经查是 **A 在《接口…说明》§7 主动建议**的方案、非妥协（不立问题）；发现 ping(Q5)/心跳状态(Q1)/地图就绪 324e4(Q8) 均已在跟踪、并入不另立。产出 `contracts/interface-review.md` + `integration-qa.md` Q10 + README 索引。
 
-## 任务自愈（若定时任务失效）
-session-only 任务在 /clear 或关闭后消失。新会话若发现没有 `47f98cf8`（`CronList` 查），按本文件顶部参数（cron `5 21,3,9,15 * * *`）用 `CronCreate` 重建，prompt 用"读 MEMORY+`CLAUDE.md`+本进度文档+`docs/car-agent-plan.md`+`docs/logging-plan.md` → 做本文件「下一步」的下一项未完成（当前=车载 agent P1，含先做共享日志 L1）→ 守协作姿态（接口两边共同设计、不迁就 A、参考 `origin/purplepi-control`）→ smoke 测 → 按 [[feedback-docs-main-code-branch]] 提交 → 收尾"的自举式提示（要点见记忆 [[app-refactor-plan]] / [[car-agent-plan]]）。
+## 任务自愈（⛔ 已停用 —— 不要重建）
+**定时任务已于 2026-06-08 经用户指令主动取消**（项目 code-complete，只剩真机测试，不需要再自动推进）。
+**新会话/新上下文不要重建 cron**——即使发现没有 `47f98cf8`，那是用户故意取消的，不是"失效"。
+若将来确需恢复自动推进，须由**用户明确要求**后再按历史参数（cron `5 21,3,9,15 * * *`）重建。
 
 ## 运行日志（每次追加一行）
 - 2026-06-06 20:1x（设定·本会话）：建定时任务 `3daa5173`（session-only，每 6h，首次≈+5h=06-07 01:12）+ 写本进度文档。**下一步 = U1 风格融合**。
