@@ -18,8 +18,20 @@
   所以"车无界面、没法在车上点 PIN"不成立：配对**只发生一次、用显示器完成**；之后 headless agent 凭持久信任标签直接 `distributedDataObject` 同步，运行时无需任何界面。
 - 因此本文 §三 的**方案①（首次配对有非无界面确认步骤）= 选定路线**（HDMI 显示器即那个"非无界面"步骤）；②dev 免 PIN / ③同账号 作备选。
 
-**仍待成员A 确认（紫派侧系统配置，见 integration-qa Q9）**：紫派 OH 5.0 走账号路(A)还是账号无关(B)；
-紫派需哪些权限/配置才能**被发现** + **接受绑定**；绑定确认是否就是 HDMI 上可点的系统弹窗。这些是设备/系统配置，非 App 代码能单方面定。
+**已答（2026-06-08，用户依老 App 经验）**：
+- ① 走**账号无关 PIN 认证**（路径 B，`bindType=1`）；② 同一 **WiFi/热点**局域网。
+- ③ 绑定时紫派**接显示器+鼠标**、PIN 在车屏可见可点——查老 App 代码证实：**本 App 不自渲染 PIN，系统弹窗代劳**
+  （老 App 无 `on('uiStateChange')`/PIN UI，仅调 `bindTarget`），故车端**系统 PIN 弹窗**即可确认。
+- ④ **🔑 关键约束：`distributedDataObject` 跨设备同步要求两端同 `bundleName`**。老 App 全设备同 `com.example.carapp`、
+  `bindTarget` 的 `targetPkgName='com.example.carapp'`。**故我们的车载 agent 亦须打包为 `com.example.carapp`**（否则黑板不同步）；
+  平板 `bindTarget` 的 `targetPkgName=BUNDLE_NAME`。
+
+**仍待确认（真机校验 / 成员A）**：① 紫派 OH 5.0 的 DeviceManager 是否确有可点的**系统 PIN 弹窗**（用户经验=有，待真机复核）；
+② 接受方是否要求**目标包(agent)在运行**才弹 PIN（不确定项——故车载 agent hap 内**另备一次性配对 UIAbility**作保险，配网时拉起，见 `car-agent-plan.md`）；
+③ 紫派**被发现 + 接受绑定**所需权限/配置。
+
+**App 侧已落地（2026-06-08）**：`pages/DeviceTrustPage.ets`（发现+配对面板，HomePage「设备互信」入口）
++ `FleetMissionService.bindDevice` 补 `targetPkgName/appOperation/customDescription`（对齐老 App 证实形参）。⚠️ 未经 DevEco。
 
 ## 一、官方两条互信路径
 
