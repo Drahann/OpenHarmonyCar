@@ -11,7 +11,7 @@
  * ⚠️ 未经 DevEco 验证（本机无 hvigor）；路由需 U9 注册；fullpath 选房间/distributed 进度细化待真机联调。
  */
 
-import { router } from '@kit.ArkUI';
+import { router, promptAction } from '@kit.ArkUI';
 import { Mission, ControlMode, MissionPhase, RobotRuntime, RobotRuntimeDTO, MissionSnapshot,
   EndPoint, Assignment, RobotStatus } from '../model/mission';
 import { Point } from '../model/geometry';
@@ -50,7 +50,8 @@ struct ControlPage {
   @State private showDevicePanel: boolean = false;
   @State private mapViewCmd: string = '';
   @State private mapping: boolean = false;  // 建图进行中（cmd0 开始 → cmd2 结束）
-  @State private mapLoading: boolean = false;  // 正在拉取地图（结束建图后等存图落盘 / 进页查既有图）
+  @State private mapLoading: boolean = false;   // 正在拉取地图（结束建图后阻塞遮罩）
+  @State private mapLoadFailed: boolean = false; // 阻塞式拉图失败（弹错误提示 + 重试）
   @State private joySpeed: number = SPEED_DEFAULT;  // 摇杆前进速度(%)，可调（cmd1 的 byte2）
   @State private fpAlg: number = 0;                 // 全路径算法：0=牛耕，1=最小生成树（cmd102 的 byte1）
   @State private fpVertices: Point[] = [];          // 全路径已选顶点（4 个：左下/右下/右上/左上）
@@ -130,7 +131,7 @@ struct ControlPage {
     }
     if (this.ip.length > 0) {
       this.connectTo(this.ip);
-      this.loadMap(this.ip, 1, 0);  // 进页查既有图（紫派开机即删图，可能没有→建图卡）；不轮询
+      this.loadMap(this.ip, 1, 0, false);  // 进页查既有图（紫派开机即删图，可能没有→建图卡）；非阻塞、不轮询
     }
   }
 
@@ -171,7 +172,7 @@ struct ControlPage {
    * bounded 重试等存图落盘；按"栅格行数齐全"判完整（取代脆弱字节阈值，见 docs/safety-flow-review.md §6 / Q8）。
    * attempts 次、间隔 delayMs；全失败=无完整图 → 显示建图卡。可经 cancelPoll 取消（退页/再次调用）。
    */
-  private loadMap(ip: string, attempts: number, delayMs: number): void {
+  private loadMap(ip: string, attempts: number, delayMs: number, blocking: boolean): void {
     if (this.cancelPoll !== null) {
       this.cancelPoll();
       this.cancelPoll = null;
@@ -180,11 +181,17 @@ struct ControlPage {
     this.cancelPoll = (): void => {
       cancelled = true;
     };
-    this.mapLoading = true;
-    this.bump();
+    if (blocking) {
+      this.mapLoading = true;     // 阻塞遮罩（结束建图后等存图落盘）
+      this.mapLoadFailed = false;
+      this.bump();
+    }
     const giveUp = (): void => {
       this.cancelPoll = null;
       this.mapLoading = false;
+      if (blocking) {
+        this.mapLoadFailed = true;  // 阻塞式失败 → 弹错误提示+重试；非阻塞(进页查既有)失败 → 静默回建图卡
+      }
       this.bump();
     };
     const attempt = (left: number): void => {
@@ -200,6 +207,7 @@ struct ControlPage {
           this.mapText = text;
           this.mission.mapReady = true;
           this.mapLoading = false;
+          this.mapLoadFailed = false;
           this.bump();
         } else if (left > 1) {
           setTimeout(() => attempt(left - 1), delayMs);
@@ -274,7 +282,9 @@ struct ControlPage {
     this.fpVertices = this.fpVertices.concat(p);
     this.mission.endPoints = this.fpVertices.map((v: Point): EndPoint => new EndPoint(v.x, v.y)); // 地图上显示已选顶点
     this.sendTo(this.ip, RobotCommand.fullpathSelect, idx, p.x, p.y); // cmd104：byte1=顶点序号
+    this.toast(`已选第 ${idx + 1}/4 个顶点（${this.fpCornerName(idx)}）`);
     if (this.fpVertices.length >= 4) {
+      this.toast('4 个顶点已选，全路径覆盖启动中…');
       // 等 4 个顶点(104)都被紫派处理完再启动(102)——对照旧 App 启动前留 1s
       setTimeout(() => {
         this.sendTo(this.ip, RobotCommand.fullpathStartRoute, this.fpAlg); // cmd102：byte1=算法号
@@ -300,14 +310,17 @@ struct ControlPage {
       return;
     }
     this.sendTo(this.ip, RobotCommand.startRoute, undefined, e.x, e.y);
+    this.toast('已下发目标点，开始导航');
   }
 
   private cancelRoute(): void {
     this.sendTo(this.ip, RobotCommand.endRoute);
+    this.toast('已取消导航');
   }
 
   private stopFullpath(): void {
     this.sendTo(this.ip, RobotCommand.fullpathStartover);
+    this.toast('已停止全路径覆盖');
   }
 
   // ── 建图（R1 回归：紫派 Navi 启动即删图，必须先建图才有地图，见 docs/feature-parity-review.md）──
@@ -315,13 +328,14 @@ struct ControlPage {
   private startBuild(): void {
     this.sendTo(this.ip, RobotCommand.beforeStart);
     this.mapping = true;
+    this.toast('已开始建图——用摇杆驱动小车扫一圈，完成后点「结束建图」');
   }
 
   /** 结束建图：cmd2（紫派 停轮控 + 存图32 + 加载导航图10）。完成后主动拉一次图。 */
   private finishBuild(): void {
     this.sendTo(this.ip, RobotCommand.afterEnd);
     this.mapping = false;
-    this.loadMap(this.ip, 8, 1500);  // cmd2 存图后拉图：重试等存图落盘（按行数齐全判完整，非字节阈值）
+    this.loadMap(this.ip, 8, 1500, true);  // cmd2 存图后拉图：**阻塞遮罩**重试等存图落盘（按行数齐全判完整，非字节阈值）
   }
 
   /** 划子区域：107=对角点1，108=对角点2(byte1=robotId)。byte1 经 encodeSend 的 runState 写入。 */
@@ -346,6 +360,7 @@ struct ControlPage {
     } else {
       this.sendDistArea(c1, c2, robotId);  // 平板直发兜底（无 agent / 软总线不通时）
     }
+    this.toast(this.distUseAgent ? '已写入黑板：各车 agent 将执行覆盖' : '已下发覆盖区域（平板直发兜底）');
   }
 
   /** 黑板远端变更（各车 agent 回写位姿/进度）：只取 robots 更新显示；assignments 由平板掌权、不被覆盖。 */
@@ -412,6 +427,15 @@ struct ControlPage {
     return this.connState === ConnState.connected;
   }
 
+  /** 轻量反馈：命令是 fire-and-forget UDP（紫派不回 ack）→ 用 toast 告知"指令已下发"，给操作者明确反馈。 */
+  private toast(msg: string): void {
+    try {
+      promptAction.showToast({ message: msg, duration: 2000 });
+    } catch (e) {
+      log.e(`toast: ${JSON.stringify(e)}`);
+    }
+  }
+
   /** TopBar 连接点颜色：按实时连接状态。 */
   private connDotColor(): string {
     switch (this.connState) {
@@ -475,28 +499,30 @@ struct ControlPage {
       // 右下缩放 FAB
       this.ZoomFabs()
 
-      // 摇杆区（可隐藏）：速度滑块 + 摇杆
-      if (!this.joyHidden) {
-        this.SpeedControl()
-        Joystick({
-          speed: this.joySpeed,
-          disabled: !this.liveConnected(),
-          onDirection: (dir: MoveDirection, speed: number) => this.onJoystick(dir, speed)
-        })
-          .position({ x: Space.lg, y: '62%' })
+      // 摇杆区：**仅建图阶段显示**（建图=遥操作驱动小车扫图；非建图阶段不该手动开车——用户反馈）。
+      // 导航/覆盖是自主执行，不用摇杆；连接但未建图时也不该能开车。
+      if (this.mapping) {
+        if (!this.joyHidden) {
+          this.SpeedControl()
+          Joystick({
+            speed: this.joySpeed,
+            disabled: !this.liveConnected(),
+            onDirection: (dir: MoveDirection, speed: number) => this.onJoystick(dir, speed)
+          })
+            .position({ x: Space.lg, y: '62%' })
+        }
+        Button(this.joyHidden ? '显示摇杆' : '收起摇杆')
+          .fontSize(FontSize.label)
+          .fontColor(AppColor.textBody)
+          .backgroundColor(AppColor.surface)
+          .borderRadius(Radius.pill)
+          .height(32)
+          .padding({ left: Space.md, right: Space.md })
+          .position({ x: Space.lg, y: '44%' })
+          .onClick(() => {
+            this.joyHidden = !this.joyHidden;
+          })
       }
-      // 隐藏/显示摇杆切换
-      Button(this.joyHidden ? '显示摇杆' : '收起摇杆')
-        .fontSize(FontSize.label)
-        .fontColor(AppColor.textBody)
-        .backgroundColor(AppColor.surface)
-        .borderRadius(Radius.pill)
-        .height(32)
-        .padding({ left: Space.md, right: Space.md })
-        .position({ x: Space.lg, y: '44%' })
-        .onClick(() => {
-          this.joyHidden = !this.joyHidden;
-        })
 
       // 底部卡：有完整地图且非建图/非载入 → 操作卡；否则建图卡（建图中 / 载入地图中 / 尚无地图 三态）
       if (this.mission.mapReady && !this.mapping && !this.mapLoading) {
@@ -509,10 +535,71 @@ struct ControlPage {
       if (this.showDevicePanel) {
         this.DevicePanel()
       }
+
+      // 地图载入阻塞遮罩（结束建图后拉图）：载入中→全屏阻塞；失败→提示 + 重试/关闭
+      if (this.mapLoading || this.mapLoadFailed) {
+        this.MapLoadOverlay()
+      }
     }
     .width('100%')
     .height('100%')
     .backgroundColor(AppColor.pageBg)
+  }
+
+  // 地图载入遮罩：结束建图后拉图期间全屏阻塞（吃掉点击），成功自动消失转操作卡；失败给明确提示 + 重试。
+  @Builder
+  MapLoadOverlay() {
+    Column() {
+      Column({ space: Space.md }) {
+        if (this.mapLoadFailed) {
+          Text('地图获取失败')
+            .fontSize(FontSize.h3)
+            .fontColor(AppColor.danger)
+            .fontWeight(FontWeight.Bold)
+          Text('结束建图后未拉到完整地图。请确认与车的连接（HTTP :8000）正常，或重试；也可关闭后重新建图。')
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.textSecondary)
+            .textAlign(TextAlign.Center)
+          Row({ space: Space.sm }) {
+            Button('关闭')
+              .fontColor(AppColor.primary)
+              .backgroundColor(AppColor.surface)
+              .border({ width: 1, color: AppColor.primary })
+              .borderRadius(Radius.pill)
+              .height(TOUCH_MIN)
+              .onClick(() => {
+                this.mapLoadFailed = false;
+              })
+            Button('重试')
+              .fontColor(AppColor.onPrimary)
+              .backgroundColor(AppColor.primary)
+              .borderRadius(Radius.pill)
+              .height(TOUCH_MIN)
+              .onClick(() => this.loadMap(this.ip, 8, 1500, true))
+          }
+        } else {
+          LoadingProgress().width(48).height(48).color(AppColor.primary)
+          Text('正在载入地图…')
+            .fontSize(FontSize.h3)
+            .fontColor(AppColor.textBody)
+            .fontWeight(FontWeight.Bold)
+          Text('结束建图后正在拉取存好的地图，请稍候')
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.textSecondary)
+            .textAlign(TextAlign.Center)
+        }
+      }
+      .width('80%')
+      .padding(Space.lg)
+      .backgroundColor(AppColor.surface)
+      .borderRadius(Radius.md)
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('rgba(0,0,0,0.45)')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {})
   }
 
   // 建图卡：三态——建图中 / 载入地图中（结束建图后拉存好的图）/ 尚无地图。
@@ -540,16 +627,6 @@ struct ControlPage {
           .height(TOUCH_MIN)
           .enabled(this.liveConnected())
           .onClick(() => this.finishBuild())
-      } else if (this.mapLoading) {
-        Row() {
-          LoadingProgress().width(20).height(20).color(AppColor.primary)
-          Text('正在载入地图…（结束建图后拉取存好的地图）')
-            .fontSize(FontSize.bodySm)
-            .fontColor(AppColor.textBody)
-            .margin({ left: Space.sm })
-            .layoutWeight(1)
-        }
-        .width('100%')
       } else {
         Text('尚无地图')
           .fontSize(FontSize.h3)
@@ -876,7 +953,7 @@ struct ControlPage {
         onScan: () => this.startScan(),
         onConnect: (ip: string) => {
           this.connectTo(ip);
-          this.loadMap(ip, 1, 0);  // 切车查既有图（不轮询）
+          this.loadMap(ip, 1, 0, false);  // 切车查既有图（非阻塞、不轮询）
           this.showDevicePanel = false;
         },
         onManualAdd: () => {
