@@ -132,7 +132,7 @@ struct DeviceTrustPage {
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textTitle)
         .fontWeight(FontWeight.Bold)
-      Text('① 平板与车连同一 WiFi/热点　② 车上接显示器+鼠标　③ 点车辆「配对」，在车的屏幕上确认 PIN。配对一次即可，之后自动互信。')
+      Text('① 平板与车连同一 WiFi/热点　② 车上接显示器+鼠标　③ 点车辆「配对」→ 车屏弹出系统 PIN 码 → 按平板系统提示输入该 PIN。配对一次即可，之后自动互信。')
         .fontSize(FontSize.caption)
         .fontColor(AppColor.textSecondary)
         .margin({ top: Space.xs })
@@ -252,7 +252,7 @@ struct DeviceTrustPage {
 
   private bind(item: DeviceInfo): void {
     this.bindingId = item.deviceId;
-    this.statusMsg = '认证中：请在车的屏幕上确认 PIN…';
+    this.statusMsg = '认证中：车屏会弹出 PIN 码，请按平板系统提示输入…';
     this.fleet.bindDevice(item.deviceId, (ok: boolean, msg: string) => {
       this.bindingId = '';
       if (ok) {
