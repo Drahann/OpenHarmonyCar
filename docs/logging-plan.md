@@ -28,7 +28,7 @@
 - `RobotTransport`：在 `send` / 心跳 send / `on('message')` 三处，`DEBUG_WIRE` 开时 hex-dump + 解码一帧
   （命令名 / runState / speed / endX·endY 或 x·y·r / 源 IP）。复用 `model/protocol` 的枚举名，别另写一份。
 - ✅ **收敛散落 `console.*`（services/pages/utils）到 `Log`**（2026-06-08 完成）：services（RobotTransport/MapService）+ utils（screen/componentUtils=TAG `Dialog`）+ pages（HomePage/ControlPage/SetIPPage/DeviceTrustPage 的路由/会话错误 → `Log.scoped(页名)`，去掉冗余 `[页名]` 前缀，TAG 已承载）。**全仓 `console.*` 归零**，verify 17/17。
-  - ⏳ 余尾：`EntryAbility`/`FleetMissionService` 仍用自带 DOMAIN(`0xFF00`) 的裸 `hilog` → 待并入 `Log` 的同一 `LOG_DOMAIN`（小尾巴，下次；`FleetMissionService` 属分布式关键代码，谨慎单列）。
+  - ✅ **余尾完成（2026-06-08）**：`EntryAbility` / `FleetMissionService`（app + agent 两份）/ `EntryBackupAbility` 的裸 `hilog`（DOMAIN 0x0000/0xFF00）**全部并入 `Log`**（同一 `LOG_DOMAIN=0xD002`）。**全仓 `hilog` 仅剩 `utils/log.ets` 一处封装、`console.*` 归零 → L1 完成。**
 - 验证：`node tools/verify/verify.mjs` 不受影响（纯逻辑未动）；真机在 DevEco HiLog 按 TAG 看到 TX/RX。
 
 ### L2 黑板 / 软总线 trace（distributed）

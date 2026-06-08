@@ -143,6 +143,20 @@ car-agent/
 - ✅ **自带共享层**（HAR 受阻的 sanctioned 复制，§6.1）：model/{protocol,mission,geometry}、constants/{protocol,debug}、
   utils/log、service/RobotTransport 复制自 app-harmony（同源·改两处）；service/FleetMissionService 为**无界面适配版**
   （基类 Context、不交互申请权限——DISTRIBUTED_DATASYNC 须预授权）。`verify.mjs` 17/17。
-- ⏭ **剩余（DevEco/真机）**：① **DevEco 工程集成**（car-agent 作为模块/独立工程纳入构建、补 `resources/`含 perm_datasync、签名）；
-  ② **编译修正**（首次 hvigor 必有 ArkTS/装饰器/API 报错）；③ 本机闭环测试（mock-purplepi 当本机栈 + 假平板写黑板）；
-  ④ 真机 P5 与 A（Q6）。另：app-harmony 的 L1 `console.*` 余 10 处收敛（独立小事）。
+- ✅ **bundleName + 一次性配对 UIAbility（2026-06-08）**：`AppScope/app.json5` 定 `bundleName=com.example.carapp`
+  （DDO 同步硬前提，§6.1 / distributed-trust 已答④）；新增 `pairingability/PairingAbility.ets`(UIAbility)
+  + `pages/PairingPage.ets`（配网指引 + 已信任设备列表，**不渲染 PIN**——系统弹窗代劳）+ `module.json5` 注册（abilities + pages profile）。
+  配网期车上接 HDMI 手动拉起本 Ability 使 bundle 活跃、当互信**接受方**；运行时仍只跑 headless 的 `AgentServiceAbility`。
+- ✅ **L1 日志统一（2026-06-08）**：agent 的 `FleetMissionService` 裸 hilog → `Log`；**全仓 console/裸 hilog 归零**（仅 `utils/log.ets` 封装）。
+- ⏭ **剩余 = 仅真机 / DevEco（设备依赖，本机不可做）**——代码侧已 **code-complete**，详见下「§6.7 真机测试清单」。
+
+### 6.7 真机测试清单（剩余全部为设备/DevEco 依赖，本机不可做）
+
+代码侧已 code-complete（所有 .ets 标注未经 DevEco）。"只剩真机测试"的项：
+1. **DevEco 工程集成**：car-agent 纳入构建（独立工程/模块），补 `resources/`（`app_icon`/`app_name`/`perm_datasync`/`start_window_background`）、签名（product 加 `signingConfig`，参 app-harmony 经验）。
+2. **首次编译修正**：hvigor 必有 ArkTS/装饰器/手势/API 形参偏差 → 逐个修（app-harmony 已踩过：成员名撞通用属性等）。
+3. **设备互信（一次性）**：紫派接 HDMI+鼠标 → 平板「设备互信」发起 `bindTarget`(targetPkgName=com.example.carapp) → 紫派**系统 PIN 弹窗**确认。验证：① 系统是否真弹 PIN；② 接受方是否**必须** PairingAbility 前台（验证"保险"是否必要）。
+4. **DISTRIBUTED_DATASYNC 预授权**：无界面服务弹不出授权框 → 紫派侧预置授权（Q6.3，需成员A）。
+5. **本机闭环**：mock-purplepi 当本机栈 + 假平板写黑板 → agent reconcile → localhost UDP；再换真 `udp2lcm`。
+6. **多机端到端（P5 与成员A）**：装 agent 上紫派、开机自起、软总线 trust、两车覆盖 + 心跳回写黑板可视化。
+7. **协议待 A 异步答**：Q10（cmd105 IP 连续化，非阻塞）、Q9（紫派 OH 互信系统配置）。
