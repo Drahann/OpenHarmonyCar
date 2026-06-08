@@ -24,6 +24,8 @@ export type MessageListener = (data: UdpReceiveData, remoteIp: string) => void;
 const BROADCAST_ADDR: string = '255.255.255.255';
 /** 发现期重复探测间隔。 */
 const DISCOVER_PING_INTERVAL_MS: number = 1000;
+/** 心跳新鲜阈值（ms）：保活中且距上次心跳 < 此值判"已连接"；心跳 500ms，留 ~4 帧容差。 */
+const HEARTBEAT_FRESH_MS: number = 2000;
 
 /** 发现到的一台车（仅 UDP 可知：源 IP + 最近一帧状态/时间；车号协议不携带，按 IP 标识）。 */
 export class DiscoveredRobot {
@@ -42,6 +44,14 @@ export class DiscoveredRobot {
 
 /** 发现回调：每收到/更新一台车即回传当前去重列表。 */
 export type DiscoverListener = (robots: DiscoveredRobot[]) => void;
+
+/** 连接状态（按 IP 派生：是否在保活 + 心跳新鲜度）。 */
+export enum ConnState {
+  discovered = 'discovered',   // 已发现：响应过探测，但未建立控制保活链路
+  connecting = 'connecting',   // 已起保活，自连接起尚未收到心跳
+  connected = 'connected',     // 保活中且心跳新鲜
+  lost = 'lost'                // 曾连上，心跳已断（保活仍在）
+}
 
 /** 单个目标 IP 的保活循环：定时器句柄 + 当前重发的指令（可中途更新，不打断计时器）。 */
 class HeartbeatLoop {
@@ -69,6 +79,10 @@ export class RobotTransport {
   private listeners: Set<MessageListener> = new Set<MessageListener>();
   /** 多目标保活：ip → 该 ip 的保活循环。 */
   private heartbeats: Map<string, HeartbeatLoop> = new Map<string, HeartbeatLoop>();
+  /** 每个 ip 最近收到心跳的时间戳（ms）。全局 on('message') 维护，供连接状态派生。 */
+  private lastSeenByIp: Map<string, number> = new Map<string, number>();
+  /** 每个 ip 起保活的时间戳（ms）。区分 connecting（自连接起未收）与 lost（曾收后断）。 */
+  private connectStartedAt: Map<string, number> = new Map<string, number>();
 
   private constructor() {
   }
@@ -90,6 +104,7 @@ export class RobotTransport {
     this.udp.on('message', (info: socket.SocketMessageInfo) => {
       const data: UdpReceiveData = decodeReceive(info.message);
       const ip: string = info.remoteInfo.address;
+      this.lastSeenByIp.set(ip, Date.now());
       if (DEBUG_WIRE) {
         this.traceFrame('RX <-', ip, info.message, `state=${data.state} x=${data.x} y=${data.y} r=${data.r}`);
       }
@@ -190,10 +205,51 @@ export class RobotTransport {
         clearInterval(loop.timer);
         this.heartbeats.delete(ip);
       }
+      this.connectStartedAt.delete(ip);
       return;
     }
     this.heartbeats.forEach((loop: HeartbeatLoop) => clearInterval(loop.timer));
     this.heartbeats.clear();
+    this.connectStartedAt.clear();
+  }
+
+  /**
+   * 某 IP 的当前连接状态（由"是否在保活"+"心跳新鲜度"派生）。
+   * discovered=未保活；connecting=保活但自连接起未收心跳；connected=保活且心跳新鲜；lost=保活但心跳已断。
+   */
+  connStateOf(ip: string): ConnState {
+    if (!this.heartbeats.has(ip)) {
+      return ConnState.discovered;
+    }
+    const last: number | undefined = this.lastSeenByIp.get(ip);
+    if (last !== undefined && Date.now() - last < HEARTBEAT_FRESH_MS) {
+      return ConnState.connected;
+    }
+    const startedAt: number = this.connectStartedAt.get(ip) ?? 0;
+    return (last !== undefined && last >= startedAt) ? ConnState.lost : ConnState.connecting;
+  }
+
+  /** 距上次收到该 IP 心跳的毫秒数（从未收到则 -1）。供 UI 显示"刚刚 / N 秒前"。 */
+  msSinceLastSeen(ip: string): number {
+    const last: number | undefined = this.lastSeenByIp.get(ip);
+    return last === undefined ? -1 : Date.now() - last;
+  }
+
+  /**
+   * 独占连接：停掉其它所有目标的保活（避免多车被半连接、随后各自 3s 急停的混乱），仅对 ip 起中性保活。
+   * payload 必须是中性帧（pending+stop），不触发建图/运动。收到该 ip 心跳后 connStateOf 即转 connected。
+   * ⚠️ 被切换掉的旧车会在 3s 后自行急停（预期的安全行为：不再被控的车停下）。
+   */
+  connectExclusive(ip: string, payload: UdpSendData): void {
+    const others: string[] = [];
+    this.heartbeats.forEach((_loop: HeartbeatLoop, key: string) => {
+      if (key !== ip) {
+        others.push(key);
+      }
+    });
+    others.forEach((key: string) => this.stopHeartbeat(key));
+    this.startHeartbeat(ip, payload);
+    this.connectStartedAt.set(ip, Date.now());
   }
 
   /**
