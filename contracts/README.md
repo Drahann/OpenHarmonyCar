@@ -17,7 +17,7 @@
 | [`udp-protocol.md`](udp-protocol.md) | App ↔ 紫派（控制/心跳） | App + 紫派 | **v0.2**（已对账 udp2lcm.c） |
 | [`udp-protocol-crosscheck.md`](udp-protocol-crosscheck.md) | App↔紫派 协议对账报告（逐字段+行号证据） | App | 2026-06-03 |
 | [`interface-review.md`](interface-review.md) | App↔紫派 接口优雅性复审（R1：妥协盘点+联合改进建议） | App | 2026-06-08 |
-| [`integration-qa.md`](integration-qa.md) | 跨端异步对接 Q&A（开放问题 Q1–Q10） | App + 紫派 | 滚动 |
+| [`integration-qa.md`](integration-qa.md) | 跨端异步对接 Q&A（开放问题 Q1–Q12） | App + 紫派 | 滚动 |
 | [`map-format.md`](map-format.md) | 紫派 → App（地图文件/HTTP） | 紫派 + App | **v0.2**（单位/URL 已对账） |
 | [`multi-robot-collab.md`](multi-robot-collab.md) | 多机协同（软总线 + 多车覆盖） | App + 紫派 | **v0.2** |
 | [`lcm/`](lcm/) | 紫派内部各模块 | 紫派 | v0.1 |

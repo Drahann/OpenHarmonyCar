@@ -148,3 +148,86 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 App 自查 `Navi/map/MapServer.cpp::saveProbMap`（详见 `docs/map-pipeline.md`）：`defultMap.txt` = 首行 `range resolution height width metersPerPixel x0 y0`（**7 值**）+ **空格分隔** `-1`(障碍)/`0`；`defultMap.txt.txt` = 同首行 + **密排** `1`/`0`。**之前 App 误按"4 值首行 + 密排 0/1"解析 → 真机首行取到 `x0 y0`(负) 当行列 + 空格数据被当密排 → 空气图/渲染乱。已修**（按位置取 `parts[2]/[3]`、自动识别空格/密排）。
 1. **请 A 确认**该格式（尤其 `defultMap.txt` 是**空格分隔 -1/0**、首行 7 值），以及 App 应长期拉 `defultMap.txt` 还是 `.txt.txt`（App 已能解两种，建议统一 `defultMap.txt`）。
 2. **`x0 y0` 的单位与符号**：是"栅格 [0][0] 相对世界原点的偏移"吗？单位是**米**还是**格**？符号约定？——用于**定位校正**：心跳世界坐标 → 地图数组坐标需减 x0/y0（见 `map-pipeline.md` §5）。真机若机器人 pin/选点整体偏一个常量即此因，需此信息标定。
+
+---
+
+## 2026-06-08 · 紫派 → App：基于当前 `main` 代码的答复
+
+> 下面结论按当前 `main` 分支里的 `purplepi-control/` 源码确认；其中“建议”表示还没有在 `main` 代码中落地，需要两端定协议后再改。
+
+### A1：协同避障暂停状态
+
+当前 `main` 的紫派代码没有把协同避障/暂停状态暴露到 9 字节 UDP 心跳，也没有合入 `COOP_AVOID` 状态机；`udp2lcm` 只回传 `0x03 + x/y/sita`，`byte[1..2]` 仍是 0。因此 App 现在无法可靠区分“普通停止”和“被另一车暂停”。
+
+建议先让车载 agent 读本机协同状态并写入 `FleetMission.robots[].status`，不要先改 9 字节 UDP；如果后续不用 agent，也可以把 `heartbeat[1]` 定义为状态字节，但这需要 `Navi -> udp2lcm` 增加状态来源，属于协议变更。
+
+### A2：协同避障支持车辆数
+
+当前设计和代码语义只覆盖双车：`robotId=1` 与 `robotId=0`，同时请求时按“1 继续、0 等待”的固定优先级处理。超过两台车时没有全局调度、队列或多车优先级，不能直接复用；若要扩到 N 车，需要把 `robotId`、目标点、占用走廊和停机请求改成带序号的多车表，并由 agent/黑板统一仲裁。
+
+### A3：`roadFile.txt`
+
+确认：`roadFile.txt` 是紫派内部覆盖路径文件，App 不需要读取。它由主机覆盖规划写出，当前工作目录在机器人脚本里是 `/data/test/` 时，落地为 `/data/test/roadFile.txt`；子机会在 `cmd124` 后用 `wget http://<master>:8000/roadFile.txt` 拉到本机同一路径。
+
+文件内容是一行一个网格点：`x,y`，单位是地图栅格/5cm 单元，不是米。App 只有在想做“覆盖路径预览”时才需要解析它。
+
+### A4：软总线传地图后的落地路径
+
+方案 A 若由 agent 经软总线传整图，紫派侧应写入 `/data/test/defultMap.txt`。写文件本身不会让 `Navi` 立刻热加载地图；写完后仍需要触发当前加载流程，例如 App/agent 继续下发对应加载地图命令（现有协议里的 `cmd5/10` 路径），或者在紫派侧新增“写完即发布加载命令”的 agent 动作。
+
+### A5：设备发现
+
+`udp2lcm` 当前 bind `0.0.0.0:5001`，理论上能收到发往本机 5001 的单播/广播报文；但第一包会记录 `clientIP`、启动心跳线程并进入 3 秒看门狗，所以不能直接把现有控制命令当发现包用。
+
+同意新增轻量发现命令，例如 `0x06 discovery ping`。实现要求是：收到发现包只回发现响应，不更新 `clientIP`，不启动心跳线程，不发布 LCM，不改变受控状态。这样未被选中的车不会因为发现广播进入“已连接但 3 秒无控制包”而急停。mDNS 也可行，但对当前 C 代码改动更大。
+
+### A6：车载无界面 agent 与 UDP 端口
+
+当前 `udp2lcm` bind `INADDR_ANY:5001`，agent 可以向 `127.0.0.1:5001` 发本机 UDP；不需要为了 localhost 另开端口。注意它只保存一个 `clientIP` 并按这一个客户端发心跳，所以 distributed 模式下必须保证“每台车只有本机 agent 是 UDP 客户端”，平板不要同时直连同一台车的 5001。
+
+车载无界面 ArkTS agent 与 C/C++ 栈并存从接口上可行；地图先走方案 B（agent 发 `cmd105`，子机 `cmd124` 去 master `wget`）也 OK，改动最小。
+
+### A6.2：distributed 模式下 master 是否由 agent 独占
+
+确认建议这样做：distributed 覆盖阶段，master 和 sub 都应由各自 agent 独占本机 UDP，平板只写软总线黑板，不直连任何车，包括 master。建图/单车手动控制阶段仍可以由平板直连某一台车；进入 distributed 前应释放直连保活，避免平板和 master-agent 抢 `udp2lcm` 的单客户端记录。
+
+### A7：建图实时预览
+
+当前对 App 暴露的是保存后的整图 HTTP 文件；`MAPFILE` 和 `SERVICE_COMMAND` 仍是紫派内部 LCM，没有跨到 App。若做实时预览，建议优先做 HTTP 周期快照，例如 `/data/test/partialMap.txt` 或 `/data/test/defultMap.partial.txt`，App 轮询即可；这比 UDP 分片少一层重传/乱序处理，也更贴近现有 8000 文件服务。
+
+如果追求更实时，再考虑把 `MAPFILE` 分片桥接成 UDP/软总线分片，但那是新协议。
+
+### A8：地图就绪信号
+
+短期 App 在 `cmd2` 结束建图后主动拉图可以先用。当前紫派没有 UDP 级“地图保存完成”确认，靠文件大小阈值确实不稳。
+
+建议后续定义明确状态：优先由 agent 监听/判断本机保存结果后写 `FleetMission`；如果继续走裸 UDP，可以复用心跳保留字节或新增回包表示 `mapping/saving/map_ready/map_error`。在这个状态落地前，App 不应把固定文件大小当成唯一就绪条件。
+
+### A9：软总线互信
+
+用户确认的方案可行：账号无关 PIN 认证、同一 WiFi 局域网，平板作为发起方，紫派作为接受方；紫派配网期接 HDMI 显示器和鼠标，在系统 PIN 弹窗中确认。关键约束是车载 agent 的 `bundleName` 要与平板一致，使用 `com.example.carapp`，否则 `distributedDataObject` 同步可能不在同一应用域内。
+
+紫派侧仍需真机确认三点：系统 PIN 弹窗是否确实可点、接受绑定时目标包/agent 是否必须在运行、以及被发现和接受绑定所需权限。
+
+### A10：`cmd105` 主机 IP 字节布局
+
+可以接受“连续 `byte[1..4]`”作为更清晰的新布局，但当前 `main` 代码仍按旧布局 `[1],[2],[4],[6]` 解析并下发到 `Navi`。因此近期联调请继续按旧布局打包；如果要改成连续字节，必须 App/agent 和 `udp2lcm.c` 同时改，并同步更新 `udp-protocol.md`。
+
+### A11：多车覆盖算法选择
+
+当前 `LCM127` 支持 `algNum`，`Navi/main.cpp` 的 `case 127` 会读取 `iparams[0]` 并调用 `NAVI_SetPlanFullPath(algNum)`。但多车覆盖这条链路不支持选择算法：`case 122` 只读取矩形顶点，`case 123` 当前固定调用 `NAVI_SetPlanFullPath(2)`，而 `CreateFullPath` 是固定矩形牛耕/分段逻辑。
+
+所以 App 多车界面暂时不要显示算法选择。若要保持单车/多车一致，需要给 `cmd107/108` 或 LCM122/123 增加 `algNum` 字段，并把 `CreateFullPath` 或后续路径生成逻辑改成真正使用该参数。
+
+### A12：地图格式与 `x0/y0`
+
+确认 `defultMap.txt` 的当前格式：首行 7 个值 `range resolution height width metersPerPixel x0 y0`，后续是空格分隔的 `-1/0`，其中 `-1` 表示障碍，`0` 表示非障碍。`defultMap.txt.txt` 是同样 7 值首行，但数据区是密排 `1/0`。建议 App 长期统一拉 `defultMap.txt`，`.txt.txt` 只作为兼容格式。
+
+`x0/y0` 单位是米，含义是地图栅格左下角/最小 `x,y` 的世界坐标，不是建图起点，也不一定为正。代码中的世界坐标转栅格公式是：
+
+```text
+grid_x = (world_x - x0) / metersPerPixel
+grid_y = (world_y - y0) / metersPerPixel
+```
+
+若 App 心跳坐标使用 5cm 栅格单位，则需要先把 `x0/y0` 除以 `metersPerPixel` 转成格，再做偏移；反向从地图点下发目标时，也要先用 `world = grid * metersPerPixel + x0/y0` 还原到世界米制坐标，再转成 UDP 使用的 5cm 单元。
