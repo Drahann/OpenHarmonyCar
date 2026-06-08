@@ -56,6 +56,7 @@ struct ControlPage {
   @State private fpAlg: number = 0;                 // 全路径算法：0=牛耕，1=最小生成树（cmd102 的 byte1）
   @State private fpVertices: Point[] = [];          // 全路径已选顶点（4 个：左下/右下/右上/左上）
   @State private joyHidden: boolean = false;        // 收起摇杆
+  @State private astarNavigating: boolean = false;  // astar：已下发目标、导航中（分步引导用）
   @State private connState: ConnState = ConnState.discovered;  // 本车实时连接状态（心跳新鲜度派生，驱动命令门控）
 
   private ip: string = '';
@@ -266,6 +267,7 @@ struct ControlPage {
   private onPick(p: Point): void {
     if (this.mode === ControlMode.astar) {
       this.mission.endPoints = [new EndPoint(p.x, p.y)];
+      this.astarNavigating = false;  // 新目标 → 回到"待开始导航"
       this.bump();
     } else if (this.mode === ControlMode.distributed) {
       this.distCorners.push(p);
@@ -318,11 +320,13 @@ struct ControlPage {
       return;
     }
     this.sendTo(this.ip, RobotCommand.startRoute, undefined, e.x, e.y);
+    this.astarNavigating = true;
     this.toast('已下发目标点，开始导航');
   }
 
   private cancelRoute(): void {
     this.sendTo(this.ip, RobotCommand.endRoute);
+    this.astarNavigating = false;
     this.toast('已取消导航');
   }
 
@@ -776,34 +780,42 @@ struct ControlPage {
 
   @Builder
   AstarOps() {
-    Row() {
-      Column() {
-        Text('目标点')
-          .fontSize(FontSize.caption)
-          .fontColor(AppColor.textSecondary)
-        Text(this.targetText())
-          .fontSize(FontSize.dataMd)
-          .fontFamily(FontFamily.mono)
-          .fontColor(AppColor.textBody)
+    Column({ space: Space.sm }) {
+      // 分步指示：① 点图选点 → ② 开始导航（导航中提示取消/重选）
+      Text(this.astarHint())
+        .fontSize(FontSize.bodySm)
+        .fontColor(AppColor.textBody)
+        .width('100%')
+      Row() {
+        Column() {
+          Text('目标点')
+            .fontSize(FontSize.caption)
+            .fontColor(AppColor.textSecondary)
+          Text(this.targetText())
+            .fontSize(FontSize.dataMd)
+            .fontFamily(FontFamily.mono)
+            .fontColor(AppColor.textBody)
+        }
+        .alignItems(HorizontalAlign.Start)
+        Blank()
+        Button('取消')
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .margin({ right: Space.sm })
+          .enabled(this.liveConnected())
+          .onClick(() => this.cancelRoute())
+        Button(this.astarNavigating ? '重新导航' : '开始导航')
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .enabled(this.hasTarget() && this.liveConnected())
+          .onClick(() => this.startAstar())
       }
-      .alignItems(HorizontalAlign.Start)
-      Blank()
-      Button('取消')
-        .fontColor(AppColor.primary)
-        .backgroundColor(AppColor.surface)
-        .border({ width: 1, color: AppColor.primary })
-        .borderRadius(Radius.pill)
-        .height(TOUCH_MIN)
-        .margin({ right: Space.sm })
-        .enabled(this.liveConnected())
-        .onClick(() => this.cancelRoute())
-      Button('开始导航')
-        .fontColor(AppColor.onPrimary)
-        .backgroundColor(AppColor.primary)
-        .borderRadius(Radius.pill)
-        .height(TOUCH_MIN)
-        .enabled(this.hasTarget() && this.liveConnected())
-        .onClick(() => this.startAstar())
+      .width('100%')
     }
     .width('100%')
   }
@@ -812,6 +824,10 @@ struct ControlPage {
   FullpathOps() {
     Column({ space: Space.sm }) {
       // ① 选算法（牛耕 / 最小生成树 → cmd102 byte1）
+      Text('① 选覆盖算法')
+        .fontSize(FontSize.caption)
+        .fontColor(AppColor.textSecondary)
+        .width('100%')
       Row({ space: Space.sm }) {
         this.AlgChip('牛耕算法', 0)
         this.AlgChip('最小生成树', 1)
@@ -891,9 +907,9 @@ struct ControlPage {
   private fpHint(): string {
     const n: number = this.fpVertices.length;
     if (n >= 4) {
-      return '已选 4 顶点，全路径覆盖已启动';
+      return '③ 4 顶点已选，全路径覆盖已启动（点「停止」结束）';
     }
-    return `点地图选第 ${n + 1} 个顶点（${this.fpCornerName(n)}），共需 4 个`;
+    return `② 点地图选第 ${n + 1}/4 个顶点（${this.fpCornerName(n)}）`;
   }
 
   private fpCornerName(i: number): string {
@@ -912,12 +928,16 @@ struct ControlPage {
   @Builder
   DistributedOps() {
     Column({ space: Space.sm }) {
-      // 下发方式：经车载 agent(写黑板) 或 平板直发兜底
+      // ① 选下发方式：经车载 agent(写黑板·各车自主) 或 平板直发兜底(直接发本车)
+      Text('① 选下发方式')
+        .fontSize(FontSize.caption)
+        .fontColor(AppColor.textSecondary)
+        .width('100%')
       Row() {
-        Text(this.distUseAgent ? '经车载 agent（黑板）' : '平板直发（兜底）')
+        Text(this.distUseAgent ? '经车载 agent（黑板·各车自主覆盖）' : '平板直发（兜底·直接发本车）')
           .fontSize(FontSize.bodySm)
           .fontColor(AppColor.textBody)
-        Blank()
+          .layoutWeight(1)
         Toggle({ type: ToggleType.Switch, isOn: this.distUseAgent })
           .selectedColor(AppColor.primary)
           .onChange((on: boolean) => {
@@ -927,6 +947,10 @@ struct ControlPage {
       .width('100%')
       Text(this.distHint())
         .fontSize(FontSize.bodySm)
+        .fontColor(AppColor.textSecondary)
+        .width('100%')
+      Text('③ 各车覆盖进度')
+        .fontSize(FontSize.caption)
         .fontColor(AppColor.textSecondary)
         .width('100%')
       ForEach(this.mission.robots, (r: RobotRuntime) => {
@@ -989,10 +1013,21 @@ struct ControlPage {
     return `(${e.x}, ${e.y})`;
   }
 
+  /** astar 分步引导文案：未选点 → 已选点待导航 → 导航中。 */
+  private astarHint(): string {
+    if (this.astarNavigating) {
+      return '导航中…（点「取消」停止；到达后可重新点图选目标）';
+    }
+    if (this.hasTarget()) {
+      return `目标已选 ${this.targetText()} · 点「开始导航」`;
+    }
+    return '① 点地图选目标点 → ② 点「开始导航」';
+  }
+
   private distHint(): string {
     if (this.distCorners.length === 1) {
-      return '已选对角点1，点第二个对角点完成子区域';
+      return '② 已选对角点1，点第二个对角点完成子区域';
     }
-    return '点地图两点划分覆盖子区域（对角矩形）';
+    return '② 点地图选两个对角点划分覆盖子区域（对角矩形）';
   }
 }
