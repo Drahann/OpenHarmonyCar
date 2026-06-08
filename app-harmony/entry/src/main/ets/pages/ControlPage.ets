@@ -17,7 +17,7 @@ import { Mission, ControlMode, MissionPhase, RobotRuntime, RobotRuntimeDTO, Miss
 import { Point } from '../model/geometry';
 import { RobotCommand, MoveDirection, UdpSendData, UdpReceiveData } from '../model/protocol';
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
-import { RobotTransport, DiscoveredRobot, MessageListener } from '../service/RobotTransport';
+import { RobotTransport, DiscoveredRobot, MessageListener, ConnState } from '../service/RobotTransport';
 import { MapService } from '../service/MapService';
 import { mapUrlFor, FLEET_SESSION_ID } from '../constants/protocol';
 import { SPEED_ASTAR, SPEED_FULLPATH, SPEED_DEFAULT } from '../constants/ui';
@@ -54,6 +54,7 @@ struct ControlPage {
   @State private fpAlg: number = 0;                 // 全路径算法：0=牛耕，1=最小生成树（cmd102 的 byte1）
   @State private fpVertices: Point[] = [];          // 全路径已选顶点（4 个：左下/右下/右上/左上）
   @State private joyHidden: boolean = false;        // 收起摇杆
+  @State private connState: ConnState = ConnState.discovered;  // 本车实时连接状态（心跳新鲜度派生，驱动命令门控）
 
   private ip: string = '';
   private mode: ControlMode = ControlMode.astar;
@@ -62,6 +63,7 @@ struct ControlPage {
   private stopDiscover: (() => void) | null = null;
   private msgListener: MessageListener | null = null;
   private viewNonce: number = 0;
+  private connRefreshTimer: number = -1;  // 周期刷新连接状态，使"心跳丢失"能及时反映到命令门控/TopBar
   private distCorners: Point[] = [];
   // 分布式：FleetMission 软总线黑板（平板写 assignments → 各车 agent 读自己的）
   private fleet: FleetMissionService = FleetMissionService.getInstance();
@@ -82,9 +84,15 @@ struct ControlPage {
       this.mission.robots = [new RobotRuntime(1, this.ip)];
     }
     this.initConnection();
+    // 周期刷新连接状态（心跳新鲜度/丢失是时间派生，需定时重算以更新命令门控与 TopBar）。
+    this.connRefreshTimer = setInterval(() => this.refreshConn(), 700);
   }
 
   aboutToDisappear(): void {
+    if (this.connRefreshTimer !== -1) {
+      clearInterval(this.connRefreshTimer);
+      this.connRefreshTimer = -1;
+    }
     if (this.msgListener !== null) {
       this.transport.unsubscribe(this.msgListener);
       this.msgListener = null;
@@ -152,6 +160,7 @@ struct ControlPage {
       r.y = data.y;
       r.r = data.r;
     }
+    this.refreshConn();  // 收到心跳即时刷新连接状态（连接中→已连接）
     this.bump();
   }
 
@@ -329,6 +338,50 @@ struct ControlPage {
     this.renderVersion++;
   }
 
+  /** 刷新本车实时连接状态（@State，驱动命令门控/TopBar 重渲染）。仅状态变化才赋值，省渲染。 */
+  private refreshConn(): void {
+    const s: ConnState = this.ip.length > 0 ? this.transport.connStateOf(this.ip) : ConnState.discovered;
+    if (s !== this.connState) {
+      this.connState = s;
+    }
+  }
+
+  /** 实时连接判据：本车心跳新鲜（取代粘滞 connectedIps 做命令门控，见 docs/safety-flow-review.md §1）。 */
+  private liveConnected(): boolean {
+    return this.connState === ConnState.connected;
+  }
+
+  /** TopBar 连接点颜色：按实时连接状态。 */
+  private connDotColor(): string {
+    switch (this.connState) {
+      case ConnState.connected:
+        return AppColor.success;
+      case ConnState.connecting:
+        return AppColor.warning;
+      case ConnState.lost:
+        return AppColor.danger;
+      default:
+        return AppColor.robotOffline;
+    }
+  }
+
+  /** TopBar 连接文案。 */
+  private connText(): string {
+    if (this.ip.length === 0) {
+      return '未连接';
+    }
+    switch (this.connState) {
+      case ConnState.connected:
+        return this.ip;
+      case ConnState.connecting:
+        return `${this.ip} · 连接中`;
+      case ConnState.lost:
+        return `${this.ip} · 心跳丢失`;
+      default:
+        return `${this.ip} · 未连接`;
+    }
+  }
+
   private speedForMode(): number {
     if (this.mode === ControlMode.astar) {
       return SPEED_ASTAR;
@@ -351,7 +404,7 @@ struct ControlPage {
         endPoints: this.mission.endPoints,
         assignments: this.mission.assignments,
         area: this.mission.area,
-        enablePick: this.mission.mapReady,
+        enablePick: this.mission.mapReady && this.liveConnected(),
         onPickPoint: (p: Point) => this.onPick(p)
       })
 
@@ -366,7 +419,7 @@ struct ControlPage {
         this.SpeedControl()
         Joystick({
           speed: this.joySpeed,
-          disabled: this.connectedIps.length === 0,
+          disabled: !this.liveConnected(),
           onDirection: (dir: MoveDirection, speed: number) => this.onJoystick(dir, speed)
         })
           .position({ x: Space.lg, y: '62%' })
@@ -421,7 +474,7 @@ struct ControlPage {
           .borderRadius(Radius.pill)
           .width('100%')
           .height(TOUCH_MIN)
-          .enabled(this.connectedIps.length > 0)
+          .enabled(this.liveConnected())
           .onClick(() => this.startBuild())
       } else {
         Row() {
@@ -440,6 +493,7 @@ struct ControlPage {
           .borderRadius(Radius.pill)
           .width('100%')
           .height(TOUCH_MIN)
+          .enabled(this.liveConnected())
           .onClick(() => this.finishBuild())
       }
     }
@@ -469,9 +523,9 @@ struct ControlPage {
         .onClick(() => router.back())
       Row() {
         Circle({ width: 10, height: 10 })
-          .fill(this.connectedIps.length > 0 ? AppColor.success : AppColor.robotOffline)
+          .fill(this.connDotColor())
           .margin({ right: Space.sm })
-        Text(this.ip.length > 0 ? this.ip : '未连接')
+        Text(this.connText())
           .fontSize(FontSize.dataSm)
           .fontFamily(FontFamily.mono)
           .fontColor(AppColor.textBody)
@@ -492,6 +546,7 @@ struct ControlPage {
           .height(40)
           .margin({ right: Space.sm })
           .padding({ left: Space.md, right: Space.md })
+          .enabled(this.liveConnected())
           .onClick(() => this.startBuild())
       }
       Button('设备')
@@ -582,13 +637,14 @@ struct ControlPage {
         .borderRadius(Radius.pill)
         .height(TOUCH_MIN)
         .margin({ right: Space.sm })
+        .enabled(this.liveConnected())
         .onClick(() => this.cancelRoute())
       Button('开始导航')
         .fontColor(AppColor.onPrimary)
         .backgroundColor(AppColor.primary)
         .borderRadius(Radius.pill)
         .height(TOUCH_MIN)
-        .enabled(this.hasTarget())
+        .enabled(this.hasTarget() && this.liveConnected())
         .onClick(() => this.startAstar())
     }
     .width('100%')
@@ -622,6 +678,7 @@ struct ControlPage {
           .backgroundColor(AppColor.primary)
           .borderRadius(Radius.pill)
           .height(TOUCH_MIN)
+          .enabled(this.liveConnected())
           .onClick(() => this.stopFullpath())
       }
       .width('100%')
