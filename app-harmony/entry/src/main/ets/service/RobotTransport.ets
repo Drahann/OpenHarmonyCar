@@ -13,7 +13,7 @@
 import { socket } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { UDP_PORT, CONNECT_TIMEOUT_MS, HEARTBEAT_INTERVAL_MS } from '../constants/protocol';
-import { UdpSendData, UdpReceiveData, RobotCommand, encodeSend, decodeReceive } from '../model/protocol';
+import { UdpSendData, UdpReceiveData, RobotCommand, encodeSend, decodeReceive, commandName } from '../model/protocol';
 import { Log, Logger } from '../utils/log';
 import { DEBUG_WIRE } from '../constants/debug';
 
@@ -26,6 +26,8 @@ const BROADCAST_ADDR: string = '255.255.255.255';
 const DISCOVER_PING_INTERVAL_MS: number = 1000;
 /** 心跳新鲜阈值（ms）：保活中且距上次心跳 < 此值判"已连接"；心跳 500ms，留 ~4 帧容差。 */
 const HEARTBEAT_FRESH_MS: number = 2000;
+/** RX 心跳 trace 节流（ms）：DEBUG_WIRE 开时每 ip 最多约 1/s 打印（心跳 500ms，避免刷屏）。 */
+const WIRE_RX_THROTTLE_MS: number = 1000;
 
 /** 发现到的一台车（仅 UDP 可知：源 IP + 最近一帧状态/时间；车号协议不携带，按 IP 标识）。 */
 export class DiscoveredRobot {
@@ -83,6 +85,10 @@ export class RobotTransport {
   private lastSeenByIp: Map<string, number> = new Map<string, number>();
   /** 每个 ip 起保活的时间戳（ms）。区分 connecting（自连接起未收）与 lost（曾收后断）。 */
   private connectStartedAt: Map<string, number> = new Map<string, number>();
+  /** wire TX 去重：某 ip 上一帧 hex（保活只在内容相对上一帧变化时打印，避免刷屏）。 */
+  private lastTxHexByIp: Map<string, string> = new Map<string, string>();
+  /** wire RX 节流：某 ip 上次打印 RX 心跳的时间戳（ms）。 */
+  private lastRxLogAtByIp: Map<string, number> = new Map<string, number>();
 
   private constructor() {
   }
@@ -104,9 +110,12 @@ export class RobotTransport {
     this.udp.on('message', (info: socket.SocketMessageInfo) => {
       const data: UdpReceiveData = decodeReceive(info.message);
       const ip: string = info.remoteInfo.address;
-      this.lastSeenByIp.set(ip, Date.now());
-      if (DEBUG_WIRE) {
-        this.traceFrame('RX <-', ip, info.message, `state=${data.state} x=${data.x} y=${data.y} r=${data.r}`);
+      const now: number = Date.now();
+      this.lastSeenByIp.set(ip, now);
+      // RX 心跳每 500ms 一帧 → 仅 DEBUG_WIRE 开且按 WIRE_RX_THROTTLE_MS 节流打印（避免刷屏；显式命令 TX 始终打印）。
+      if (DEBUG_WIRE && now - (this.lastRxLogAtByIp.get(ip) ?? 0) >= WIRE_RX_THROTTLE_MS) {
+        this.lastRxLogAtByIp.set(ip, now);
+        this.log.i(`RX← ${ip} state=${data.state} x=${data.x} y=${data.y} r=${data.r} [${this.hexOf(info.message)}]`);
       }
       this.listeners.forEach((l: MessageListener) => l(data, ip));
     });
@@ -121,13 +130,37 @@ export class RobotTransport {
     this.listeners.delete(listener);
   }
 
-  /** 立即发送一帧。 */
+  /**
+   * 立即发送一帧**显式命令**：**始终打印一行 TX 日志**（命令名 + 字段 + hex），让操作者直观看到
+   * "实际发了哪 9 个字节、对不对"（info 级，release 由 LOG_MIN_LEVEL 收掉）。
+   * 保活/周期重发请走 `sendKeepalive`（默认不打印，避免每帧刷屏）。
+   */
   send(ip: string, data: UdpSendData): void {
     const buffer: ArrayBuffer = encodeSend(data);
+    const hex: string = this.hexOf(buffer);
+    this.log.i(this.txLine(ip, data, hex));
+    this.lastTxHexByIp.set(ip, hex);  // 记住本帧，紧随其后的同内容保活不再重复打印
+    this.rawSend(ip, buffer);
+  }
+
+  /**
+   * 保活 / 周期重发（心跳循环、广播发现 ping）：默认**不打印**（避免每 500ms/1s 刷屏）；
+   * 仅 `DEBUG_WIRE` 开且**帧内容相对上一帧变化**时打印一行（带"(保活)"）。照常发送。
+   */
+  private sendKeepalive(ip: string, data: UdpSendData): void {
+    const buffer: ArrayBuffer = encodeSend(data);
     if (DEBUG_WIRE) {
-      this.traceFrame('TX ->', ip, buffer,
-        `cmd=${data.state} run=${data.runState ?? 0} spd=${data.speed ?? 0} x=${data.endX ?? 0} y=${data.endY ?? 0}`);
+      const hex: string = this.hexOf(buffer);
+      if (this.lastTxHexByIp.get(ip) !== hex) {
+        this.log.i(`${this.txLine(ip, data, hex)} (保活)`);
+        this.lastTxHexByIp.set(ip, hex);
+      }
     }
+    this.rawSend(ip, buffer);
+  }
+
+  /** 实际把缓冲发到 ip:5001（发送失败打 error）。 */
+  private rawSend(ip: string, buffer: ArrayBuffer): void {
     const address: socket.NetAddress = { address: ip, port: UDP_PORT };
     this.udp.send({ address, data: buffer }, (err: BusinessError) => {
       if (err) {
@@ -136,8 +169,8 @@ export class RobotTransport {
     });
   }
 
-  /** 线缆 trace（仅 DEBUG_WIRE 开时由调用点触发）：hex + 解码摘要。 */
-  private traceFrame(dir: string, ip: string, buffer: ArrayBuffer, summary: string): void {
+  /** 9 字节缓冲 → 空格分隔 hex 串（如 `03 00 00 01 02 ff ff 00 00`）。 */
+  private hexOf(buffer: ArrayBuffer): string {
     const bytes: Uint8Array = new Uint8Array(buffer);
     let hex: string = '';
     for (let i = 0; i < bytes.length; i++) {
@@ -146,7 +179,13 @@ export class RobotTransport {
         hex += ' ';
       }
     }
-    this.log.d(`${dir} ${ip} [${hex}] ${summary}`);
+    return hex;
+  }
+
+  /** TX 日志行：`TX→ <ip> <命令名>(<码>) run=.. spd=.. x=.. y=.. [hex]`。 */
+  private txLine(ip: string, data: UdpSendData, hex: string): string {
+    return `TX→ ${ip} ${commandName(data.state)}(${data.state}) ` +
+      `run=${data.runState ?? 0} spd=${data.speed ?? 0} x=${data.endX ?? 0} y=${data.endY ?? 0} [${hex}]`;
   }
 
   /**
@@ -183,9 +222,9 @@ export class RobotTransport {
   startHeartbeat(ip: string, payload: UdpSendData): void {
     this.stopHeartbeat(ip);
     const loop: HeartbeatLoop = new HeartbeatLoop(-1, payload);
-    this.send(ip, payload);  // 立即发首帧：车收首包即捕获 App IP 并开始回心跳，连接态尽快转"已连接"（不等 1s）
+    this.send(ip, payload);  // 立即发首帧：车收首包即捕获 App IP 并开始回心跳，连接态尽快转"已连接"（不等 1s）。显式打印一行
     loop.timer = setInterval(() => {
-      this.send(ip, loop.payload);
+      this.sendKeepalive(ip, loop.payload);  // 周期重发：默认静默（DEBUG_WIRE 开且内容变化才打印）
     }, HEARTBEAT_INTERVAL_MS);
     this.heartbeats.set(ip, loop);
   }
@@ -306,9 +345,8 @@ export class RobotTransport {
         this.log.e(`enable broadcast fail code=${err.code} msg=${err.message}`);
       }
     });
-    const sendPing = (): void => this.send(BROADCAST_ADDR, new UdpSendData(ping));
-    sendPing();
-    pinger = setInterval(sendPing, DISCOVER_PING_INTERVAL_MS);
+    this.send(BROADCAST_ADDR, new UdpSendData(ping));  // 首发显式打印一行
+    pinger = setInterval(() => this.sendKeepalive(BROADCAST_ADDR, new UdpSendData(ping)), DISCOVER_PING_INTERVAL_MS);
     ender = setTimeout(stop, durationMs);
     return stop;
   }

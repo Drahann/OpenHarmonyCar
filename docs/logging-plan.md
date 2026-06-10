@@ -25,8 +25,8 @@
 - 新增 `utils/log.ets`（**共享**，App 与 agent 同用）：薄封装 `hilog`；固定 DOMAIN（如 `0xD002`）；
   `Log.scoped(tag)` 返回带 `.d/.i/.w/.e` 的记录器；全局级别 + 开关常量。
 - `constants` 加调试开关：`DEBUG_WIRE`（默认 `false`）等。
-- `RobotTransport`：在 `send` / 心跳 send / `on('message')` 三处，`DEBUG_WIRE` 开时 hex-dump + 解码一帧
-  （命令名 / runState / speed / endX·endY 或 x·y·r / 源 IP）。复用 `model/protocol` 的枚举名，别另写一份。
+- `RobotTransport`：hex-dump + 解码一帧（命令名 / runState / speed / endX·endY 或 x·y·r / 源 IP），复用 `model/protocol` 的 `commandName`。
+  - ⭐ **改进（2026-06-09，用户"看不到 UDP 发了什么")**：**显式命令 TX 始终打印**（`send()` → `log.i` 一行 `TX→ <ip> <名>(<码>) … [hex]`，无需开任何开关；release 由 `LOG_MIN_LEVEL` 收掉）。**保活/周期重发** 走 `sendKeepalive()`（默认静默、`DEBUG_WIRE` 开且内容变化才打印，去重防刷屏）；**RX 心跳** 仍 `DEBUG_WIRE` 开 + 节流约 1/s。修了旧实现的双重坑：原 trace 在 `log.d`（被 `LOG_MIN_LEVEL=1` 挡）+ `DEBUG_WIRE` 默认关 → 命令 TX 根本看不到。App 与 car-agent 同享此能力（`RobotTransport` 逐字节同源）。新增 `protocol.commandName(code)`。
 - ✅ **收敛散落 `console.*`（services/pages/utils）到 `Log`**（2026-06-08 完成）：services（RobotTransport/MapService）+ utils（screen/componentUtils=TAG `Dialog`）+ pages（HomePage/ControlPage/SetIPPage/DeviceTrustPage 的路由/会话错误 → `Log.scoped(页名)`，去掉冗余 `[页名]` 前缀，TAG 已承载）。**全仓 `console.*` 归零**，verify 17/17。
   - ✅ **余尾完成（2026-06-08）**：`EntryAbility` / `FleetMissionService`（app + agent 两份）/ `EntryBackupAbility` 的裸 `hilog`（DOMAIN 0x0000/0xFF00）**全部并入 `Log`**（同一 `LOG_DOMAIN=0xD002`）。**全仓 `hilog` 仅剩 `utils/log.ets` 一处封装、`console.*` 归零 → L1 完成。**
 - 验证：`node tools/verify/verify.mjs` 不受影响（纯逻辑未动）；真机在 DevEco HiLog 按 TAG 看到 TX/RX。

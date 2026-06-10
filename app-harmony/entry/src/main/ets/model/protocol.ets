@@ -94,6 +94,26 @@ export function encodeSend(d: UdpSendData): ArrayBuffer {
   return buffer;
 }
 
+/** 命令码 → 简短可读名（调试日志用；未知码回退 `cmd<code>`）。与上面 RobotCommand 枚举对齐。 */
+export function commandName(code: number): string {
+  switch (code) {
+    case RobotCommand.beforeStart: return 'beforeStart';
+    case RobotCommand.pending: return 'pending';
+    case RobotCommand.afterEnd: return 'afterEnd';
+    case RobotCommand.startRoute: return 'startRoute';
+    case RobotCommand.endRoute: return 'endRoute';
+    case RobotCommand.loadMap: return 'loadMap';
+    case RobotCommand.fullpathStartRoute: return 'fullpathStartRoute';
+    case RobotCommand.fullpathStartover: return 'fullpathStartover';
+    case RobotCommand.fullpathSelect: return 'fullpathSelect';
+    case RobotCommand.distributed: return 'distributed';
+    case RobotCommand.distributedEnd: return 'distributedEnd';
+    case RobotCommand.distAreaCorner1: return 'distAreaCorner1';
+    case RobotCommand.distAreaCorner2: return 'distAreaCorner2';
+    default: return `cmd${code}`;
+  }
+}
+
 /** 解析 9 字节心跳（= 旧 parseReceiveData）。 */
 export function decodeReceive(buffer: ArrayBuffer): UdpReceiveData {
   const bytes = new Uint8Array(buffer);

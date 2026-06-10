@@ -536,12 +536,8 @@ struct ControlPage {
           })
       }
 
-      // 底部卡：有完整地图且非建图/非载入 → 操作卡；否则建图卡（建图中 / 载入地图中 / 尚无地图 三态）
-      if (this.mission.mapReady && !this.mapping && !this.mapLoading) {
-        this.OpCard()
-      } else {
-        this.BuildCard()
-      }
+      // 底部操作/建图 sheet：**bottom-docked**（内容向上生长，永不超出界面）；三态内容由 BottomSheet 内部切换。
+      this.BottomSheet()
 
       // 设备发现面板（浮层）
       if (this.showDevicePanel) {
@@ -614,11 +610,49 @@ struct ControlPage {
     .onClick(() => {})
   }
 
-  // 建图卡：三态——建图中 / 载入地图中（结束建图后拉存好的图）/ 尚无地图。
-  // 流程：开始建图(cmd0) → 摇杆探索 → 结束建图(cmd2，紫派存图) → 拉图(loadMap) → 有图转 OpCard。
-  // 地图**只在结束建图后或进页查既有图时拉**，不在开始建图时拉（那时还没存图）。
+  // 底部操作/建图 sheet —— **bottom-docked**（docked 到底部、内容向上生长，**永不超出界面**：修复旧 `.position(y:80%/84%)`
+  // 在全覆盖/多机等高内容时溢出屏幕底部）。全屏透明包裹层 `hitTestBehavior=None`：空白区把触摸透传给底层地图
+  // （缩放/平移/选点不被挡），仅卡片本体拦截。顶部小抓手 + 圆角 + 软阴影 → 像 Maps/iOS 底部卡，消除旧版浮在半空的"突兀"感。
   @Builder
-  BuildCard() {
+  BottomSheet() {
+    Column() {
+      Column({ space: Space.sm }) {
+        // 抓手（暗示这是底部卡）
+        Row()
+          .width(40)
+          .height(4)
+          .borderRadius(2)
+          .backgroundColor(AppColor.border)
+        // 内容：有完整地图且非建图/非载入 → 操作卡；否则建图卡（建图中 / 尚无地图）
+        if (this.mission.mapReady && !this.mapping && !this.mapLoading) {
+          this.OpCardContent()
+        } else {
+          this.BuildCardContent()
+        }
+      }
+      .width('92%')
+      .padding({ left: Space.md, right: Space.md, top: Space.sm, bottom: Space.md })
+      .backgroundColor(AppColor.surface)
+      .borderRadius(Radius.lg)
+      .constraintSize({ maxHeight: '62%' }) // 兜底封顶（极端高内容也不顶到屏幕外），常规内容按需自适应
+      .shadow({
+        radius: Elevation.cardRadius,
+        color: Elevation.cardColor,
+        offsetX: 0,
+        offsetY: Elevation.cardOffsetY
+      })
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.End)
+    .padding({ bottom: Space.lg })
+    .hitTestBehavior(HitTestMode.None)
+  }
+
+  // 建图卡内容（三态：建图中 / 尚无地图；载入中由 MapLoadOverlay 阻塞遮罩接管）。仅内容、不自带定位/卡片 chrome（由 BottomSheet 提供）。
+  // 流程：开始建图(cmd0) → 摇杆探索 → 结束建图(cmd2，紫派存图) → 拉图(loadMap) → 有图转操作卡内容。
+  @Builder
+  BuildCardContent() {
     Column({ space: Space.sm }) {
       if (this.mapping) {
         Row() {
@@ -659,17 +693,7 @@ struct ControlPage {
           .onClick(() => this.startBuild())
       }
     }
-    .width('92%')
-    .padding(Space.md)
-    .backgroundColor(AppColor.surface)
-    .borderRadius(Radius.md)
-    .shadow({
-      radius: Elevation.cardRadius,
-      color: Elevation.cardColor,
-      offsetX: 0,
-      offsetY: Elevation.cardOffsetY
-    })
-    .position({ x: '4%', y: '80%' })
+    .width('100%')
   }
 
   @Builder
@@ -754,8 +778,9 @@ struct ControlPage {
       .onClick(action)
   }
 
+  // 操作卡内容（按 mode 变体）。仅内容、不自带定位/卡片 chrome（由 BottomSheet 提供）。
   @Builder
-  OpCard() {
+  OpCardContent() {
     Column() {
       if (this.mode === ControlMode.astar) {
         this.AstarOps()
@@ -765,17 +790,7 @@ struct ControlPage {
         this.DistributedOps()
       }
     }
-    .width('92%')
-    .padding(Space.md)
-    .backgroundColor(AppColor.surface)
-    .borderRadius(Radius.md)
-    .shadow({
-      radius: Elevation.cardRadius,
-      color: Elevation.cardColor,
-      offsetX: 0,
-      offsetY: Elevation.cardOffsetY
-    })
-    .position({ x: '4%', y: '84%' })
+    .width('100%')
   }
 
   @Builder

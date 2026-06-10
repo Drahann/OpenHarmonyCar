@@ -7,6 +7,7 @@
 //   - model/protocol.ets   encodeSend / decodeReceive
 //   - model/geometry.ets   canvasToMap / mapToCanvas
 //   - service/MapService.ets parseMap（首行 + 包围盒 + 正方形化部分）
+//   - model/mapContour.ets  marchingSquares / linkLoops / chaikin / extractContours（栅格→平滑矢量等高线）
 // ⚠️ 改了上述 .ets 的算法，请同步改这里，保持镜像一致。
 // ⚠️ 改了 app-harmony 的共享层文件（④ 列出的），务必同步到 car-agent —— 本脚本 ④ 会逐字节守卫。
 //
@@ -97,6 +98,124 @@ function parseMap(text, canvasW, canvasH) {
     rows: height, cols: width, startX: xMin, startY: yMin, endX: xMax, endY: yMax,
     squareSize, gridWidth, gridHeight, gridSize: (gridWidth + gridHeight) / 2, txtAverSize: (width + height) / 2,
   };
+}
+
+// ── 镜像：model/mapContour.ets（marching squares → linkLoops → chaikin → extractContours）──
+function marchingSquares(g) {
+  const b = g.b, w = g.w, h = g.h;
+  const segs = [];
+  for (let y = 0; y < h - 1; y++) {
+    for (let x = 0; x < w - 1; x++) {
+      const tl = b[y * w + x], tr = b[y * w + x + 1], br = b[(y + 1) * w + x + 1], bl = b[(y + 1) * w + x];
+      const idx = tl * 8 + tr * 4 + br * 2 + bl * 1;
+      if (idx === 0 || idx === 15) continue;
+      const tx = x + 0.5, ty = y, rx = x + 1, ry = y + 0.5, bx = x + 0.5, by = y + 1, lx = x, ly = y + 0.5;
+      switch (idx) {
+        case 1: segs.push(lx, ly, bx, by); break;
+        case 2: segs.push(bx, by, rx, ry); break;
+        case 3: segs.push(lx, ly, rx, ry); break;
+        case 4: segs.push(tx, ty, rx, ry); break;
+        case 5: segs.push(lx, ly, tx, ty); segs.push(bx, by, rx, ry); break;
+        case 6: segs.push(tx, ty, bx, by); break;
+        case 7: segs.push(lx, ly, tx, ty); break;
+        case 8: segs.push(tx, ty, lx, ly); break;
+        case 9: segs.push(tx, ty, bx, by); break;
+        case 10: segs.push(tx, ty, rx, ry); segs.push(lx, ly, bx, by); break;
+        case 11: segs.push(tx, ty, rx, ry); break;
+        case 12: segs.push(lx, ly, rx, ry); break;
+        case 13: segs.push(rx, ry, bx, by); break;
+        case 14: segs.push(lx, ly, bx, by); break;
+        default: break;
+      }
+    }
+  }
+  return segs;
+}
+function ptKeyC(x, y) { return `${Math.round(x * 2)}_${Math.round(y * 2)}`; }
+function linkLoops(segs) {
+  const n = Math.floor(segs.length / 4);
+  const used = new Uint8Array(n);
+  const adj = new Map();
+  for (let s = 0; s < n; s++) {
+    const ka = ptKeyC(segs[s * 4], segs[s * 4 + 1]), kb = ptKeyC(segs[s * 4 + 2], segs[s * 4 + 3]);
+    if (!adj.has(ka)) adj.set(ka, []); adj.get(ka).push(s);
+    if (!adj.has(kb)) adj.set(kb, []); adj.get(kb).push(s);
+  }
+  const step = (cx, cy) => {
+    const cand = adj.get(ptKeyC(cx, cy));
+    if (cand === undefined) return null;
+    for (const t of cand) {
+      if (used[t] === 1) continue;
+      used[t] = 1;
+      const px = segs[t * 4], py = segs[t * 4 + 1], qx = segs[t * 4 + 2], qy = segs[t * 4 + 3];
+      if (ptKeyC(px, py) === ptKeyC(cx, cy)) return [qx, qy];
+      return [px, py];
+    }
+    return null;
+  };
+  const out = [];
+  for (let s = 0; s < n; s++) {
+    if (used[s] === 1) continue;
+    used[s] = 1;
+    const ax = segs[s * 4], ay = segs[s * 4 + 1];
+    const pts = [ax, ay, segs[s * 4 + 2], segs[s * 4 + 3]];
+    let cx = pts[2], cy = pts[3], closed = false;
+    while (true) {
+      const nxt = step(cx, cy);
+      if (nxt === null) break;
+      cx = nxt[0]; cy = nxt[1]; pts.push(cx, cy);
+      if (ptKeyC(cx, cy) === ptKeyC(ax, ay)) { closed = true; break; }
+    }
+    if (!closed) {
+      const back = []; let bx2 = ax, by2 = ay;
+      while (true) { const nxt = step(bx2, by2); if (nxt === null) break; bx2 = nxt[0]; by2 = nxt[1]; back.push(bx2, by2); }
+      if (back.length > 0) {
+        const head = [];
+        for (let i = back.length - 2; i >= 0; i -= 2) head.push(back[i], back[i + 1]);
+        for (let i = 0; i < pts.length; i++) head.push(pts[i]);
+        out.push({ pts: head, closed: false }); continue;
+      }
+    }
+    out.push({ pts, closed });
+  }
+  return out;
+}
+function chaikin(pts, closed, iters) {
+  let cur = pts;
+  for (let it = 0; it < iters; it++) {
+    const m = Math.floor(cur.length / 2);
+    if (m < 3) break;
+    const next = [];
+    if (!closed) next.push(cur[0], cur[1]);
+    const segCount = closed ? m : m - 1;
+    for (let i = 0; i < segCount; i++) {
+      const i1 = (i + 1) % m;
+      const x0 = cur[i * 2], y0 = cur[i * 2 + 1], x1 = cur[i1 * 2], y1 = cur[i1 * 2 + 1];
+      next.push(x0 * 0.75 + x1 * 0.25, y0 * 0.75 + y1 * 0.25);
+      next.push(x0 * 0.25 + x1 * 0.75, y0 * 0.25 + y1 * 0.75);
+    }
+    if (!closed) next.push(cur[(m - 1) * 2], cur[(m - 1) * 2 + 1]);
+    cur = next;
+  }
+  return cur;
+}
+function extractContours(g, gridWidth, gridHeight, iters) {
+  const loops = linkLoops(marchingSquares(g));
+  const out = [];
+  for (const c of loops) {
+    const sm = chaikin(c.pts, c.closed, iters);
+    const mapped = new Array(sm.length);
+    const sx = g.f * gridWidth, sy = g.f * gridHeight;
+    for (let i = 0; i < sm.length; i += 2) { mapped[i] = sm[i] * sx; mapped[i + 1] = sm[i + 1] * sy; }
+    out.push({ pts: mapped, closed: c.closed });
+  }
+  return out;
+}
+function coarseFrom(rows) { // rows: array of '0'/'1' 字符串 → CoarseGrid（f=1）
+  const h = rows.length, w = rows[0].length;
+  const b = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) b[y * w + x] = rows[y][x] === '1' ? 1 : 0;
+  return { b, w, h, f: 1 };
 }
 
 // ── 迷你断言框架 ────────────────────────────────────────────────────────────
@@ -206,6 +325,44 @@ console.log('共享层副本同步（car-agent vs app-harmony，逐字节）：'
   const agBundle = (readFileSync(agEts('service/FleetMissionService.ets'), 'utf8').match(bundleRe) || [])[1];
   check('FleetMissionService BUNDLE_NAME 两端一致（DDO 同 bundle 前提）',
     appBundle !== undefined && appBundle === agBundle, `app=${appBundle} agent=${agBundle}`);
+}
+
+// ── ⑤ 墙体平滑等高线（marching squares → linkLoops → chaikin → extractContours）──
+// 防回归"把栅格当方块画"：等高线管线把占据栅格转成平滑矢量边界（见 docs/map-ui-redesign.md）。
+console.log('墙体平滑矢量等高线（mapContour：栅格 → 平滑边界）：');
+{
+  // 2×2 墙块居中于 4×4 空网格 → 一条闭环包住墙块
+  const g = coarseFrom(['0000', '0110', '0110', '0000']);
+  const segs = marchingSquares(g);
+  check('marchingSquares 产出边界线段（2×2 墙块）', segs.length >= 16, `segs=${segs.length / 4}`);
+  const loops = linkLoops(segs);
+  const closed = loops.filter((c) => c.closed);
+  check('linkLoops 连成闭环', closed.length >= 1, `loops=${loops.length} closed=${closed.length}`);
+  // 闭环顶点都贴住墙块边界（中点在 [0.4,2.6]，即 hug 居中 2×2 块）
+  let hug = true;
+  for (const c of closed) for (let i = 0; i < c.pts.length; i += 2) {
+    if (c.pts[i] < 0.4 || c.pts[i] > 2.6 || c.pts[i + 1] < 0.4 || c.pts[i + 1] > 2.6) hug = false;
+  }
+  check('闭环顶点贴住墙块边界（不是整图方块）', hug);
+  // chaikin 平滑应增密顶点（折线 → 顺滑曲线）
+  const before = closed[0].pts.length / 2;
+  const after = chaikin(closed[0].pts, true, 2).length / 2;
+  check('chaikin 平滑增密顶点', after > before, `before=${before} after=${after}`);
+  // extractContours：映射回 base px（f=1, 每格 10px）→ 坐标有限且按格尺寸放大
+  const cs = extractContours(g, 10, 10, 2);
+  let finite = cs.length > 0, maxXY = 0;
+  for (const c of cs) for (const v of c.pts) { if (!Number.isFinite(v)) finite = false; if (v > maxXY) maxXY = v; }
+  check('extractContours 坐标有限', finite);
+  check('extractContours 映射到 base px（×格尺寸 10）', maxXY > 10 && maxXY < 30, `maxXY=${maxXY}`);
+}
+{
+  // 墙环（5×5 边框、中心 3×3 空）→ 含洞场景：可提取且不崩、坐标有限
+  const g = coarseFrom(['11111', '10001', '10001', '10001', '11111']);
+  const cs = extractContours(g, 4, 4, 1);
+  check('墙环（含洞）可提取等高线且不崩', cs.length >= 1, `loops=${cs.length}`);
+  let finite = true;
+  for (const c of cs) for (const v of c.pts) if (!Number.isFinite(v)) finite = false;
+  check('墙环等高线坐标有限', finite);
 }
 
 console.log(`\n结果：${passed} 通过, ${failed} 失败`);

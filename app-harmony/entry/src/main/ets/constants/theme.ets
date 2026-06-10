@@ -49,6 +49,46 @@ export class AppColor {
   static readonly mapPin: string = '#ea4335';         // 机器人位姿 pin（Maps red teardrop）
 }
 
+/**
+ * 地图配色 —— MapCanvas 专用「干净建筑图纸」风（贴合品牌墨绿 #485c11 + 浅底，与 AppColor 同源）。
+ * 取向：浅色楼层平面图——浅冷灰未知区 + 白色已扫图纸 + **墨绿平滑矢量墙体**（等高线软填充 + 描边，
+ *       非栅格方块）+ 克制语义标记（Maps 泪滴目标 pin、带朝向的机器人圆点，软投影非辉光）。
+ * 说明：第一版深色霓虹「指挥中心 HUD」经用户否决（不贴品牌），改为本浅色图纸方案，见 docs/map-ui-redesign.md。
+ * ⚠️ 纯 token 常量。未经 DevEco 验证。
+ */
+export class MapTheme {
+  // —— 背景（未知 / 图纸外）：极浅冷灰，与品牌淡绿页底协调；轻微渐变出景深 ——
+  static readonly bg: string = '#e9eef1';
+  static readonly bgEdge: string = '#dde5ea';
+
+  // —— 已扫地面（白色图纸）——
+  static readonly floor: string = '#ffffff';
+  static readonly floorEdge: string = '#e2e9da';          // 图纸描边（极浅绿）
+  static readonly grid: string = 'rgba(72,92,17,0.055)';  // 图纸上的极淡比例网格（品牌绿调）
+
+  // —— 墙体（品牌墨绿；平滑等高线 = 软填充 + 描边）——
+  static readonly wallFill: string = 'rgba(72,92,17,0.15)';
+  static readonly wallStroke: string = '#485c11';
+
+  // —— 机器人状态（清爽语义色，非霓虹；对应 model/mission.ets RobotStatus）——
+  static readonly robotOnline: string = '#2e7d32';   // online / idle
+  static readonly robotCovering: string = '#1a73e8'; // covering / scanning
+  static readonly robotError: string = '#ea4335';    // error
+  static readonly robotOffline: string = '#9aa3ad';  // offline
+  static readonly robotRing: string = '#ffffff';     // 车体白环
+  static readonly robotLabel: string = '#ffffff';    // 车号文字
+
+  // —— 目标点（Maps 泪滴 pin，品牌红 + 白心）——
+  static readonly target: string = '#ea4335';
+  static readonly targetInner: string = '#ffffff';
+
+  // —— 覆盖子区域（品牌墨绿：软填充 + 实线边 + 角标）——
+  static readonly region: string = '#485c11';
+
+  // —— 标记投影（抬起感，非辉光）——
+  static readonly markerShadow: string = 'rgba(33,42,12,0.30)';
+}
+
 /** 字号（fp；平板数据型尺度，避免 Colin 200px 巨字）。 */
 export class FontSize {
   static readonly display: number = 32;

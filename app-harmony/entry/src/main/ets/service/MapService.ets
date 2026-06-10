@@ -19,6 +19,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { MAP_GRID_WALL } from '../constants/protocol';
 import { MAP_READY_MIN_BYTES, MAP_POLL_INTERVAL_MS } from '../constants/ui';
 import { MapTransform } from '../model/geometry';
+import { CoarseGrid } from '../model/mapContour';
 import { Log, Logger } from '../utils/log';
 
 const log: Logger = Log.scoped('MapService');
@@ -46,6 +47,9 @@ export class ParsedMap {
   readonly gridSize: number;   // 平均格尺寸，供坐标换算
   readonly txtAverSize: number;
   private readonly grid: Uint8Array[];  // 归一化栅格，grid[行][列]：1=障碍 0=空旷
+  // 墙体「水平行程」缓存（打包三元组 [croppedY, croppedXStart, len, ...]，cell 坐标，与画布尺寸/缩放无关）。
+  // 惰性构建：首次 forEachWallSpan 时扫一遍 grid，之后每次重绘（缩放/平移）直接回放，避免反复全图扫描。
+  private wallSpans: number[] | undefined = undefined;
 
   constructor(rows: number, cols: number, startX: number, startY: number, endX: number, endY: number,
     squareSize: number, gridWidth: number, gridHeight: number, gridSize: number, txtAverSize: number,
@@ -87,6 +91,73 @@ export class ParsedMap {
         cb(x * this.gridWidth, (this.squareSize - 1 - y) * this.gridHeight, this.gridWidth, this.gridHeight);
       }
     }
+  }
+
+  /**
+   * 遍历墙体「水平行程」：把同一行内连续的障碍格合并成一条矩形，回调其画布矩形（含 y 翻转）。
+   * 相比逐格 `forEachWallRect`：① 亚像素地图（1800 格压进 ~800vp、每格 < 0.5vp）下相邻墙格合并成连续墙面，
+   * 消除发丝/缝隙的"简陋"观感；② fillRect 调用数从「墙格数」降到「行程数」，缩放/平移重绘更跟手。
+   * 行程在 cell 坐标系首次构建后缓存，之后只做坐标×格尺寸的回放。供 MapCanvas 渲染墙体使用。
+   */
+  forEachWallSpan(cb: (px: number, py: number, w: number, h: number) => void): void {
+    if (this.wallSpans === undefined) {
+      const spans: number[] = [];
+      for (let y = 0; y <= this.squareSize; y++) {
+        const row: Uint8Array | undefined = this.grid[y + this.startY];
+        if (row === undefined) {
+          continue;
+        }
+        let x: number = 0;
+        while (x <= this.squareSize) {
+          if (row[x + this.startX] === 1) {
+            const xStart: number = x;
+            while (x <= this.squareSize && row[x + this.startX] === 1) {
+              x++;
+            }
+            spans.push(y, xStart, x - xStart);  // [croppedY, croppedXStart, len]
+          } else {
+            x++;
+          }
+        }
+      }
+      this.wallSpans = spans;
+    }
+    const s: number[] = this.wallSpans;
+    for (let i = 0; i < s.length; i += 3) {
+      const y: number = s[i];
+      const xStart: number = s[i + 1];
+      const len: number = s[i + 2];
+      cb(xStart * this.gridWidth, (this.squareSize - 1 - y) * this.gridHeight, len * this.gridWidth, this.gridHeight);
+    }
+  }
+
+  /**
+   * 把裁剪+正方形化后的栅格在 **display 朝向**（与 `forEachWallRect` 的 y 翻转一致）max-pool 成粗网格，
+   * 供 `model/mapContour` 提取平滑矢量等高线（取代逐格方块渲染）。max-pool＝任一原格为墙则粗格为墙，
+   * 天然降噪、连断点、缩规模。粗格坐标 (cx,cy) 还原到 base px 时 ×f×格尺寸即可（见 mapContour）。
+   * @param maxLen 粗网格长边上限（如 240）；降采样因子 f = ceil((squareSize+1) / maxLen)。
+   */
+  toDisplayPool(maxLen: number): CoarseGrid {
+    const ss: number = this.squareSize;
+    const span: number = ss + 1;                      // forEachWallRect 的 0..squareSize 含端点
+    const f: number = Math.max(1, Math.ceil(span / maxLen));
+    const w: number = Math.max(1, Math.ceil(span / f));
+    const h: number = w;                              // 正方形
+    const b: Uint8Array = new Uint8Array(w * h);
+    for (let dy = 0; dy < span; dy++) {
+      // display 行 dy → 原裁剪行（y 翻转）：sy = startY + (ss - dy)
+      const row: Uint8Array | undefined = this.grid[this.startY + (ss - dy)];
+      if (row === undefined) {
+        continue;
+      }
+      const cy: number = Math.floor(dy / f);
+      for (let dx = 0; dx < span; dx++) {
+        if (row[this.startX + dx] === 1) {
+          b[cy * w + Math.floor(dx / f)] = 1;
+        }
+      }
+    }
+    return { b, w, h, f };
   }
 }
 
