@@ -284,3 +284,19 @@ grid_y = (world_y - y0) / metersPerPixel
 - 故 App **暂不能切到 `0x06` 发现**（发出去无专门响应；即便有也可能仍被当控制首包武装急停）→ **App 维持 `cmd0` 广播兜底**（`RobotTransport.discover`，与原 Q5 一致）。
 - **请 A**：在 `parseCmd` 加 `buffer[0]==0x06` 分支，**只回发现响应、不记 clientIP / 不起心跳 / 不发 LCM / 不武装急停**；并**定 9 字节发现响应字节布局**
   （建议沿用 Q5：byte0=`0x06`、byte1=`robot_id`、byte2=状态、byte3..=可选位姿）。实现 + 同步 `udp-protocol.md` 后，App 改 `discover` 的 ping 码一行即可切换。
+- **✅ 已解决（2026-06-10 晚）**：A 同日 `8b4af4b` 已在 `udp.c` 实现 `0x06`（`isDiscoveryPing`→`sendDiscoveryResponse`，只回包、不武装急停）；App 已切 `RobotCommand.discoveryPing=0x06`（见上「设备发现」）。
+
+---
+
+## 2026-06-10 · ✅ 建图根因：cmd0「有图时只当心跳」→ App「开始建图」改发 `'m'`/0x6d
+
+> 真机现象：开始建图后反复拉到/渲染**同一张旧图**（建图前那张）+ 结束建图后**坐标漂移**。逐层定位 = **接口语义没对齐**（非 App 渲染、也非 A 写错）。
+
+- **根因**：A 2026-06-10 `8b4af4b` 把建图分两档，**README §四已列、App 此前漏登记**：
+  - `cmd0`（App 旧「开始建图」）→ LCM30 `niparams=1`、`forceNewMap=false` → `Navi.createMap` 在**已有图/导航态时直接忽略**（日志 `Ignore create map ... force=0`）、**沿用旧图**；
+  - `'m'`/109（A 新增「Force Create Map」）→ LCM30 `iparams[1]=1`、`forceNewMap=true` → **清空旧图、从头建**。
+- **现象链**：cmd0 被忽略 → Navi 一直用上次旧图 → 摇杆在旧图上定位（**漂移**）→ cmd2 存的还是旧图 → App 反复拉到同一张旧图。
+- **为何排除 App 渲染**：App `usingCache:false`、每次真 GET（log 每次 `RespCode:200` 实传）、`mapText` 为 `@State` 变即重绘——无「反复渲染缓存旧图」机制。
+- **App 已改（统一落地）**：`RobotCommand.forceCreateMap=0x6d`；`ControlPage.startBuild` 改发 `'m'`（取代 `cmd0`）；`udp-protocol.md` 命令表补 `0x6d` + 修正 cmd0 语义 + cmd5 归零；app↔agent `protocol.ets` 逐字节同步。
+- **顺带统一的不一致**（A README §四 vs 旧 contracts）：① cmd0 语义 = 「心跳/兼容建图，有图时只当心跳」；② cmd5 初始位姿 = **归零 (0,0,0)**（旧 contracts 误写"取当前位姿"）。
+- **建议 A**：在 README/接口说明里**显式标注「App 开始建图请用 `'m'`、cmd0 不保证新建图」**，避免下个对接者再踩。

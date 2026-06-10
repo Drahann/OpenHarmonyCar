@@ -7,7 +7,7 @@
 ## A. 已做完（code-complete，待真机验）
 
 - **连接动态状态** ✅：HomePage 车列表 4 态（已发现/连接中/已连接·心跳·新鲜度/丢失，`RobotTransport.connStateOf` 派生、600ms 刷新）；点「连接」起中性保活（`connectExclusive`，单连接）；`startHeartbeat` **立即发首帧**（点连接即 ping→车回心跳→秒变已连接，无需再扫描）。ControlPage 顶栏实时连接点/文案。
-- **建图流程** ✅：开始建图(cmd0,toast)→**摇杆仅建图阶段出现**→结束建图(cmd2)→**阻塞遮罩"载入地图中"**→成功转操作卡 / 失败弹「重试/关闭」。
+- **建图流程** ✅：开始建图(**`'m'`/0x6d 强制重建**,toast)→**摇杆仅建图阶段出现**→结束建图(cmd2)→**阻塞遮罩"载入地图中"**→成功转操作卡 / 失败弹「重试/关闭」。（⚠️ 旧用 cmd0，但 A 的 cmd0 有图时只当心跳不建图，已改 `'m'`）
 - **地图解析** ✅（本轮大修）：真机 `defultMap.txt`=7 值首行 `range resolution height width metersPerPixel x0 y0` + 空格分隔 `-1/0`；按位置取 `parts[2]/[3]` + 自动识别空格/密排归一化 grid。详见 `docs/map-pipeline.md`。
 - **命令门控** ✅：所有命令 + 地图点选按**实时心跳**门控；命令下发有 toast。
 - **操作卡分步引导** ✅：astar/fullpath/distributed 三卡「下一步该干嘛」。详见 `docs/op-card-guidance.md`。
