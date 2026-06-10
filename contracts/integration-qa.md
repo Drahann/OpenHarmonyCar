@@ -270,3 +270,17 @@ grid_y = (world_y - y0) / metersPerPixel
 - 推测 §9「取末两个」实指 **LCM `MAPFILE` 分片头**（按 `range resolution height width` **4 值**，末两个恰为 height/width），
   **与 App 拉的 7 值 HTTP 文件是两条不同路径**。**请 A 把 §9 订正为**：HTTP `defultMap.txt` 按位置取 `parts[2]/[3]`；"取末两个"仅适用于 4 值分片头（若该路径仍在用）。
 - **结论·非阻塞**：App 解析对 2 值(fixture)/4 值/7 值首行均鲁棒（按位置取 + 数据推断回退），**无需 A 侧代码改动**，仅请订正文档表述。
+- **✅ 补注（2026-06-10）**：A 同日推送 `purplepi-control/README.md`（`main` `0db78ed`）已写明「解析首行 7 字段，`height/width` 固定取第 3、4 字段」——**与 App 一致**，本 §9 实已被该 README 取代，仅建议 A 删除分支旧文档 §9 的「取末两个」残留表述。
+
+---
+
+## 2026-06-10 · ⚠️ 待 A：`0x06` 发现 ping「README 已写、udp2lcm 代码未实现」
+
+> 核对 A 2026-06-10 README 时发现的**文档≠代码**，避免 App 照 README 切换后发现失效。
+
+- README §1/§5 称「收到 `0x06` 发现探测时立即回 9 字节发现响应，不建立心跳会话，也不触发导航命令」。
+- 但**实际 `NewWheelCtrl/udp2lcm/udp2lcm.c::parseCmd` 无 `buffer[0]==6` 分支**——实现的是 `0..5` 与 `'f''g''h''i''j''k''l'`，其余落 `else`；
+  且 `udp.c` 收包即**无条件** `parseCmd`，首包按 README 还会记 clientIP + 起心跳 + 武装 3s 看门狗。
+- 故 App **暂不能切到 `0x06` 发现**（发出去无专门响应；即便有也可能仍被当控制首包武装急停）→ **App 维持 `cmd0` 广播兜底**（`RobotTransport.discover`，与原 Q5 一致）。
+- **请 A**：在 `parseCmd` 加 `buffer[0]==0x06` 分支，**只回发现响应、不记 clientIP / 不起心跳 / 不发 LCM / 不武装急停**；并**定 9 字节发现响应字节布局**
+  （建议沿用 Q5：byte0=`0x06`、byte1=`robot_id`、byte2=状态、byte3..=可选位姿）。实现 + 同步 `udp-protocol.md` 后，App 改 `discover` 的 ping 码一行即可切换。
