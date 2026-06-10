@@ -254,3 +254,19 @@ grid_y = (world_y - y0) / metersPerPixel
 ```
 
 若 App 心跳坐标使用 5cm 栅格单位，则需要先把 `x0/y0` 除以 `metersPerPixel` 转成格，再做偏移；反向从地图点下发目标时，也要先用 `world = grid * metersPerPixel + x0/y0` 还原到世界米制坐标，再转成 UDP 使用的 5cm 单元。
+
+---
+
+## 2026-06-10 · App → 紫派：A 接口文档 §9「地图首行取末两个」请订正（非阻塞·文档一致性）
+
+> 起因：A 在 `purplepi-control` 分支 `接口功能与对接问题说明.md` **§9**（commit `fb0bafe`）写道
+> 「地图首行**建议 App 继续按"取首行最后两个整数作为 height/width"解析**」。这与 **A 自己的源码 + 上面 A12 矛盾**，
+> App 据源码核对后**不采纳"取末两个"**，特此说明并请 A 订正其文档（避免后人照此再踩坑）。
+
+- **App 实拉的 HTTP `defultMap.txt` 首行 = 7 值** `range resolution height width metersPerPixel x0 y0`
+  —— A 源码 `Navi/map/MapServer.cpp::saveProbMap` 逐字段实证：`outFile << range<<' '<<resolution<<' '<<height<<' '<<width<<' '<<metersPerPixel<<' '<<x0<<' '<<y0`（A12 亦确认）。
+- 故 **height/width = `parts[2]/[3]`（第 3、4 位）**，**"末两个" = `x0/y0`（世界偏移、常为负）**。若 App 真"取末两个"
+  会把 x0/y0 当行列 → 空气图（**正是 2026-06 真机渲染 bug 根因**）。**App 已按位置 `parts[2]/[3]` 解析，与源码一致，不会改回"取末两个"。**
+- 推测 §9「取末两个」实指 **LCM `MAPFILE` 分片头**（按 `range resolution height width` **4 值**，末两个恰为 height/width），
+  **与 App 拉的 7 值 HTTP 文件是两条不同路径**。**请 A 把 §9 订正为**：HTTP `defultMap.txt` 按位置取 `parts[2]/[3]`；"取末两个"仅适用于 4 值分片头（若该路径仍在用）。
+- **结论·非阻塞**：App 解析对 2 值(fixture)/4 值/7 值首行均鲁棒（按位置取 + 数据推断回退），**无需 A 侧代码改动**，仅请订正文档表述。

@@ -8,10 +8,13 @@
  *    具体绘制交给 UI 组件 MapCanvas（UI 阶段）。
  *  - 用 pollMapUntilReady 的"显式轮询 + 可取消"取代旧 getTxt 里 toast「幻读」+ 递归重试的怪启发式。
  *
- * ⚠️ 首行解析：旧 MakeCanvas 读 firstLine[2]=行数、firstLine[3]=列数（隐含首行有前导 token/空白，
- *    实际维度在第 3、4 个位置），而 contracts/map-format.md 记的是"首行为行列数"（2 个数）。这里改成
- *    "取首行最后两个整数为 行数、列数"——既兼容旧可运行版本的 4-token 首行（末两个即原 [2]/[3]），
- *    也兼容契约的 2-数首行。真实地图 fixture 到手后在 contracts 中核对定稿（见 contracts/fixtures）。
+ * ⚠️ 首行解析：`defultMap.txt` 首行为 7 值 `range resolution height width metersPerPixel x0 y0`，
+ *    **按位置取 `parts[2]`=height(行)、`parts[3]`=width(列)**（与旧可运行版 MakeCanvas 同位，A 源码
+ *    `MapServer.cpp::saveProbMap` 实证 + A12 确认）。**绝不"取末两个"**——末两个是 `x0/y0`（世界坐标
+ *    偏移、常为负），误取即把偏移当行列 → 空气图（这正是 2026-06 真机 bug 的根因之一）。首行非标准/
+ *    缺失（如 fixture `40 40`）则回退按实际数据推断。详见 `docs/map-pipeline.md`。
+ *    （注：A 接口文档 §9 仍写"取末两个"，那是 LCM 分片头 `range resolution height width` 4 值路径，
+ *      与 App 拉的 7 值 HTTP 文件不同；已在 `contracts/integration-qa.md` 请 A 订正。）
  */
 
 import { http } from '@kit.NetworkKit';
