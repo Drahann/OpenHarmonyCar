@@ -56,5 +56,5 @@ range resolution height width metersPerPixel x0 y0
 - [x] `r`（朝向）= **度**，[-180,180]；`theta=0` = +X，正角 CCW 朝 +Y。
 - [x] **原点 = 建图/定位初始位姿**；子机经 **`cmd 5`** 加载图归零到 (0,0,0)（`cmd 2/'j'/'l'` 沿用当前位姿，不归零）。
 - [x] 地图**文件名 = `defultMap.txt`**（`.txt.txt` 启动即删，弃用）。
-- [x] 地图**首行 = `range resolution height width`**（App 取末两整数为行列）。
+- [x] 地图**首行 = 7 值 `range resolution height width metersPerPixel x0 y0`**；行列 = `parts[2]/[3]`，**不是末两个**（末两个是 `x0/y0` 偏移）。
 - [x] 分布式地图传输 = **方案 B**（子机 `cmd124` wget 拉 `defultMap.txt` + `roadFile.txt`）；方案 A 需新增 agent 写文件能力后再实现。
