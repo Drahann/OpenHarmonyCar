@@ -83,6 +83,21 @@ struct HomePage {
           .fontColor(AppColor.textTitle)
           .fontWeight(FontWeight.Bold)
         Blank()
+        // 仪表识别视频入口（形态A：全屏视觉页）——独立 WS 连香橙派，与导航链路解耦，见 docs/vision-integration-plan.md
+        Button('识别视频')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .padding({ left: Space.md, right: Space.md })
+          .margin({ right: Space.sm })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/VisionPage' }).catch((e: Error) => {
+              log.e(`路由 VisionPage 失败：${e.message}`);
+            });
+          })
         // 设备互信（软总线配对）入口——多机协同前一次性配对，见 DeviceTrustPage / docs/distributed-trust.md
         Button('设备互信')
           .fontSize(FontSize.bodySm)

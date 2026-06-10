@@ -4,6 +4,7 @@
     "pages/HomePage",
     "pages/ControlPage",
     "pages/SetIPPage",
-    "pages/DeviceTrustPage"
+    "pages/DeviceTrustPage",
+    "pages/VisionPage"
   ]
 }

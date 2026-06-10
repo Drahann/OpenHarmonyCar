@@ -750,6 +750,23 @@ struct ControlPage {
           .enabled(this.liveConnected())
           .onClick(() => this.startBuild())
       }
+      // 随时展开仪表识别视频（形态A）：独立 WS 连香橙派，与导航 UDP/HTTP 链路解耦——
+      // pushUrl 不销毁本页（aboutToDisappear/stopHeartbeat 仅 pop 时触发），保活留在 RobotTransport 单例继续跑，
+      // 进出视频页导航毫不受影响。见 docs/vision-integration-plan.md §3。
+      Button('视频')
+        .fontSize(FontSize.bodySm)
+        .fontColor(AppColor.primary)
+        .backgroundColor(AppColor.surface)
+        .border({ width: 1, color: AppColor.primary })
+        .borderRadius(Radius.pill)
+        .height(40)
+        .margin({ right: Space.sm })
+        .padding({ left: Space.md, right: Space.md })
+        .onClick(() => {
+          router.pushUrl({ url: 'pages/VisionPage' }).catch((e: Error) => {
+            log.e(`路由 VisionPage 失败：${e.message}`);
+          });
+        })
       Button('设备')
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.onPrimary)
