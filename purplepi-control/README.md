@@ -32,16 +32,17 @@
 
 ```text
 cd /data/test
-python -m http.server
+python3 -u -m http.server 8000 --bind 0.0.0.0 --directory /data/test
 ```
 
 因此 HTTP 根目录是 `/data/test`，App 拉图 URL 不带 `/data/test` 前缀：
 
 ```text
 http://<紫派IP>:8000/defultMap.txt
+http://<紫派IP>:8000/zipedMap.txt
 ```
 
-默认地图文件名以代码为准：`defultMap.txt`。保存地图时会先保存未优化文件 `unprobdefultMap.txt`，随后优化生成 `defultMap.txt` 和兼容显示文件 `defultMap.txt.txt`。当前 `Navi` 启动时保留既有地图文件；一旦建图命令被 `Navi` 接受并进入新一轮建图，会先删除 `/data/test` 下既有地图、路径和覆盖调试产物，不生成 `.bak` 备份。
+默认地图文件名以代码为准：`defultMap.txt`。保存地图时会先保存未优化文件 `unprobdefultMap.txt`，随后优化生成 `defultMap.txt`、兼容显示文件 `defultMap.txt.txt` 和压缩地图 `zipedMap.txt`。当前 `Navi` 启动时会清理旧地图、路径和覆盖调试产物；建图命令被 `Navi` 接受并进入新一轮建图时，也会再次执行同样清理，不生成 `.bak` 备份。
 
 ### 3. 地图与输出文件说明
 
@@ -52,13 +53,14 @@ http://<紫派IP>:8000/defultMap.txt
 - App 或子机只读取正式文件：`/data/test/defultMap.txt`、`/data/test/roadFile.txt`。
 - `Navi` 写主地图、兼容地图和覆盖路径时先写同目录 `.tmp`，写完且文件有效后再替换正式文件；算法运行中不会直接半写正式文件。
 - 子机执行 `105`/`'i'` 拉主机文件时也先下载到 `.tmp`，确认非空后再替换本机正式文件；下载失败时保留原正式文件。
-- 建图命令进入新一轮建图前会删除旧的 `defultMap.txt`、`defultMap.txt.txt`、`unprobdefultMap.txt`、`roadFile.txt` 和覆盖调试图，避免旧数据影响新地图。
+- `navigation` 启动和建图命令进入新一轮建图前，都会删除旧的 `defultMap.txt`、`defultMap.txt.txt`、`zipedMap.txt`、`unprobdefultMap.txt`、`roadFile.txt` 和覆盖调试图，避免旧数据影响首次普通建图或重新建图。
 
 | 文件名 | 位置/访问方式 | 用途 |
 | --- | --- | --- |
 | `defultMap.txt` | `/data/test/defultMap.txt`；HTTP 为 `http://<紫派IP>:8000/defultMap.txt` | 主地图文件。保存地图后由优化流程生成；加载地图、App 拉图、子机从主机拉图时默认使用它。写入过程使用 `defultMap.txt.tmp`。 |
 | `unprobdefultMap.txt` | `/data/test/unprobdefultMap.txt` | 未优化地图/中间地图。保存地图命令执行时先写出该文件，再优化生成 `defultMap.txt`。写入过程使用 `unprobdefultMap.txt.tmp`。 |
 | `defultMap.txt.txt` | `/data/test/defultMap.txt.txt` | 兼容显示文件，由 `defultMap.txt` 同源生成；首行同为 7 字段，栅格为密排 `1/0`。App 新实现优先读取 `defultMap.txt`。 |
+| `zipedMap.txt` | `/data/test/zipedMap.txt`；HTTP 为 `http://<紫派IP>:8000/zipedMap.txt` | 压缩地图文件。保存 `defultMap.txt` 或 `unprobdefultMap.txt` 后生成，障碍位压缩为 64 位整数，适合 App 快速拉图；解压后可恢复为 `defultMap.txt` 的 `-1/0` 文本格式。 |
 | `roadFile.txt` | `/data/test/roadFile.txt`；子机可通过 `http://<主机IP>:8000/roadFile.txt` 获取 | 覆盖路径点文件，每行格式为 `x,y`。双车协同覆盖时用于让另一台车复用或跟踪主机生成的覆盖路线。写入和拉取过程使用 `roadFile.txt.tmp`。 |
 | `tmpcoverageMap.txt` | `/data/test/tmpcoverageMap.txt` | 覆盖算法初始阶段的临时栅格调试输出，用于查看覆盖图生成前期状态。 |
 | `initCoverageMap.txt` | `/data/test/initCoverageMap.txt` | 覆盖算法初始化后的栅格输出，用于检查初始覆盖区域和栅格化结果。 |
@@ -75,6 +77,19 @@ range resolution height width metersPerPixel x0 y0
 - `metersPerPixel` 是栅格分辨率；`x0/y0` 是地图最小角世界坐标，单位为米，可为负。
 - `defultMap.txt` 数据区为空格分隔，`-1` 表示障碍，`0` 表示非障碍。
 - `defultMap.txt.txt` 数据区为密排 `1/0`，只用于旧显示兼容。
+
+压缩地图 `zipedMap.txt` 格式如下：
+
+```text
+ZMAP1
+range resolution height width metersPerPixel x0 y0
+rowBitCount wordCount word0 word1 ...
+```
+
+- 每一行地图对应一行压缩数据，`rowBitCount` 通常等于 `width`。
+- 地图栅格先转成二进制序列：障碍为 `1`，非障碍为 `0`；`defultMap.txt` 中的 `-1` 等价于压缩位 `1`。
+- 每 64 个 bit 打包为一个无符号 64 位整数，最后不足 64 bit 的部分左对齐并补 0。
+- `MapServer::loadZipedMap(zipedMap.txt, defultMap.txt)` 可将压缩文件解压回普通地图文本。
 
 ### 4. 子机从主机拉取地图
 
@@ -178,7 +193,7 @@ wget http://<主机IP>:8000/roadFile.txt -O /data/test/roadFile.txt.tmp
 | `20` | 设置导航目标点，`dparams[0..2]=x,y,theta`。 |
 | `25` | 无路/规划异常回包，`bparams[0]` 为异常状态。 |
 | `23` | 删除/取消当前目标点。 |
-| `30` | 开始建图，`dparams[0]` 为分辨率，默认 `0.05m`。 |
+| `30` | 开始建图，`dparams[0]` 为分辨率，默认 `0.05m`；`iparams[1]!=0` 或 `bparams[0]!=0` 表示强制新建。普通建图也可作为首次建图使用，因为 `navigation` 启动时已清理旧地图文件。 |
 | `32` | 保存地图；无文件名时保存为 `defultMap.txt`。 |
 | `51` | `SERVICE_COMMAND` 建图启动结果，`iparams[0]` 为是否成功启动。 |
 | `52` | `SERVICE_COMMAND` 保存地图阶段状态。 |
@@ -324,7 +339,7 @@ right_percent = (v + w * RADIUS) / FULLSPEED * 100
 http://<紫派IP>:8000/defultMap.txt
 ```
 
-`defultMap.txt.txt` 是兼容显示输出文件，不是 App 新实现的首选地图。当前代码不在启动时删除它；一旦建图命令被 `Navi` 接受并进入新建图流程，会和旧 `defultMap.txt`、`unprobdefultMap.txt`、`roadFile.txt` 一起清理。
+`defultMap.txt.txt` 是兼容显示输出文件，不是 App 新实现的首选地图。当前 `navigation` 启动时会删除它；一旦建图命令被 `Navi` 接受并进入新建图流程，也会和旧 `defultMap.txt`、`zipedMap.txt`、`unprobdefultMap.txt`、`roadFile.txt` 一起清理。
 
 ### 2. 坐标单位、原点、0 度方向
 
@@ -403,5 +418,5 @@ range resolution height width metersPerPixel x0 y0
 - 新增 UDP 命令时，必须记录 9 字节布局、字节序、缩放比例和对应 LCM 命令。
 - 新增 `ROBOT_CONTROL` 命令时，必须确认 `commandid` 不超过 `int8_t` 范围。
 - 涉及停车/取消/任务结束的逻辑，应保证最终产生 `PATH v=0,w=0` 或 `wheel_ctrl cmd=0/4/5`。
-- 修改地图文件名时，要同时修改 `Navi` 保存/加载、`udp2lcm` HTTP 暴露说明、App `MAP_FILE_NAME`、mock 工具和契约文档。
+- 修改地图文件名或压缩格式时，要同时修改 `Navi` 保存/加载、`udp2lcm` HTTP 暴露说明、App `MAP_FILE_NAME`、mock 工具和契约文档。
 - 修改机器人端启动流程时，要同步检查 `test.sh`、`newtest.sh`、`upload_modules_to_robot.ps1` 和 `/data/test` 下四个固定产物名。
