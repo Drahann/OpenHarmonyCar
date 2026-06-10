@@ -644,7 +644,7 @@ void CAstar::InitializeCellTotal(ProbMap &map) {
 #if 0	
 	ofstream outFile;
  
-	outFile.open("/mnt/cf/mapfile/testmap_planmap.txt",ios::out);
+	outFile.open("/data/test/testmap_planmap.txt",ios::out);
 
 	if (!outFile)
 	{	
@@ -692,7 +692,7 @@ void CAstar::InitializeCellTotal(ProbMap &map) {
 #if 1
     ofstream outFile;
 
-    outFile.open("/mnt/cf/mapfile/pathplanmap.txt", ios::out);
+    outFile.open("/data/test/pathplanmap.txt", ios::out);
 
     if (!outFile) {
         printf("epenerror\n");

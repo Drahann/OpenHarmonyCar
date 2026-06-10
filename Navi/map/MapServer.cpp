@@ -1,5 +1,39 @@
 
 #include "MapServer.h"
+#include <cerrno>
+#include <cstdio>
+
+static bool replaceTempFile(const string &tmpName, const string &finalName) {
+    if (rename(tmpName.c_str(), finalName.c_str()) == 0) {
+        return true;
+    }
+
+    int firstErr = errno;
+    remove(finalName.c_str());
+    if (rename(tmpName.c_str(), finalName.c_str()) == 0) {
+        return true;
+    }
+
+    printf("ERR: replace map file failed, tmp=%s final=%s errno=%d first_errno=%d\n",
+           tmpName.c_str(), finalName.c_str(), errno, firstErr);
+    remove(tmpName.c_str());
+    return false;
+}
+
+static bool closeAndReplaceMapFile(ofstream &outFile,
+                                   const string &tmpName,
+                                   const string &finalName) {
+    outFile.flush();
+    bool ok = outFile.good();
+    outFile.close();
+    if (!ok) {
+        printf("ERR: write map file failed, tmp=%s\n", tmpName.c_str());
+        remove(tmpName.c_str());
+        return false;
+    }
+    return replaceTempFile(tmpName, finalName);
+}
+
 int bSaveMapDone = 0;
 MapServer::MapServer(void) {
     robotDiameter = 0.1;
@@ -36,16 +70,16 @@ bool MapServer::loadMap(const char *fileName,
     double x0;
     double y0;
 
-    infile >> _range;
-    infile >> _resolution;
-    infile >> nheigh;
-    infile >> nwidth;
-    infile >> meterPer;
-    infile >> x0;
-    infile >> y0;
+    if (!(infile >> _range >> _resolution >> nheigh >> nwidth >> meterPer >>
+          x0 >> y0)) {
+        printf("ERR: Incomplete Map File Header\n");
+        infile.close();
+        return false;
+    }
 
     if (nheigh <= 0 || nwidth <= 0 || meterPer < 0.00000001) {
-        printf("ERR: Wrong Map File Format");
+        printf("ERR: Wrong Map File Format\n");
+        infile.close();
         return false;
     }
 
@@ -86,11 +120,17 @@ bool MapServer::loadMap(const char *fileName,
     globalGaussianMap.makeGaussianLUT(1.0, 0, 1.0 / LinAlg::sq(0.06),
                                       lut); // 255,127,15
 
-    int index = 0;
-    while (!infile.eof()) {
+    bHaveWall = false;
+    int totalCells = globalBinaryMap.width * globalBinaryMap.height;
+    for (int index = 0; index < totalCells; index++) {
 
         int nstatus;
-        infile >> nstatus;
+        if (!(infile >> nstatus)) {
+            printf("ERR: Incomplete Map File Data index=%d total=%d\n",
+                   index, totalCells);
+            infile.close();
+            return false;
+        }
 
         int i = (int)(index / nwidth);
 
@@ -142,8 +182,6 @@ bool MapServer::loadMap(const char *fileName,
                     lut, lut.length);
             }
         }
-
-        index++;
     }
 
     infile.close();
@@ -489,9 +527,12 @@ bool MapServer::saveMap(const char *fileName) {
 
     ofstream outFile;
     printf("save = %s\n", fileName);
-    outFile.open(fileName, ios::out);
+    string finalName = fileName;
+    string tmpName = finalName + ".tmp";
+    outFile.open(tmpName.c_str(), ios::out);
 
     if (!outFile) {
+        printf("open error\n");
         return false;
     }
 
@@ -525,14 +566,13 @@ bool MapServer::saveMap(const char *fileName) {
         outFile << endl;
     }
 
-    outFile.close();
-    return true;
+    return closeAndReplaceMapFile(outFile, tmpName, finalName);
 }
 
 bool MapServer::saveMap_Astar() {
 
     ofstream outFile;
-    outFile.open("/mnt/cf/mapfile/testmap_astar.txt", ios::out);
+    outFile.open("/data/test/testmap_astar.txt", ios::out);
 
     if (!outFile) {
         printf("open error\n");
@@ -580,7 +620,7 @@ bool MapServer::saveMap_Astar() {
 bool MapServer::saveMap_Vision() {
 
     ofstream outFile;
-    outFile.open("/mnt/cf/mapfile/vision.txt", ios::out);
+    outFile.open("/data/test/vision.txt", ios::out);
 
     if (!outFile) {
         printf("open error\n");
@@ -628,7 +668,7 @@ bool MapServer::saveMap_Vision() {
 bool MapServer::saveMap_gauss() {
 
     ofstream outFile;
-    outFile.open("/mnt/cf/mapfile/testmap_gauss.txt", ios::out);
+    outFile.open("/data/test/testmap_gauss.txt", ios::out);
 
     if (!outFile) {
         printf("open error\n");
@@ -673,7 +713,7 @@ bool MapServer::saveMap() {
 
     ofstream outFile;
     // printf("save = %s\n",fileName);
-    outFile.open("/mnt/cf/mapfile/optmap.txt", ios::out);
+    outFile.open("/data/test/optmap.txt", ios::out);
 
     if (!outFile) {
         printf("open error\n");
@@ -716,7 +756,9 @@ bool MapServer::saveMap() {
 
 bool MapServer::saveProbMap(const char *fileName) {
     ofstream outFile;
-    outFile.open(fileName, ios::out);
+    string finalName = fileName;
+    string tmpName = finalName + ".tmp";
+    outFile.open(tmpName.c_str(), ios::out);
 
     printf("save = %s\n", fileName);
 
@@ -755,12 +797,16 @@ bool MapServer::saveProbMap(const char *fileName) {
         outFile << endl;
     }
 
-    outFile.close();
+    if (!closeAndReplaceMapFile(outFile, tmpName, finalName)) {
+        return false;
+    }
+    outFile.clear();
 
     // TODO
     string name = fileName;
     name += ".txt";
-    outFile.open(name.c_str(), ios::out);
+    string displayTmpName = name + ".tmp";
+    outFile.open(displayTmpName.c_str(), ios::out);
     if (!outFile) {
         printf("open1error\n");
         return false;
@@ -793,15 +839,14 @@ bool MapServer::saveProbMap(const char *fileName) {
         }
         outFile << endl;
     }
-    outFile.close();
-    return true;
+    return closeAndReplaceMapFile(outFile, displayTmpName, name);
     ////////////////
 }
 
 bool MapServer::saveMap_pathcheck() {
 
     ofstream outFile;
-    outFile.open("/mnt/cf/mapfile/pathcheck.txt", ios::out);
+    outFile.open("/data/test/pathcheck.txt", ios::out);
 
     if (!outFile) {
         printf("openerror\n");
@@ -856,7 +901,7 @@ bool MapServer::saveMap_Modify() {
         return false;
     }
     ofstream outFile;
-    outFile.open("/mnt/cf/mapfile/updateCopymapB.txt", ios::out);
+    outFile.open("/data/test/updateCopymapB.txt", ios::out);
 
     if (!outFile) {
         printf("open error\n");
@@ -896,7 +941,7 @@ bool MapServer::saveMap_Modify() {
 
     outFile.close();
 
-    outFile.open("/mnt/cf/mapfile/updateCopymapC.txt", ios::out);
+    outFile.open("/data/test/updateCopymapC.txt", ios::out);
 
     if (!outFile) {
         printf("open error\n");

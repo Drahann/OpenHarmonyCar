@@ -13,6 +13,11 @@ pid_t httpServerPid = -1;
 
 static int16_t diag_pt1_x = -1, diag_pt1_y = -1;
 static int16_t diag_pt2_x = -1, diag_pt2_y = -1;
+static int mapCreateRequestedFromHeartbeat = 0;
+
+static bool defaultMapExists(void) {
+    return access("/data/test/defultMap.txt", F_OK) == 0;
+}
 
 /* 捕获 SIGINT 信号（通常是 Ctrl+C），清理资源并退出程序 */
 void sigIntHandler(int sig) {
@@ -38,7 +43,7 @@ int main() {
     // 订阅 LCM 通道 CURRENTPOSE，使用回调函数 poseHandler 处理位置消息
     pose_t_subscribe(lcm, "CURRENTPOSE", poseHandler, NULL);
     if ((httpServerPid = fork()) == 0) {
-        // 拉起服务器进程，手机端需要申请的文件/data/test/defaultMap.txt.txt
+        // 拉起服务器进程，App 通过 http://<紫派IP>:8000/defultMap.txt 拉取地图
         // ATTENTION: 这里的路径需要根据实际存储地图的路径来修改
         chdir("/data/test");
         /*
@@ -92,7 +97,13 @@ void parseCmd(const char *buffer, int bytesReceived) {
          */
         // 手机端用来与udp2lcm服务器建立连接的初始化消息
         // 也是手机端的心跳
-        // 下达30号命令，开始建图
+        if (defaultMapExists() || mapCreateRequestedFromHeartbeat) {
+            printf("Heartbeat received, skip automatic create map. mapExists=%d requested=%d\n",
+                   defaultMapExists() ? 1 : 0, mapCreateRequestedFromHeartbeat);
+            return;
+        }
+        // 兼容旧平板：首次连接且没有默认地图时，才自动下达30号建图命令。
+        mapCreateRequestedFromHeartbeat = 1;
         robotCtrlInit(&robotCtrlData, 0, 30, 0, 1, 1, 0, 0);
         robotCtrlData.dparams[0] = 0.05;    // double类型数据值为0.05
         robotCtrlData.niparams = 1; // int类型数据个数为1
@@ -220,6 +231,15 @@ void parseCmd(const char *buffer, int bytesReceived) {
         // 发布加载地图命令
         robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
         // 释放资源
+        freeRobotCtrl(&robotCtrlData);
+    } else if (buffer[0] == 'm') {
+        printf("Force Create Map!\n");
+        mapCreateRequestedFromHeartbeat = 1;
+        robotCtrlInit(&robotCtrlData, 0, 30, 0, 1, 2, 0, 0);
+        robotCtrlData.dparams[0] = 0.05;
+        robotCtrlData.iparams[0] = 1;
+        robotCtrlData.iparams[1] = 1;
+        robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
         freeRobotCtrl(&robotCtrlData);
     } else if (buffer[0] == 'f') {
         // 消息类型为 f：全息路径规划

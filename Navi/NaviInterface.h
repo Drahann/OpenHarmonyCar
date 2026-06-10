@@ -44,6 +44,34 @@ enum CoopAvoidTrigger
 	COOP_AVOID_TRIGGER_MATCH_JUMP = 2
 };
 
+enum MapLifecycleState
+{
+	MAP_STATE_IDLE = 0,
+	MAP_STATE_MAPPING,
+	MAP_STATE_SAVING,
+	MAP_STATE_MAP_READY,
+	MAP_STATE_NAVIGATING
+};
+
+enum FullPathErrorCode
+{
+	FULLPATH_OK = 0,
+	FULLPATH_ROOM_INIT_FAILED = 1001,
+	FULLPATH_ROAD_FILE_INVALID = 1002,
+	TARGET_STATIC_INVALID = 1003,
+	TARGET_DYNAMIC_BLOCKED_LASER = 1004,
+	TARGET_DYNAMIC_BLOCKED_VISION = 1005,
+	ASTAR_NO_PATH = 1006
+};
+
+enum TargetCheckResult
+{
+	TARGET_CHECK_OK = 0,
+	TARGET_CHECK_STATIC_INVALID,
+	TARGET_CHECK_DYNAMIC_BLOCKED_LASER,
+	TARGET_CHECK_DYNAMIC_BLOCKED_VISION
+};
+
 
 using namespace std;
 
@@ -181,6 +209,8 @@ public:
 	bool			enableCoverage;
 	bool			targetErr;
 	int				searchType;
+	MapLifecycleState m_mapState;
+	int             m_lastFullPathError;
 	/**********************/
     MapServer			*m_pmsSLAMtest;
 	/**********************/
@@ -372,13 +402,16 @@ public:
 	double  bifsavelaseronly(Pose &p);
 	int 	ifrobotsafe(vector<double> &p);
     bool 	iftargetlegal(vector<double> &p);
+	TargetCheckResult checkTargetLegal(vector<double> &p, bool includeDynamic);
+	bool 	iftargetlegalStatic(vector<double> &p);
+	void    setLastFullPathError(int errorCode);
 	double  doArrive(vector<double> &p);
 	double  doArrivelaseronly(vector<double> &p);
 	double  ThetaScore(Pose &p,vector<double> &q);
 	double  DetaTheta(Pose &From,vector<double> &To);
 	double  DistScore(Pose &p,vector<double> &q,int flag);
 	bool	loadMap(const char *strMapName,vector<Pose> &vtWallPos);
-	void	createMap(double metersPerPixel);
+	bool	createMap(double metersPerPixel, bool forceNewMap = false);
 	void	initLoc(Pose &pos,Pose &range);
 	void	saveMap(const char *strMapName);
 	void	saveModifyMap();
@@ -432,6 +465,8 @@ public:
 	bool    saveMapCallBack(void);
 	void 	SetSaveMapDone(int status);
     void    Setautocharge(bool mode);
+	void    setMapLifecycleState(MapLifecycleState state);
+	MapLifecycleState getMapLifecycleState(void);
 
 	// AnXin：2025-2-11
 	void	setPlanFullPath(int algNum);
@@ -485,6 +520,7 @@ void  	NAVI_GetCollisionData(double **wallxy, int length);
 void	NAVI_PutEncoderData(Pose *pPos);
 bool	NAVI_LoadMapAndLoc(const char* strMapName,Pose initPos, Pose initRange,vector<Pose> &vtWallPos);
 void	NAVI_CreateMap(double metersPerPixel);
+bool	NAVI_CreateMapWithMode(double metersPerPixel, bool forceNewMap);
 void	NAVI_SaveMap(const char *strMapName);
 void	NAVI_SaveModifyMap(void);
 void	NAVI_SetGoalPoint(Pose goal);

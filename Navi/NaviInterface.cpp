@@ -1,5 +1,7 @@
 #include "NaviInterface.h"
 #include "Astarplanner.h"
+#include <cerrno>
+#include <cstdio>
 
 extern lcm_t *lcm;
 extern lcm_t *coop_lcm;
@@ -60,6 +62,131 @@ static double coopSegmentDistance(Pose a1, Pose a2, Pose b1, Pose b2)
     d = d < d3 ? d : d3;
     return d < d4 ? d : d4;
 }
+
+static bool defaultPublishedMapExists()
+{
+    ifstream mapFile("/data/test/defultMap.txt", ios::in);
+    return mapFile.good();
+}
+
+static bool fileHasContent(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+    if (fp == NULL) {
+        return false;
+    }
+    fseek(fp, 0, SEEK_END);
+    long fileSize = ftell(fp);
+    fclose(fp);
+    return fileSize > 0;
+}
+
+static bool replaceFileAtomic(const char *tmpName, const char *finalName)
+{
+    if (rename(tmpName, finalName) == 0) {
+        return true;
+    }
+
+    int firstErr = errno;
+    remove(finalName);
+    if (rename(tmpName, finalName) == 0) {
+        return true;
+    }
+
+    printf("ERR: replace file failed, tmp=%s final=%s errno=%d first_errno=%d\n",
+           tmpName, finalName, errno, firstErr);
+    fflush(stdout);
+    remove(tmpName);
+    return false;
+}
+
+static bool closeAndReplaceTextFile(ofstream &outFile,
+                                    const char *tmpName,
+                                    const char *finalName)
+{
+    outFile.flush();
+    bool ok = outFile.good();
+    outFile.close();
+    if (!ok) {
+        printf("ERR: write file failed, tmp=%s\n", tmpName);
+        fflush(stdout);
+        remove(tmpName);
+        return false;
+    }
+    return replaceFileAtomic(tmpName, finalName);
+}
+
+static void removeGeneratedFileIfExists(const char *path)
+{
+    if (remove(path) == 0) {
+        printf("remove old generated file: %s\n", path);
+        fflush(stdout);
+        return;
+    }
+
+    if (errno != ENOENT) {
+        printf("WARN: remove old generated file failed, path=%s errno=%d\n",
+               path, errno);
+        fflush(stdout);
+    }
+}
+
+static void clearGeneratedMapFilesForNewMapping()
+{
+    const char *files[] = {
+        "/data/test/defultMap.txt",
+        "/data/test/defultMap.txt.tmp",
+        "/data/test/defultMap.txt.bak",
+        "/data/test/defultMap.txt.txt",
+        "/data/test/defultMap.txt.txt.tmp",
+        "/data/test/defultMap.txt.txt.bak",
+        "/data/test/unprobdefultMap.txt",
+        "/data/test/unprobdefultMap.txt.tmp",
+        "/data/test/unprobdefultMap.txt.bak",
+        "/data/test/roadFile.txt",
+        "/data/test/roadFile.txt.tmp",
+        "/data/test/tmpcoverageMap.txt",
+        "/data/test/initCoverageMap.txt",
+        "/data/test/midMap.txt",
+        "/data/test/coverageMap.txt",
+        "/data/test/pathcheck.txt",
+        "/data/test/pathplanmap.txt",
+        "/data/test/testmap_astar.txt",
+        "/data/test/testmap_gauss.txt",
+        "/data/test/testmap_planmap.txt",
+        "/data/test/vision.txt",
+        "/data/test/optmap.txt",
+        "/data/test/updateCopymapB.txt",
+        "/data/test/updateCopymapC.txt",
+        "/data/test/cleanmap.txt",
+        "/data/test/haha2.txt"
+    };
+
+    for (int i = 0; i < (int)(sizeof(files) / sizeof(files[0])); ++i) {
+        removeGeneratedFileIfExists(files[i]);
+    }
+}
+
+static const char *fullPathErrorName(int errorCode)
+{
+    switch (errorCode) {
+    case FULLPATH_ROOM_INIT_FAILED:
+        return "FULLPATH_ROOM_INIT_FAILED";
+    case FULLPATH_ROAD_FILE_INVALID:
+        return "FULLPATH_ROAD_FILE_INVALID";
+    case TARGET_STATIC_INVALID:
+        return "TARGET_STATIC_INVALID";
+    case TARGET_DYNAMIC_BLOCKED_LASER:
+        return "TARGET_DYNAMIC_BLOCKED_LASER";
+    case TARGET_DYNAMIC_BLOCKED_VISION:
+        return "TARGET_DYNAMIC_BLOCKED_VISION";
+    case ASTAR_NO_PATH:
+        return "ASTAR_NO_PATH";
+    default:
+        return "FULLPATH_OK";
+    }
+}
+
 OptimizeMap::OptimizeMap(void) {
     OpScanMatcher = new ScanMatcher;
     OpMapServer = new MapServer;
@@ -111,6 +238,8 @@ CNaviInterface::CNaviInterface(void) {
     enableCoverage = false;
     targetErr = false;
     searchType = 1;
+    m_mapState = MAP_STATE_IDLE;
+    m_lastFullPathError = FULLPATH_OK;
     m_eNaviType = LOCALIZATION;
     m_eLocationType = SCANMATCH;
     m_CurPos.x = 0;
@@ -292,6 +421,25 @@ CNaviInterface::~CNaviInterface(void) {
     pthread_mutex_destroy(&m_initloc_mutex);
     pthread_mutex_destroy(&m_coop_mutex);
 }
+
+void CNaviInterface::setMapLifecycleState(MapLifecycleState state) {
+    m_mapState = state;
+    printf("map lifecycle state = %d\n", (int)state);
+    fflush(stdout);
+}
+
+MapLifecycleState CNaviInterface::getMapLifecycleState(void) {
+    return m_mapState;
+}
+
+void CNaviInterface::setLastFullPathError(int errorCode) {
+    m_lastFullPathError = errorCode;
+    if (errorCode != FULLPATH_OK) {
+        printf("fullpath_error=%s(%d)\n", fullPathErrorName(errorCode), errorCode);
+        fflush(stdout);
+    }
+}
+
 void CNaviInterface::setConfig(RobotConfig &config) {
     S2B[0][3] = config.laserconfig.positionX;
     S2B[1][3] = config.laserconfig.positionY;
@@ -1383,12 +1531,17 @@ void CNaviInterface::update(vector<Pose> &bodyPoints,
                                                       m_CurPos.theta));
             double thetachange = PI / 6;
 #if 1
+            bool freezeStaticNavigationMap = enableCoverage || m_coverageActive;
             if (((ddist > 0.2 || dtheta > thetachange) && h2 > 0.7) &&
                 (false == m_ifmodifymap)) // h2 > 0.55
             {
                 lastAmapupdatepose = m_CurPos; /////////lastupdatepose not init
 
-                m_pms->addProbMap(m_pms->astarMap, m_CurPos, forelaserPoints);
+                if ((m_bupdatemap || m_bexpandmap) && !freezeStaticNavigationMap) {
+                    m_pms->addProbMap(m_pms->astarMap, m_CurPos, forelaserPoints);
+                } else if (freezeStaticNavigationMap) {
+                    printf("Static astarMap update skipped during full coverage.\n");fflush(stdout);
+                }
             }
             if (true == m_ifmodifymap) {
                 lastAmapupdatepose = m_CurPos; /////////lastupdatepose not init
@@ -1856,8 +2009,10 @@ bool CNaviInterface::loadMap(const char *strMapName, vector<Pose> &vtWallPos) {
 
     pscanMatcher = new ScanMatcher();
 
-    if (!m_pms->loadMap(strMapName, vtWallPos))
+    if (!m_pms->loadMap(strMapName, vtWallPos)) {
+        pthread_mutex_unlock(&m_csPlan_mutex);
         return false;
+    }
 
     //重置astar的全局地图，及初始化子地图
     astarPlanner.FreePlanner();
@@ -1898,6 +2053,7 @@ bool CNaviInterface::loadMap(const char *strMapName, vector<Pose> &vtWallPos) {
     updateg.nodes.clear();
     pthread_mutex_unlock(&m_csLoc_mutex);
 
+    setMapLifecycleState(MAP_STATE_MAP_READY);
     return true;
 }
 void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
@@ -2029,10 +2185,19 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
             return;
         }
 
-        if (!iftargetlegal(target)) { // 检查终点是否合法
+        TargetCheckResult targetCheck = checkTargetLegal(target, true);
+        if (targetCheck == TARGET_CHECK_STATIC_INVALID) { // 检查终点是否合法
             int reason = 2;
             printf("Target point wrong: %d\n", reason);fflush(stdout);
             if (m_pNoPathCbFunc) m_pNoPathCbFunc(reason);
+            m_ifastar = 1;
+            m_iplanend = 1;
+            return;
+        } else if (targetCheck == TARGET_CHECK_DYNAMIC_BLOCKED_LASER ||
+                   targetCheck == TARGET_CHECK_DYNAMIC_BLOCKED_VISION) {
+            printf("Target point temporarily blocked by dynamic map, hold and retry.\n");fflush(stdout);
+            triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+            publishZeroVelocity();
             m_ifastar = 1;
             m_iplanend = 1;
             return;
@@ -2099,14 +2264,23 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
                 vector<double> target;
                 target.push_back(goal.x);
                 target.push_back(goal.y);
-                if (iftargetlegal(target)) {
+                TargetCheckResult targetCheck2 = checkTargetLegal(target, true);
+                if (targetCheck2 == TARGET_CHECK_OK) {
                     printf("begin plan !\n");fflush(stdout);
                     bool isYES = astarPlanner.plan(goal, m_pms->astarMap, cur, path,
                                         m_pms->laserMap, m_pms->visionMap, type);
                     if (isYES == false)
                     {
-                        targetErr = true;
+                        targetErr = false;
+                        setLastFullPathError(ASTAR_NO_PATH);
                     }
+                } else if (targetCheck2 == TARGET_CHECK_DYNAMIC_BLOCKED_LASER ||
+                           targetCheck2 == TARGET_CHECK_DYNAMIC_BLOCKED_VISION) {
+                    printf("Target point temporarily blocked before planning, hold and retry.\n");fflush(stdout);
+                    triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+                    publishZeroVelocity();
+                    m_ifastar = 1;
+                    return;
                 } else {
                     reason = 2;
                     m_pNoPathCbFunc(reason);
@@ -2148,6 +2322,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         }
         if (num <= 0) {
             printf("astar planning failure !\n");fflush(stdout);
+            setLastFullPathError(ASTAR_NO_PATH);
             triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
             rrset += 1;
             if (0 == printnopathflag) {
@@ -3415,7 +3590,14 @@ int CNaviInterface::ifrobotsafe(vector<double> &p) {
     }
 }
 
-bool CNaviInterface::iftargetlegal(vector<double> &p) {
+TargetCheckResult CNaviInterface::checkTargetLegal(vector<double> &p, bool includeDynamic) {
+
+    if (m_pms == NULL) {
+        printf("target error: map server is null\n");fflush(stdout);
+        targetErr = true;
+        setLastFullPathError(TARGET_STATIC_INVALID);
+        return TARGET_CHECK_STATIC_INVALID;
+    }
 
     double metersperpix = m_pms->astarMap.metersPerPixel;
     // astarmap
@@ -3450,8 +3632,15 @@ bool CNaviInterface::iftargetlegal(vector<double> &p) {
         if (gmapvalue != 0 && gmapvalue != 5) {
             printf("target error in astarmap\n");fflush(stdout);
             targetErr = true;
-            return false;
+            setLastFullPathError(TARGET_STATIC_INVALID);
+            return TARGET_CHECK_STATIC_INVALID;
         } else {
+            if (!includeDynamic) {
+                targetErr = false;
+                setLastFullPathError(FULLPATH_OK);
+                return TARGET_CHECK_OK;
+            }
+
             int lasermapx = ix + dx;
             int lasermapy = iy + dy;
             if (lasermapx >= 0 && lasermapx < width && lasermapy >= 0 &&
@@ -3461,8 +3650,10 @@ bool CNaviInterface::iftargetlegal(vector<double> &p) {
                         .m_plaserGridState[lasermapy * width + lasermapx]
                         .CurrentState;
                 if (laservalue != 0 && laservalue != 5) {
-                    printf("target error in lasermap%d\n", laservalue);fflush(stdout);
-                    return false;
+                    printf("target dynamic blocked in lasermap%d\n", laservalue);fflush(stdout);
+                    targetErr = false;
+                    setLastFullPathError(TARGET_DYNAMIC_BLOCKED_LASER);
+                    return TARGET_CHECK_DYNAMIC_BLOCKED_LASER;
                 } else {
                     if (vx >= 0 && vx < vmapwidth && vy >= 0 &&
                         vy < vmapheight) {
@@ -3470,21 +3661,40 @@ bool CNaviInterface::iftargetlegal(vector<double> &p) {
                             astarPlanner.m_pvisionGridState[vy * vmapwidth + vx]
                                 .CurrentState;
                         if (visionvalue != 0 && visionvalue != 5) {
-                            printf("target error in visionmap\n");fflush(stdout);
-                            return false;
+                            printf("target dynamic blocked in visionmap\n");fflush(stdout);
+                            targetErr = false;
+                            setLastFullPathError(TARGET_DYNAMIC_BLOCKED_VISION);
+                            return TARGET_CHECK_DYNAMIC_BLOCKED_VISION;
                         } else {
-                            return true;
+                            targetErr = false;
+                            setLastFullPathError(FULLPATH_OK);
+                            return TARGET_CHECK_OK;
                         }
                     }
-                    return true;
+                    targetErr = false;
+                    setLastFullPathError(FULLPATH_OK);
+                    return TARGET_CHECK_OK;
                 }
             }
 
-            return true;
+            targetErr = false;
+            setLastFullPathError(FULLPATH_OK);
+            return TARGET_CHECK_OK;
         }
     } else {
-        return false;
+        printf("target error out of astarmap\n");fflush(stdout);
+        targetErr = true;
+        setLastFullPathError(TARGET_STATIC_INVALID);
+        return TARGET_CHECK_STATIC_INVALID;
     }
+}
+
+bool CNaviInterface::iftargetlegal(vector<double> &p) {
+    return checkTargetLegal(p, true) == TARGET_CHECK_OK;
+}
+
+bool CNaviInterface::iftargetlegalStatic(vector<double> &p) {
+    return checkTargetLegal(p, false) == TARGET_CHECK_OK;
 }
 
 int CNaviInterface::DWAplanlaseronly(vector<double> &goalvw, int &flag) {
@@ -3522,14 +3732,11 @@ int CNaviInterface::DWAplanlaseronly(vector<double> &goalvw, int &flag) {
     if (1.6 >= cur2enddist) {
         vector<double> pathendpose = path[pnum - 1];
 
-        //TODO
-        printf("cant arv2");fflush(stdout);
-        targetErr = true;
-        //////////////////
-
         double doarrive = doArrivelaseronly(pathendpose);
         if (0 == doarrive) {
             printf("can not arrive !\n");fflush(stdout);
+            targetErr = false;
+            setLastFullPathError(TARGET_DYNAMIC_BLOCKED_LASER);
             goalvw.push_back(0);
             goalvw.push_back(0);
             flag = 1;
@@ -4042,7 +4249,34 @@ void CNaviInterface::setLocationType(LocationType type) {
     pthread_mutex_unlock(&m_csLoc_mutex);
 }
 
-void CNaviInterface::createMap(double metersPerPixel) {
+bool CNaviInterface::createMap(double metersPerPixel, bool forceNewMap) {
+
+    bool hasWaypoints = false;
+    pthread_mutex_lock(&m_goal_mutex);
+    hasWaypoints = (m_waypoints.size() > 0);
+    pthread_mutex_unlock(&m_goal_mutex);
+
+    bool activeNavigation = enableCoverage || m_coverageActive || hasWaypoints ||
+                            m_mapState == MAP_STATE_NAVIGATING;
+    bool existingMap = defaultPublishedMapExists() ||
+                       m_mapState == MAP_STATE_MAP_READY;
+
+    if (m_mapState == MAP_STATE_MAPPING ||
+        m_mapState == MAP_STATE_SAVING ||
+        (!forceNewMap && activeNavigation)) {
+        printf("Ignore create map: state=%d activeNavigation=%d existingMap=%d force=%d\n",
+               (int)m_mapState, activeNavigation ? 1 : 0,
+               existingMap ? 1 : 0, forceNewMap ? 1 : 0);
+        fflush(stdout);
+        return false;
+    }
+
+    clearGeneratedMapFilesForNewMapping();
+    clearNavigationStateAndStop();
+    enableCoverage = false;
+    resetCoverageState();
+
+    setMapLifecycleState(MAP_STATE_MAPPING);
 
     m_laser1only = true;
     Pose pos;
@@ -4096,6 +4330,7 @@ void CNaviInterface::createMap(double metersPerPixel) {
     m_eNaviType = MANUAL; //——>转到update
 
     pthread_mutex_unlock(&m_csLoc_mutex);
+    return true;
 }
 void CNaviInterface::initLoc(Pose &pos, Pose &range) //执行底盘定位
 {
@@ -4210,12 +4445,19 @@ void CNaviInterface::particleFilterLoc(Pose pos, Pose range, int particlenum) {
 }
 
 void CNaviInterface::saveMap(const char *strMapName) {
+    bool saved = false;
+    setMapLifecycleState(MAP_STATE_SAVING);
     pthread_mutex_lock(&m_csLoc_mutex);
     if (m_eNaviType == MANUAL) {
         drawMap();
-        m_pmsSLAM->saveMap(strMapName);
+        saved = m_pmsSLAM->saveMap(strMapName);
     }
     pthread_mutex_unlock(&m_csLoc_mutex);
+    if (saved) {
+        setMapLifecycleState(MAP_STATE_MAP_READY);
+    } else {
+        setMapLifecycleState(MAP_STATE_IDLE);
+    }
 }
 
 void CNaviInterface::saveModifyMap(void) { m_pms->saveMap_Modify(); }
@@ -4283,6 +4525,7 @@ bool CNaviInterface::setGoal(Pose &goal) {
     rrset = 0;
 
     pthread_mutex_unlock(&m_goal_mutex);
+    setMapLifecycleState(MAP_STATE_NAVIGATING);
     printf("Set goal success!\n");fflush(stdout);
     printf("m_waypoints is %d\n", m_waypoints.size());fflush(stdout);
     printf("waypoints.x = %lf, waypoints.y = %lf\n", m_waypoints.front().x, m_waypoints.front().y);fflush(stdout);
@@ -4306,6 +4549,9 @@ void CNaviInterface::clearNavigationStateAndStop() {
     double pathdot[4] = {0, 0, 0, 0};
     if (m_pPathCbFunc != NULL) {
         m_pPathCbFunc(pathdot, 2, 1);
+    }
+    if (m_mapState == MAP_STATE_NAVIGATING) {
+        setMapLifecycleState(MAP_STATE_MAP_READY);
     }
 }
 
@@ -4833,12 +5079,17 @@ void CNaviInterface::deleteGoal() {
         }
         cpose.clear();
     }
+    if (m_mapState == MAP_STATE_NAVIGATING) {
+        setMapLifecycleState(MAP_STATE_MAP_READY);
+    }
 }
 
 void CNaviInterface::createProbMap(const char *fileName) {
 
+    bool saved = false;
     pthread_mutex_lock(&m_csLoc_mutex);
     if (m_eNaviType == MANUAL) {
+        setMapLifecycleState(MAP_STATE_SAVING);
 
         if (m_pOptimizeMap != NULL) {
 
@@ -4920,11 +5171,16 @@ void CNaviInterface::createProbMap(const char *fileName) {
             }
         }
 
-        m_pOptimizeMap->OpMapServer->saveProbMap(fileName);
+        saved = m_pOptimizeMap->OpMapServer->saveProbMap(fileName);
 
         printf("***save ProbMap***\n");fflush(stdout);
     }
     pthread_mutex_unlock(&m_csLoc_mutex);
+    if (saved) {
+        setMapLifecycleState(MAP_STATE_MAP_READY);
+    } else if (m_mapState == MAP_STATE_SAVING) {
+        setMapLifecycleState(MAP_STATE_IDLE);
+    }
 
     return;
 }
@@ -5235,7 +5491,10 @@ void NAVI_SetLocationType(LocationType type) {
 
 void NAVI_SetConfig(RobotConfig config) { g_NaviInterface.setConfig(config); }
 void NAVI_CreateMap(double metersPerPixel) {
-    g_NaviInterface.createMap(metersPerPixel);
+    g_NaviInterface.createMap(metersPerPixel, false);
+}
+bool NAVI_CreateMapWithMode(double metersPerPixel, bool forceNewMap) {
+    return g_NaviInterface.createMap(metersPerPixel, forceNewMap);
 }
 void NAVI_SaveMap(const char *strMapName) {fflush(stdout);
     g_NaviInterface.saveMap(strMapName);
@@ -5385,58 +5644,59 @@ void CNaviInterface::subGetMapFromMain(int* ip) {
 
     // 假设地图服务运行在主机 8000 端口
     const char* remoteFile = "/defultMap.txt";
-    const char* localDir = "/data/test/";
+    const char* localMapFile = "/data/test/defultMap.txt";
+    const char* localMapTmpFile = "/data/test/defultMap.txt.tmp";
 
-    // === 下载路径文件 ===
+    // === 下载地图文件 ===
+    remove(localMapTmpFile);
     char wgetCmd[256];
     snprintf(wgetCmd, sizeof(wgetCmd),
-             "wget http://%s:8000%s -O %sdefultMap.txt --timeout=3 --tries=1",
-             ipStr, remoteFile, localDir);fflush(stdout);
+             "wget http://%s:8000%s -O %s --timeout=3 --tries=1",
+             ipStr, remoteFile, localMapTmpFile);fflush(stdout);
 
     //printf("Executing command：%s\n", wgetCmd);
     cout << "Executing command: " << wgetCmd << endl;
     int ret = system(wgetCmd);
-    if (ret == 0) {
+    if (ret == 0 && fileHasContent(localMapTmpFile) &&
+        replaceFileAtomic(localMapTmpFile, localMapFile)) {
         printf("Map fetched successfully.\n");fflush(stdout);
     } else {
         fprintf(stderr, "Failed to fetch map. Error code: %d\n", ret);
+        remove(localMapTmpFile);
     }
     // === 下载路径文件 ===
     const char* remotePathFile = "/roadFile.txt";
     const char* localPathFile = "/data/test/roadFile.txt";
+    const char* localPathTmpFile = "/data/test/roadFile.txt.tmp";
     const int maxRetries = 10;
     const int delaySeconds = 2;
 
     for (int attempt = 1; attempt <= maxRetries; ++attempt) {
+        remove(localPathTmpFile);
         char pathCmd[256];
         snprintf(pathCmd, sizeof(pathCmd),
                  "wget http://%s:8000%s -O %s --timeout=3 --tries=1",
-                 ipStr, remotePathFile, localPathFile);
+                 ipStr, remotePathFile, localPathTmpFile);
 
         cout << "Attempt " << attempt << ": Executing command: " << pathCmd << endl;
         int retPath = system(pathCmd);
 
         if (retPath == 0) {
-            // 检查文件是否非空
-            FILE* fp = fopen(localPathFile, "r");
-            if (fp != nullptr) {
-                fseek(fp, 0, SEEK_END);
-                long fileSize = ftell(fp);
-                fclose(fp);
-
-                if (fileSize > 0) {
-                    printf("Path file fetched successfully. Size = %ld bytes\n", fileSize); fflush(stdout);
+            if (fileHasContent(localPathTmpFile)) {
+                if (replaceFileAtomic(localPathTmpFile, localPathFile)) {
+                    printf("Path file fetched successfully.\n"); fflush(stdout);
                     break; // 成功退出循环
                 } else {
-                    printf("Path file is empty, retrying in %d seconds...\n", delaySeconds); fflush(stdout);
+                    printf("Failed to replace path file. Retrying...\n"); fflush(stdout);
                 }
             } else {
-                printf("Failed to open downloaded path file. Retrying...\n"); fflush(stdout);
+                printf("Path file is empty, retrying in %d seconds...\n", delaySeconds); fflush(stdout);
             }
         } else {
             fprintf(stderr, "Failed to fetch path file. Error code: %d. Retrying...\n", retPath);
         }
 
+        remove(localPathTmpFile);
         sleep(delaySeconds);
     }
 }
@@ -5499,6 +5759,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                     else
                     {
                         printf("Invalid GET_ROOM_BOUNDARY: %d!\n", GET_ROOM_BOUNDARY);fflush(stdout);
+                        pObject->setLastFullPathError(FULLPATH_ROOM_INIT_FAILED);
                         // 将所有障碍物点都归为墙壁（测试版未做）
                         initFlag = false;
                     }
@@ -5789,6 +6050,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                     else
                     {
                         printf("Invalid GET_ROOM_BOUNDARY: %d!\n", GET_ROOM_BOUNDARY);fflush(stdout);
+                        pObject->setLastFullPathError(FULLPATH_ROOM_INIT_FAILED);
                         // 将所有障碍物点都归为墙壁（测试版未做）
                         initFlag = false;
                     }
@@ -5892,7 +6154,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         vector<double> target;
                         target.push_back(endpose.x);
                         target.push_back(endpose.y);
-                        if (pObject->iftargetlegal(target) && pObject->fullCoverageAlg.ifIPointAroundLegal(nextIPoint, pObject->astarPlanner))
+                        if (pObject->iftargetlegalStatic(target) && pObject->fullCoverageAlg.ifIPointAroundLegal(nextIPoint, pObject->astarPlanner))
                         {
                             pObject->setvisionrecenter();
                             pObject->setGoal(endpose);
@@ -5939,7 +6201,9 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
 		    string filepath = "/data/test/roadFile.txt";
                     vector<IPoint> fullPath = pObject->ReadFullPathFromFile(filepath);
                     if (fullPath.size() < 2) {
-                        printf("Invalid path file!\n");fflush(stdout); break;
+                        printf("Invalid path file!\n");fflush(stdout);
+                        pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
+                        break;
                     }
                     vector<IPoint> subPath;
                     int mid = fullPath.size() / 2;
@@ -5952,6 +6216,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                     vector<IPoint> gridPath = subPath;
                     if (gridPath.size() < 2) {
                         printf("Path too short.\n");fflush(stdout);
+                        pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
                     }
 
                     // 提取拐点
@@ -6076,8 +6341,15 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
 	int yn = 0;
 	for (yn = 0; ynum[yn] != -1; yn++);
 	std::cout << "Start getting full path road" << std::endl;
+    const char *roadFileName = "/data/test/roadFile.txt";
+    const char *roadTmpFileName = "/data/test/roadFile.txt.tmp";
+    remove(roadTmpFileName);
 	std::ofstream roadfile;
-	roadfile.open("roadFile.txt");
+	roadfile.open(roadTmpFileName, ios::out);
+    if (!roadfile.is_open()) {
+        std::cout << "Cannot open path file for writing: " << roadTmpFileName << std::endl;
+        return;
+    }
 	int xpoint = 0, ypoint = 0;
 	int robx = rob[0], roby = rob[1];
 	// 规划路径时的方向dirx,diry，dirx表示向x轴负/正向,diry同理
@@ -6151,9 +6423,14 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
 			ypoint += diry * ysize[y];
 		}
 	}
+    if (!closeAndReplaceTextFile(roadfile, roadTmpFileName, roadFileName)) {
+        printf("(CoverageThreadProc)Create full path failed while replacing %s\n",
+               roadFileName);
+        fflush(stdout);
+        return;
+    }
     printf("(CoverageThreadProc)Create full path from (%d, %d) to (%d, %d) with robot at (%d, %d), successfully\n",
                x1, y1, x2, y2, rob[0], rob[1]);fflush(stdout);
-	roadfile.close();
 
 }
 // CreateFullRoad的附加函数，用于判断某一方向上网格点尺寸，并更改数组list值
@@ -6251,6 +6528,7 @@ void CNaviInterface::NavigatePathByGridPoints(const vector<Pose>& gridPath)// �
 {
     if (gridPath.size() < 2) {
         printf("Path too short.\n");
+        setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
         return;
     }
 

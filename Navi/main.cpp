@@ -605,6 +605,8 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
     case 30: {
         // 开始建图
         double metersPerPixel = 0.05;
+        bool forceNewMap = false;
+        bool createMapStarted = false;
         printf("create map \n");
         fflush(stdout);
 
@@ -615,12 +617,19 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
             printf("create map %f\n", robotctrldata->dparams[0]);
             fflush(stdout);
         }
-        NAVI_CreateMap(metersPerPixel);
-    }
+        if (robotctrldata->niparams >= 2 && robotctrldata->iparams != NULL &&
+            robotctrldata->iparams[1] != 0) {
+            forceNewMap = true;
+        }
+        if (robotctrldata->nbparams >= 1 && robotctrldata->bparams != NULL &&
+            robotctrldata->bparams[0] != 0) {
+            forceNewMap = true;
+        }
+        createMapStarted = NAVI_CreateMapWithMode(metersPerPixel, forceNewMap);
         { //主控中没有51号指令
             robot_control_t rc_cmd;
             double pose[3];
-            signed char flag = 1;
+            signed char flag = createMapStarted ? 1 : 0;
             pose[0] = 0;
             pose[1] = 0;
             pose[2] = 0;
@@ -634,6 +643,7 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
             rc_cmd.nbparams = 0;
             robot_control_t_publish(lcm, "SERVICE_COMMAND", &rc_cmd);
         }
+    }
         break;
     case 32:
         printf("save map\n");
@@ -1129,9 +1139,7 @@ int main(void) {
         printf("Please run as root\n");fflush(stdout);
         return 1;
     }
-    deleteMapFile("/data/test/defultMap.txt");
-    deleteMapFile("/data/test/defultMap.txt.txt");
-    deleteMapFile("/data/test/unprobdefultMap.txt");
+    printf("preserve existing map files on startup\n");fflush(stdout);
     
     printf("version Debug V1.2.1.9 system begin\n");fflush(stdout);
     /* lcm 数据接收线程 */
