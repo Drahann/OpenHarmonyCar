@@ -296,12 +296,12 @@ export class RobotTransport {
    * 局域网广播发现（方案B）。开广播 → 周期性向 255.255.255.255:5001 发探测包 → 收集回包车（按源 IP 去重），
    * 每次更新回调 onUpdate；durationMs 后自动停止。返回手动停止函数。
    *
-   * ⚠️ 探测命令暂用 `cmd 0`（beforeStart）作兜底：A 确认 integration-qa.md Q5（新增不触发 3s 急停的
-   *    0x06 发现 ping）前，cmd0 广播会让子网内每台车都判为"被连"，未被选中的车 3s 收不到后续指令即急停
-   *    ——**仅联调可用**。A 确认后把默认 ping 换成专用发现码并同步 contracts/udp-protocol.md。
+   * 探测命令 = `0x06` 发现 ping（A 2026-06-10 已在 `udp2lcm/udp.c` 实现）：紫派收到只回 9 字节发现响应
+   *    （`[0]=0x06`、`[3..8]`=当前位姿），**不记 clientIP、不起心跳、不武装 3s 急停** → 广播发现不会误连/误急停。
+   *    （此前用 `cmd0` 兜底会让全网车判"被连"、3s 收不到后续指令即急停；A 实现 0x06 后已切换。见 contracts/udp-protocol.md。）
    */
   discover(onUpdate: DiscoverListener, durationMs: number = CONNECT_TIMEOUT_MS,
-    ping: RobotCommand = RobotCommand.beforeStart): () => void {
+    ping: RobotCommand = RobotCommand.discoveryPing): () => void {
     const found: Map<string, DiscoveredRobot> = new Map<string, DiscoveredRobot>();
     let pinger: number = -1;
     let ender: number = -1;

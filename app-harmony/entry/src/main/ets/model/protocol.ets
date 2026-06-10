@@ -18,6 +18,8 @@ import {
  *   - 107/108 = 分布式覆盖矩形的对角点 1/2（108 的 byte1 = robot_id），已改名 distAreaCorner1/2
  *   - 120 = 紫派未实现（死命令），不收录
  *   - 105 主机 IP 打包在 byte[1,2,4,6]；坐标单位 1/20m=5cm，r=度
+ *   - 0x06 = 发现 ping（A 2026-06-10 在 udp.c 实现）：紫派收到即回 9 字节 [0]=0x06/[1]robotId/[2]状态/[3..8]位姿，
+ *     **不记 clientIP、不起心跳、不武装 3s 急停**（A 当前 [1]/[2] 恒 0、[3..8]=当前位姿）
  */
 export enum RobotCommand {
   beforeStart = 0,        // 初始化心跳连接；算法侧 LCM 30 启动建图
@@ -26,6 +28,7 @@ export enum RobotCommand {
   startRoute = 3,         // 设置目标点(endX,endY)做导航规划 → LCM 20
   endRoute = 4,           // 取消导航 → LCM 23
   loadMap = 5,            // 加载地图：停车→取位姿→加载导航图(LCM 10)（对账新增）
+  discoveryPing = 0x06,   // 发现 ping（广播）：A udp.c 收到即回 9 字节发现响应、不建心跳/不武装急停
   fullpathStartRoute = 102, // 'f' 启动全息路径规划(127)
   fullpathStartover = 103,  // 'g' 取消全息路径规划(126)
   fullpathSelect = 104,     // 'h' 单机全路径选房间顶点(125)，byte1=房间号
@@ -103,6 +106,7 @@ export function commandName(code: number): string {
     case RobotCommand.startRoute: return 'startRoute';
     case RobotCommand.endRoute: return 'endRoute';
     case RobotCommand.loadMap: return 'loadMap';
+    case RobotCommand.discoveryPing: return 'discoveryPing';
     case RobotCommand.fullpathStartRoute: return 'fullpathStartRoute';
     case RobotCommand.fullpathStartover: return 'fullpathStartover';
     case RobotCommand.fullpathSelect: return 'fullpathSelect';
