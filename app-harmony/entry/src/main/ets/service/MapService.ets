@@ -166,13 +166,13 @@ export class ParsedMap {
 
 export class MapService {
   /** 拉取地图文本。HTTP GET，200 且非空才 resolve；否则 reject。 */
-  static fetchMapText(url: string): Promise<string> {
+  static fetchMapText(url: string, timeoutMs: number = 30000): Promise<string> {
     return new Promise<string>((resolve: (t: string) => void, reject: (e: Error) => void) => {
       const httpRequest: http.HttpRequest = http.createHttp();
       const options: http.HttpRequestOptions = {
         method: http.RequestMethod.GET,
         connectTimeout: 30000,
-        readTimeout: 30000,
+        readTimeout: timeoutMs,   // 读超时由调用方给（连不上仍 30s 快失败；慢传输靠这个）
         maxLimit: 50 * 1024 * 1024,
         usingCache: false,
         priority: 1000,

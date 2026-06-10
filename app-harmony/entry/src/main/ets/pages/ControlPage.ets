@@ -199,7 +199,10 @@ struct ControlPage {
       if (cancelled) {
         return;
       }
-      MapService.fetchMapText(mapUrlFor(ip)).then((text: string) => {
+      // 临时「先跑通」：结束建图后的阻塞拉图给 10 分钟读超时——A 的 `python -m http.server`（单线程）在 RK3566 上
+      // 跑 SLAM 时送 ~6.5MB 大图仅 ~47KB/s，30s 拉不完（真机 log errCode 2300028 超时）。最终修在 A 侧
+      // （gzip / 多线程 server / 缩图，见 contracts/integration-qa.md）。进页"查既有图"仍 30s，避免长占 A 的单线程 server。
+      MapService.fetchMapText(mapUrlFor(ip), blocking ? 600000 : 30000).then((text: string) => {
         if (cancelled) {
           return;
         }
