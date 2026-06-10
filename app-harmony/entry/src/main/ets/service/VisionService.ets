@@ -69,8 +69,33 @@ export class VisionService {
   private backoffMs: number = VISION_RECONNECT_BASE_MS;
   private state: VisionConnState = VisionConnState.idle;
   private listeners: Set<VisionStreamListener> = new Set<VisionStreamListener>();
+  /** 引用计数：可同时有多个视图（ControlPage 的 PiP 小窗 + 全屏 VisionPage）需要视频流。 */
+  private refCount: number = 0;
 
   private constructor() {
+  }
+
+  // ── 引用计数获取/释放（多视图安全；视图按可见性 acquire/release）──────────────
+  /**
+   * 获取视频流：首个调用方触发连接；后续调用方共享同一条 WS。地址变更则重连（仍单连接）。
+   * 典型：PiP 展开时 acquire、放大进 VisionPage 时再 acquire（共享），各自 release，**最后一个**才真正断开——
+   * 避免"从 PiP 放大到全屏、再返回"时把 PiP 仍需要的流误断。
+   */
+  acquire(host: string, port: number): void {
+    this.refCount++;
+    if (this.refCount === 1 || this.host !== host || this.port !== port) {
+      this.connect(host, port);
+    }
+  }
+
+  /** 释放视频流：计数归零时真正断开。 */
+  release(): void {
+    if (this.refCount > 0) {
+      this.refCount--;
+    }
+    if (this.refCount === 0) {
+      this.disconnect();
+    }
   }
 
   // ── 订阅 ──────────────────────────────────────────────────────────────────

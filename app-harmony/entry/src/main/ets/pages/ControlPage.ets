@@ -19,6 +19,9 @@ import { RobotCommand, MoveDirection, UdpSendData, UdpReceiveData } from '../mod
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
 import { RobotTransport, DiscoveredRobot, MessageListener, ConnState } from '../service/RobotTransport';
 import { MapService } from '../service/MapService';
+import { VisionService } from '../service/VisionService';
+import { Storage } from '../service/storage';
+import { VideoView } from '../component/VideoView';
 import { mapUrlFor, FLEET_SESSION_ID } from '../constants/protocol';
 import { SPEED_ASTAR, SPEED_FULLPATH, SPEED_DEFAULT } from '../constants/ui';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
@@ -72,6 +75,9 @@ struct ControlPage {
   private fleet: FleetMissionService = FleetMissionService.getInstance();
   private remoteListener: MissionSyncListener | null = null;
   @State private distUseAgent: boolean = true;  // true=经 agent(黑板)；false=平板直发兜底(cmd107/108)
+  // 仪表识别 PiP 小窗（形态B）：独立 WS 连香橙派，与导航链路解耦；引用计数 acquire/release。
+  private vision: VisionService = VisionService.getInstance();
+  @State private pipExpanded: boolean = false;
 
   // ── 生命周期 ────────────────────────────────────────────────────────────────
   aboutToAppear(): void {
@@ -111,6 +117,10 @@ struct ControlPage {
     }
     this.endScan();
     this.transport.stopHeartbeat(); // 退出页面停所有保活（单页单车场景）
+    if (this.pipExpanded) {
+      this.vision.release();  // 真正离开本页（pop）时释放视频流；放大进 VisionPage 是 push，不会走到这里
+      this.pipExpanded = false;
+    }
   }
 
   private async initConnection(): Promise<void> {
@@ -526,6 +536,10 @@ struct ControlPage {
       // 右下缩放 FAB
       this.ZoomFabs()
 
+      // 仪表识别 PiP 小窗（形态B：边导航边瞥仪表）。绝对定位在左上，避开 TopBar/摇杆/FAB/底卡；
+      // 收起态=小胶囊，展开态=小视频卡（可放大进全屏 VisionPage）。独立 WS，不打扰导航。
+      this.VisionPip()
+
       // 摇杆区：**仅建图阶段显示**（建图=遥操作驱动小车扫图；非建图阶段不该手动开车——用户反馈）。
       // 导航/覆盖是自主执行，不用摇杆；连接但未建图时也不该能开车。
       if (this.mapping) {
@@ -780,6 +794,95 @@ struct ControlPage {
     }
     .width('100%')
     .padding(Space.md)
+  }
+
+  // 仪表识别 PiP 小窗（形态B）。收起=小胶囊；展开=小视频卡 + 放大/收起。WS 生命周期=展开态（引用计数）。
+  @Builder
+  VisionPip() {
+    Column() {
+      if (this.pipExpanded) {
+        Column() {
+          Row() {
+            Text('实时仪表')
+              .fontSize(FontSize.label)
+              .fontColor(AppColor.textBody)
+              .layoutWeight(1)
+            Button('放大')
+              .fontSize(FontSize.label)
+              .fontColor(AppColor.primary)
+              .backgroundColor(AppColor.surface)
+              .borderRadius(Radius.pill)
+              .height(26)
+              .padding({ left: Space.sm, right: Space.sm })
+              .onClick(() => this.expandPipToFull())
+            Button('✕')
+              .fontSize(FontSize.label)
+              .fontColor(AppColor.textSecondary)
+              .backgroundColor(AppColor.surface)
+              .borderRadius(Radius.pill)
+              .height(26)
+              .margin({ left: Space.xs })
+              .padding({ left: Space.sm, right: Space.sm })
+              .onClick(() => this.closePip())
+          }
+          .width('100%')
+          .padding({ bottom: Space.xs })
+
+          Stack() {
+            VideoView({ placeholder: '连接香橙派…' })
+          }
+          .width(192)
+          .height(120)
+          .borderRadius(Radius.sm)
+          .clip(true)
+        }
+        .padding(Space.sm)
+        .backgroundColor(AppColor.surface)
+        .borderRadius(Radius.md)
+        .shadow({
+          radius: Elevation.cardRadius,
+          color: Elevation.cardColor,
+          offsetX: 0,
+          offsetY: Elevation.cardOffsetY
+        })
+      } else {
+        Button('📹 仪表视频')
+          .fontSize(FontSize.label)
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(34)
+          .padding({ left: Space.md, right: Space.md })
+          .onClick(() => this.openPip())
+      }
+    }
+    .position({ x: '3%', y: '12%' })
+  }
+
+  /** 展开 PiP：起视频流（引用计数 acquire）。 */
+  private openPip(): void {
+    if (this.pipExpanded) {
+      return;
+    }
+    this.pipExpanded = true;
+    this.vision.acquire(Storage.getVisionHost(), Storage.getVisionPort());
+  }
+
+  /** 收起 PiP：释放视频流（计数归零才真正断开）。 */
+  private closePip(): void {
+    if (!this.pipExpanded) {
+      return;
+    }
+    this.pipExpanded = false;
+    this.vision.release();
+  }
+
+  /** 放大到全屏 VisionPage（push 不销毁本页，PiP 仍持流；VisionPage 再 acquire 共享，返回不误断）。 */
+  private expandPipToFull(): void {
+    router.pushUrl({ url: 'pages/VisionPage' }).catch((e: Error) => {
+      log.e(`路由 VisionPage 失败：${e.message}`);
+    });
   }
 
   @Builder
