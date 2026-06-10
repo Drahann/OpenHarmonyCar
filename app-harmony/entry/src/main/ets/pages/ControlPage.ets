@@ -132,7 +132,7 @@ struct ControlPage {
     }
     if (this.ip.length > 0) {
       this.connectTo(this.ip);
-      this.loadMap(this.ip, 1, 0, false);  // 进页查既有图（紫派开机即删图，可能没有→建图卡）；非阻塞、不轮询
+      this.loadMap(this.ip, 1, 0, false);  // 进页查既有图（A 开机保留上次地图：有则直接用；点「开始建图」会清并重建）；非阻塞、不轮询
     }
   }
 
@@ -335,11 +335,21 @@ struct ControlPage {
     this.toast('已停止全路径覆盖');
   }
 
-  // ── 建图（R1 回归：紫派 Navi 启动即删图，必须先建图才有地图，见 docs/feature-parity-review.md）──
+  // ── 建图（A 现在开机保留上次地图、新建图被接受后才删；无图时必须先建图，见 docs/feature-parity-review.md）──
   /** 开始建图：cmd0（紫派 LCM30 启动 SLAM）。之后用摇杆驱动小车探索一圈。 */
   private startBuild(): void {
+    // 进入新一轮建图前，取消进页可能仍在途的"查既有图"拉取，并清掉已显示的旧地图：
+    // A 现在开机**保留**上次地图、仅在新建图被接受后才删（README 0db78ed/8b4af4b）。若不清，建图期间会一直
+    // 显示上一次的**过期静态地图**（且建图无实时预览，Q7/A7）——正是"开始建图后地图不变"的现象。清后建图阶段只显示"建图中…"。
+    if (this.cancelPoll !== null) {
+      this.cancelPoll();
+      this.cancelPoll = null;
+    }
+    this.mapText = '';
+    this.mission.mapReady = false;
     this.sendTo(this.ip, RobotCommand.beforeStart);
     this.mapping = true;
+    this.bump();
     this.toast('已开始建图——用摇杆驱动小车扫一圈，完成后点「结束建图」');
   }
 
@@ -679,7 +689,7 @@ struct ControlPage {
           .fontColor(AppColor.textBody)
           .fontWeight(FontWeight.Bold)
           .width('100%')
-        Text('小车每次启动后地图会被清空，需先建图。点「开始建图」，再用摇杆驱动小车走一圈环境。')
+        Text('还没有地图，需先建图。点「开始建图」，再用摇杆驱动小车走一圈环境。')
           .fontSize(FontSize.bodySm)
           .fontColor(AppColor.textSecondary)
           .width('100%')
