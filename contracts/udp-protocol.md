@@ -48,12 +48,12 @@ App 的 `robotState` 枚举值**刻意对齐 ASCII**，所以 byte0 既是 App �
 
 | byte0 | App 命令（`RobotCommand`） | 字符 | 紫派动作（✅ 已对账 `udp2lcm.c`，行号见对账报告） |
 |---|---|---|---|
-| 0 | beforeStart | — | 建连/心跳；经 parseCmd 时启动建图(**30**，网格 0.05m)。⚠️ 首包仅建连(发 **7** 初参+启心跳)、不进 parseCmd |
+| 0 | beforeStart | — | **心跳/兼容建图**（⚠️ A 2026-06-10 改语义）：首包仅建连(发 **7** 初参+启心跳)、不进 parseCmd；命令循环中**仅当 `defultMap.txt` 不存在且本轮未请求建图**才发 LCM **30** 建图，**已有图时只当心跳**。→ 故"开始建图/重建"**App 改发 `'m'`/0x6d**（见下），cmd0 不再可靠触发新建图 |
 | 1 | pending | — | 遥控运动：`path.cmd=byte1, speed=byte2` → `wheel_ctrl` |
 | 2 | afterEnd | — | 结束建图：停轮控；保存地图(**32**)；加载导航地图(**10**) |
 | 3 | startRoute | — | 设目标点(endX,endY，÷20=米) → **20** |
 | 4 | endRoute | — | 取消导航 → **23** + 多轮停车 |
-| 5 | loadMap | — | **加载地图**：停车→取当前位姿→加载导航图(**10**)。（App 已补 `loadMap=5`） |
+| 5 | loadMap | — | **加载地图**：停车→加载导航图(**10**)，**初始位姿归零 `(0,0,0)`**（A README：0x05 设 0,0,0；区别于 0x02/'j'/'l' 用**当前心跳位姿**）。子机入场归零用它 |
 | **0x06** | **discoveryPing** | — | **发现 ping（广播）**：A `udp.c::isDiscoveryPing` 命中即回 9 字节发现响应、**不记 clientIP/不起心跳/不武装急停**（2026-06-10 实现）。响应格式见「设备发现」 |
 | 102 | fullpathStartRoute | 'f' | 启动全息路径规划(**127**)，iparams[0]=byte1 |
 | 103 | fullpathStartover | 'g' | 取消全息路径规划(**126**) |
@@ -62,6 +62,7 @@ App 的 `robotState` 枚举值**刻意对齐 ASCII**，所以 byte0 既是 App �
 | 106 | distributedEnd | 'j' | 加载地图(**10**)+接收主机目标点(byte3-6) → **20** |
 | 107 | distAreaCorner1 | 'k' | **分布式覆盖矩形·对角点1**(byte3-6)，仅暂存 |
 | 108 | distAreaCorner2 | 'l' | **对角点2(byte3-6)+robot_id(byte1：0主/1从)**：从机规划 FullRoad 覆盖(**122**)+分布式跟踪(**123**)；主机加载图(10)+跟踪 |
+| **0x6d** | **forceCreateMap** | **'m'** | **强制重新建图**（✅ A 2026-06-10 `8b4af4b` 新增、README §四 已列）：发 LCM **30** + `iparams[1]=1`(`forceNewMap=true`) → `Navi.createMap` **清空旧图/路径/覆盖产物、从头建**。**与 cmd0 区别**：cmd0 有图时被 `createMap` 忽略(日志 `Ignore create map ... force=0`)、沿用旧图；**App「开始建图」发本命令**（真机实证：发 cmd0 → 反复拉到同一张旧图 + 定位漂移） |
 | 120 | —（已弃用） | — | **紫派未实现**，落入 else 被忽略 → App 老代码死命令 |
 
 ## 坐标单位与朝向（✅ 已对账）
@@ -73,8 +74,8 @@ App 的 `robotState` 枚举值**刻意对齐 ASCII**，所以 byte0 既是 App �
 
 ## 连接与保活约定
 
-- **建连**：App 向目标 IP 发命令 0；紫派**首包**用于捕获手机 IP、启动心跳线程、发 LCM **7**（初参），
-  **不进 parseCmd**——故建图(LCM 30)由**后续**命令 0 触发（App 持续发 0 即可，`udp.c:31-58`）。
+- **建连**：App 连接后持续发**中性帧 `pending(1)+stop`** 保活；紫派**首包**用于捕获手机 IP、启动心跳线程、发 LCM **7**（初参），**不进 parseCmd**。
+  ⚠️ **建图不再靠 cmd0**：cmd0「有图时只当心跳」（见命令表）；**App「开始建图」发 `'m'`/0x6d 强制新建**（`forceNewMap`，清旧图重建）。
   App 在 `udp.on` 收到该 IP 回包即判定连接成功。
 - **设备发现（`0x06`，✅ A 2026-06-10 在 `udp.c` 实现，原 Q5/A5）**：App 向 `255.255.255.255:5001` 广播 9 字节、`byte0=0x06`；
   紫派 `udp.c::isDiscoveryPing` 命中即回 **9 字节发现响应**：`[0]=0x06`、`[1]=robot_id`、`[2]=状态`、`[3..8]=当前位姿`（`sendDiscoveryResponse`），

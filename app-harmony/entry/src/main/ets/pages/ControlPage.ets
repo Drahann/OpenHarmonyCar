@@ -350,7 +350,9 @@ struct ControlPage {
     }
     this.mapText = '';
     this.mission.mapReady = false;
-    this.sendTo(this.ip, RobotCommand.beforeStart);
+    // 用 'm'/0x6d **强制重新建图**：A 的 cmd0「有图时只当心跳」会被 Navi.createMap 忽略（→ 旧图不变 + 定位漂移，
+    // 真机实证），必须 forceCreateMap(forceNewMap=true) 才会清空旧图从头建。见 contracts/udp-protocol.md。
+    this.sendTo(this.ip, RobotCommand.forceCreateMap);
     this.mapping = true;
     this.bump();
     this.toast('已开始建图——用摇杆驱动小车扫一圈，完成后点「结束建图」');

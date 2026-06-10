@@ -35,7 +35,9 @@ export enum RobotCommand {
   distributed = 105,        // 'i' 子机拉主机地图(124)；主机 IP 在 byte[1,2,4,6]
   distributedEnd = 106,     // 'j' 加载地图(10)+接收主机目标点 → LCM 20
   distAreaCorner1 = 107,    // 'k' 分布式覆盖矩形·对角点1（暂存）
-  distAreaCorner2 = 108     // 'l' 对角点2 + robot_id(byte1)：从机规划覆盖(122)+跟踪(123)
+  distAreaCorner2 = 108,    // 'l' 对角点2 + robot_id(byte1)：从机规划覆盖(122)+跟踪(123)
+  forceCreateMap = 0x6d     // 'm' 强制重新建图（A 8b4af4b 新增）：LCM30+iparams[1]=1(forceNewMap) 清旧图重建。
+                            // cmd0「有图时只当心跳」会被 Navi.createMap 忽略，故"开始建图"用本码（见 contracts/udp-protocol.md）
 }
 
 /** 运动方向（byte1，仅命令 pending 有意义）。 */
@@ -114,6 +116,7 @@ export function commandName(code: number): string {
     case RobotCommand.distributedEnd: return 'distributedEnd';
     case RobotCommand.distAreaCorner1: return 'distAreaCorner1';
     case RobotCommand.distAreaCorner2: return 'distAreaCorner2';
+    case RobotCommand.forceCreateMap: return 'forceCreateMap';
     default: return `cmd${code}`;
   }
 }
