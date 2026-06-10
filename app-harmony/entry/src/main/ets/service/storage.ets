@@ -8,10 +8,14 @@
  */
 
 import { DEFAULT_TARGET_IP } from '../constants/protocol';
+import { VISION_DEFAULT_HOST, VISION_DEFAULT_PORT } from '../constants/vision';
 
 const KEY_ROBOT_COUNT: string = 'robot_count';
 const KEY_LOCAL_IP: string = 'local_ip';
 const ROBOT_IP_PREFIX: string = 'robot_ip_';
+/** 香橙派视觉服务地址（与导航的车 IP 无关——不同设备）。 */
+const KEY_VISION_HOST: string = 'vision_host';
+const KEY_VISION_PORT: string = 'vision_port';
 /** 预登记的最大机器人数量（持久化槽位）。 */
 const MAX_ROBOTS: number = 8;
 
@@ -23,6 +27,8 @@ export class Storage {
   static init(): void {
     PersistentStorage.persistProp<number>(KEY_ROBOT_COUNT, 1);
     PersistentStorage.persistProp<string>(KEY_LOCAL_IP, '');
+    PersistentStorage.persistProp<string>(KEY_VISION_HOST, VISION_DEFAULT_HOST);
+    PersistentStorage.persistProp<number>(KEY_VISION_PORT, VISION_DEFAULT_PORT);
     for (let i = 0; i < MAX_ROBOTS; i++) {
       PersistentStorage.persistProp<string>(`${ROBOT_IP_PREFIX}${i}`, DEFAULT_TARGET_IP);
     }
@@ -51,6 +57,23 @@ export class Storage {
 
   static setLocalIp(ip: string): void {
     AppStorage.setOrCreate<string>(KEY_LOCAL_IP, ip);
+  }
+
+  /** 香橙派视觉服务 host（默认 192.168.1.5；与车 IP 无关，不同设备）。 */
+  static getVisionHost(): string {
+    return AppStorage.get<string>(KEY_VISION_HOST) ?? VISION_DEFAULT_HOST;
+  }
+
+  static setVisionHost(host: string): void {
+    AppStorage.setOrCreate<string>(KEY_VISION_HOST, host);
+  }
+
+  static getVisionPort(): number {
+    return AppStorage.get<number>(KEY_VISION_PORT) ?? VISION_DEFAULT_PORT;
+  }
+
+  static setVisionPort(port: number): void {
+    AppStorage.setOrCreate<number>(KEY_VISION_PORT, port);
   }
 
   /** 合法 IPv4 校验（移植自旧 SetIP.IslegalIP）。 */
