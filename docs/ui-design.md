@@ -59,6 +59,8 @@ EntryAbility → HomePage（机器人列表/连接 + 模式选择）
 - 顶部/角落：状态条（连接、心跳、急停提示用 danger）。
 
 ### MapCanvas（component）
+> 注（2026-06-09）：地图渲染已**重设计**为浅色「建筑图纸」+ **平滑矢量墙体**（marching squares→Chaikin，取代栅格方块），
+> 配色走品牌墨绿浅色（`MapTheme`，非下述 `mapWall`）。**权威见 `docs/map-ui-redesign.md`**；下面为 U1 初版描述，仅存档。
 - Canvas 渲染：`MapService.parseMap` → `forEachWallRect` 画障碍（mapWall），空旷透明/白。
 - 叠加：机器人 pin（泪滴，mapPin/robot* 色 + 朝向小箭头）、目标点（mapTarget）、分布式矩形子区域（半透明主色框）。
 - 交互：双指缩放 + 拖拽平移；点选 → `geometry.canvasToMap` 得真实坐标回调上层。
