@@ -54,14 +54,20 @@ canvasToMap: mapX = round((cx + half) / gridSize + startX - mapHalf)
 - `forEachWallRect`：遍历 `grid[y+startY][x+startX]===1` 的障碍格 → 回调画布矩形 `(x*gridWidth, (squareSize-1-y)*gridHeight, gridWidth, gridHeight)`（含 y 翻转）。**读归一化 grid，不再逐字符**——屏蔽空格/密排差异。
 - `MapCanvas`：障碍格填充 + 叠加层（机器人 pin+朝向、目标点、子区域矩形）按 `mapToCanvas` 定位；双指缩放/平移走 Canvas ctx 变换，叠加层按 1/scale 反缩放。
 
-## 5. 定位处理（机器人 pin / 选点）—— ⚠️ x0/y0 偏移：真机需校验
+## 5. 定位处理（机器人 pin / 选点）—— ✅ A 已答 Q12：x0/y0 单位=米
 
 - 机器人 pin：心跳世界坐标 `(x,y)`（5cm 单位）→ `mapToCanvas` → 像素。选点：像素 → `canvasToMap` → 下发 `cmd3(endX,endY)`（紫派 ÷20=米）。
-- **旧 App 不用 x0/y0** 也能跑对 → 说明当年地图 `x0≈0`（SLAM 从地图原点起）。**但真机现在 `x0=-45 y0=-44`（非 0）**：
-  - 心跳 x/y = 距**世界原点**的格数；地图数组列 = 距**地图原点(x0)**的格数 → `数组列 = 世界格 - x0`。
-  - 若变换直接拿心跳 x 当 `mapX`（数组列），会**偏 x0 格**（45 格≈2.25m）→ 机器人 pin / 选点系统性偏移 = "操作有大问题"的**疑似第二因**。
-- **本轮策略**：先修解析（§2，已修——障碍渲染恢复到旧 App 水平）；x0/y0 校正**因签名/单位需真机实测**暂不盲改变换。`parseMap` 已**打印首行**（含 x0/y0），真机可直接看。
-- **若真机看到 pin/选点整体偏一个常量**：在变换前做世界↔数组换算——`mapX = 心跳x - x0`、`mapY = 心跳y - y0`（反向选点 `+x0/+y0`）；x0/y0 单位与符号以紫派 `globalProbMap.x0`（`MapServer.cpp`）为准，**先用 1 个已知点标定符号**再落地。这块定了再改 geometry + MapCanvas + onPick，并回写本节。
+- **旧 App 不用 x0/y0** 也能跑对 → 说明当年地图 `x0≈0`（SLAM 从地图原点起）。**但真机现在首行 `x0 y0` 非 0**：地图数组坐标 = 世界坐标相对**地图最小角 (x0,y0)** 的偏移，不校正则机器人 pin / 选点系统性偏移 = "操作有大问题"的**疑似第二因**。
+- **✅ A 答 Q12（2026-06-08，权威，见 `contracts/integration-qa.md` §A12）**：`x0/y0` **单位 = 米**（不是格！），含义 = 地图栅格**左下角 / 最小 (x,y) 的世界坐标**，**不是建图起点、可为负**。世界↔栅格换算：
+
+  ```text
+  grid_x = (world_x_米 - x0) / metersPerPixel
+  grid_y = (world_y_米 - y0) / metersPerPixel
+  ```
+
+  - ⚠️ **修正本节旧假设**：早前以为「`数组列 = 世界格 - x0`」（把 x0 当**格**）。A 确认 x0 是**米**，故偏移量（格）= `x0 / metersPerPixel`（`metersPerPixel`≈0.05），**不是 x0 本身**。
+  - App 心跳坐标若是 **5cm 格**：`mapX格 = 心跳x格 - x0/metersPerPixel`、`mapY格 = 心跳y格 - y0/metersPerPixel`；反向（地图点→下发目标）`world_米 = grid·metersPerPixel + x0`，再 ÷0.05 转 5cm 单元打进 `cmd3`。
+- **落地状态**：公式已明确，**代码校正待落实**（按 owner 选择，本轮先不改码）。改时动 `geometry`（世界↔数组加 `x0/metersPerPixel` 偏移项）+ `MapCanvas`/`onPick`，并真机用 1 个已知点核对符号（x0/y0 取自紫派 `MapServer.cpp` 的 `globalProbMap`）。`parseMap` 已**打印首行**（含 x0/y0），真机可直接读。
 
 ## 6. 本轮修复 + 验证 + 待确认
 
