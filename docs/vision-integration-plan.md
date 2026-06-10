@@ -85,13 +85,22 @@
 
 ## 5. 分阶段（V0–V5）
 
+> **进度（2026-06-11，本会话实施，分支 `app-harmony-core`）：V1–V4 代码侧 code-complete，未经 DevEco 真编；剩 V5 真机联调 + V4 余下 REST UI。**
+
 - **V0 规划** ✅（本文档）。
-- **V1 服务 + 模型层**：`constants/vision` + `model/vision`（DTO+解析，关键点按 name）+ `service/VisionService`
-  （WS 连/断/收/丢帧/重连 + REST 包装 + 订阅回调）。**验证**：写 `tools/mock-orangepi/`（Python WS server 推样例 JPEG+JSON）+ Node/纯逻辑断言 JSON 解析；不依赖真机/真香橙派。
-- **V2 视频显示**：`VideoView`（JPEG→PixelMap+丢帧+回收）+ `ReadingPanel`（当前读数/状态/FPS/告警）。
-- **V3 视觉页 + 入口（形态 A）**：`VisionPage` + `HomePage`/`ControlPage` 入口；**验证导航不受影响**（进出视频页，导航保活/控制照常）。
-- **V4 数据功能 + PiP（形态 B，可选）**：REST 接入（历史曲线/阈值设置/仪表配置/报告生成与查看/导出）；ControlPage 可收起 PiP 小窗。
-- **V5 真机联调**：连真香橙派 `192.168.1.5:8000`，端到端（视频流畅度/读数正确/重连）+ **与导航并存**（边导航边开视频，互不干扰）验证。
+- **V1 服务 + 模型层** ✅：`constants/vision.ets`（地址/端点/重连·节流/关键点 name 常量）+ `model/vision.ets`
+  （DTO + 解析，**关键点按 name**、NaN 安全 try/catch）+ `service/VisionService.ets`（独立 WS 连/断/**收帧转发**/退避重连 +
+  REST + 订阅回调，**不 import 任何导航 service**）。`tools/mock-orangepi/`（FastAPI 推样例 JPEG+JSON，故意按模型真实
+  顺序推关键点验证 name 映射；`--selftest` 离线校验契约字段、已跑通）。
+- **V2 视频显示** ✅：`component/VideoView.ets`（JPEG→ImageSource→PixelMap→Image，**只显最新帧 + 解码进行中丢帧 +
+  节流 + release 回收**）+ `component/ReadingPanel.ets`（连接态/FPS/推理ms/读数/告警/错误条，纯展示 VM）。
+- **V3 视觉页 + 入口（形态 A）** ✅：`pages/VisionPage.ets`（视频 + 读数面板）+ `main_pages.json` 注册 + `HomePage`/`ControlPage`
+  顶栏入口。**不打扰导航**：`pushUrl` 不销毁 ControlPage（其 `stopHeartbeat` 仅 pop 触发），保活留在 RobotTransport 单例继续跑。
+- **V4 数据功能 + PiP（形态 B）** ✅核心：`VisionService` 引用计数 `acquire/release`（PiP 与全屏页共享一条 WS、互不误断）；
+  `ControlPage` 可收起 PiP 小窗（胶囊⇄小视频卡，放大进全屏）；`VisionPage` 轮询 `/api/summary` 富化读数（unit/status/告警）
+  + 报告生成（带"视频暂停"提示）。**余下打磨（非阻塞）**：阈值设置 UI、仪表配置 CRUD、历史趋势图——VisionService REST 方法已就绪，待接 UI。
+- **V5 真机联调** ⏳（需硬件，无法在本机做）：连真香橙派 `192.168.1.5:8000`，端到端（视频流畅度/读数正确/重连）+ **与导航并存**
+  （边导航边开视频/PiP，互不干扰）验证；首次过 DevEco 按 `@kit.NetworkKit`/`@kit.ImageKit` 报错修。
 
 ## 6. 待成员 B 确认 / 风险（→ 写入 `contracts/integration-qa.md`，异步对接）
 
@@ -113,6 +122,9 @@
 
 ## 8. 接续指引（实施时从这里开始）
 
-读 `MEMORY.md` + 本文档 + `contracts/vision-stream-api.md` 即可接续，不必重新探查。
-**下一步 = V1**：`constants/vision` + `model/vision` + `service/VisionService` + `tools/mock-orangepi`。
-提交：代码→`app-harmony-core`、文档/契约/tools→`main`+分支（[[feedback-docs-main-code-branch]]）；跨端问题（§6）写 `contracts/integration-qa.md` 给 B。
+读 `MEMORY.md` + 本文档 + `contracts/vision-stream-api.md`（在 `origin/main`：`git show origin/main:contracts/vision-stream-api.md`）即可接续，不必重新探查。
+**当前状态：V1–V4 已实施（见 §5 与 `git log app-harmony-core`，commits `APP(V1)…APP(V4)`）。**
+**下一步 = V5 真机联调**（需香橙派硬件）+ 选做 V4 余下 REST UI（阈值/仪表配置/历史趋势图，VisionService 方法已就绪）。
+真机调测建议：先用 `tools/mock-orangepi`（`pip install -r requirements.txt && python server.py`）把 App 指到本机 IP 跑通，
+再连真香橙派 `192.168.1.5:8000`；重点验证「边导航边开视频/PiP，导航保活/控制不受影响」。
+提交：代码→`app-harmony-core`、文档/契约/tools→`main`+分支（[[feedback-docs-main-code-branch]]）；跨端问题（§6）已写入 `contracts/integration-qa.md` 给 B。

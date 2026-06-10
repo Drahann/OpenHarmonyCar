@@ -300,3 +300,28 @@ grid_y = (world_y - y0) / metersPerPixel
 - **App 已改（统一落地）**：`RobotCommand.forceCreateMap=0x6d`；`ControlPage.startBuild` 改发 `'m'`（取代 `cmd0`）；`udp-protocol.md` 命令表补 `0x6d` + 修正 cmd0 语义 + cmd5 归零；app↔agent `protocol.ets` 逐字节同步。
 - **顺带统一的不一致**（A README §四 vs 旧 contracts）：① cmd0 语义 = 「心跳/兼容建图，有图时只当心跳」；② cmd5 初始位姿 = **归零 (0,0,0)**（旧 contracts 误写"取当前位姿"）。
 - **建议 A**：在 README/接口说明里**显式标注「App 开始建图请用 `'m'`、cmd0 不保证新建图」**，避免下个对接者再踩。
+
+---
+
+## 2026-06-11 · 视觉/视频流对接（→ 成员B / 香橙派）· App 侧 V1–V4 已实施
+
+> App 已按 `contracts/vision-stream-api.md` v1.0 对接香橙派视觉（`docs/vision-integration-plan.md`，分支 `app-harmony-core`）。
+> 以下为对接中需 B 确认/统一的问题（来自 plan §6），异步处理即可：
+
+1. **🔴 关键点 index ↔ name 顺序不一致（B 的 README 已自曝）**：契约表 §5 记 `0=center,1=pointer_tip,2=zero_mark,3=full_mark`，
+   但部署模型实际输出顺序 `0=pointer_tip,1=center,2=zero,3=full`。**App 已一律按 `name` 取点（绝不按 index）**，不受影响。
+   **请 B**：把契约表 §5 的 index 与模型真实输出对齐（或在契约里显式标注"按 name、index 仅示意"），免后人踩。
+2. **WS 背压**：App 慢时服务器是**积压旧帧**还是**只推最新**？App 端已做"只显最新帧 + 解码进行中丢帧"，
+   但若服务器侧也积压，端到端延迟仍会累积。**请 B 确认服务器推送策略**（最好只推最新 / 有界队列）。
+3. **关键点 / bbox 参考分辨率**：坐标是相对**该 JPEG 帧像素**还是摄像头原始分辨率？App 最简方案只显已叠加的图、不自绘，
+   故暂不受影响；若 App 后续自绘叠加需按帧分辨率对齐——**请 B 在契约注明坐标参考系**。
+4. **样例 fixtures**：**请 B 在 `contracts/fixtures/` 放一段样例**（几帧 JPEG + 对应 `frame_meta` JSON），供 App 离线对接联调
+   （现 App 用自建 `tools/mock-orangepi` 顶替，真实样例能校准）。
+5. **读数物理量纲**：`gauge_angles` 是占比百分比；App 默认显示 `%`，可经 `/api/gauge/configs` 量程换算物理量（MPa 等）。
+   **请 B 确认** `/api/summary` 的 `readings[].unit/value` 在已配置量程时是否已是物理量（避免双重换算）。
+6. **报告暂停推理**：`POST /api/data/report`（及 `/api/llm/query`）期间摄像头停推、视频会停——App 已给"生成中、视频暂停"提示；
+   **请 B 确认**生成期间 WS 是断开还是保持（仅无帧）、完成后是否自动恢复推流。
+7. **香橙派寻址**：IP 静态 `192.168.1.5`，App 做成可配置（持久化，默认此值）。是否需要发现（mDNS）/将来多香橙派多摄像头？暂记。
+8. **鉴权/并发**：`/ws/video` 是否限连接数？多端（平板 + 调试 PC）同时连是否互相影响？暂记。
+
+> ⚠️ 注：此条目落在 `app-harmony-core`，按 [[feedback-docs-main-code-branch]] 应 cherry-pick 同步到 `main`。
