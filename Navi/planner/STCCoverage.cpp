@@ -95,10 +95,41 @@ void STCCoverage::traverseTreeDFS(
 }
 
 void STCCoverage::startDFSTraversal() {
+    goPath.clear();
+    if (path.empty()) {
+        return;
+    }
+
     std::unordered_map<IPoint, bool, PointHash, PointEqual> visited;
-    
-    // 假设生成树的根节点是path[0]
-    if (!path.empty()) {
-        traverseTreeDFS(path[0], adjList, visited);
+    std::vector<std::pair<IPoint, size_t> > stack;
+
+    IPoint root = path[0];
+    visited[root] = true;
+    goPath.push_back(root);
+    stack.push_back(std::make_pair(root, 0));
+
+    while (!stack.empty()) {
+        IPoint current = stack.back().first;
+        size_t &nextIndex = stack.back().second;
+        std::vector<IPoint> &neighbors = adjList[current];
+        bool descended = false;
+
+        while (nextIndex < neighbors.size()) {
+            IPoint neighbor = neighbors[nextIndex++];
+            if (!visited[neighbor]) {
+                visited[neighbor] = true;
+                goPath.push_back(neighbor);
+                stack.push_back(std::make_pair(neighbor, 0));
+                descended = true;
+                break;
+            }
+        }
+
+        if (!descended) {
+            stack.pop_back();
+            if (!stack.empty()) {
+                goPath.push_back(stack.back().first);
+            }
+        }
     }
 }

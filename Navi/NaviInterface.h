@@ -116,6 +116,21 @@ struct laser_st
         float      radstep;
 };
 
+struct MappingScanFrame
+{
+    Pose pose;
+    std::vector<Pose> bodyPoints;
+    std::vector<Pose> forelaserPoints;
+    std::vector<Pose> limitlaserPoints;
+
+    MappingScanFrame()
+    {
+        pose.x = 0;
+        pose.y = 0;
+        pose.theta = 0;
+    }
+};
+
 
 typedef struct tagRobotConfig
 {
@@ -275,6 +290,7 @@ public:
 	bool			bpfsetpose;
 	Pose			m_lastxyt;
 	Pose			m_nowxyt;
+	int             m_encoderInitialized;
 
 	Pose 			scanlinkpose;
 
@@ -348,6 +364,8 @@ public:
 	vector<Pose> m_CollisionWallDataCopy;
 
 	vector<Pose> gridPath;
+    vector<MappingScanFrame> m_mappingScanFrames;
+    bool m_mappingReplayInProgress;
 
 	int robotId;
 	pthread_mutex_t m_coop_mutex;
@@ -412,6 +430,7 @@ public:
 	double  DistScore(Pose &p,vector<double> &q,int flag);
 	bool	loadMap(const char *strMapName,vector<Pose> &vtWallPos);
 	bool	createMap(double metersPerPixel, bool forceNewMap = false);
+	void    resetMappingRuntimeState(void);
 	void	initLoc(Pose &pos,Pose &range);
 	void	saveMap(const char *strMapName);
 	void	saveModifyMap();
@@ -455,6 +474,12 @@ public:
 	void	setdrawvisionmode(bool mode);
 	void    ClearVisionData(void);
 	void    ClearCollisionData(void);
+    void    clearMappingLaserFrames(void);
+    void    resetScanMatcherRuntime(ScanMatcher *scanMatcher);
+    void    cacheMappingScanFrame(vector<Pose> &bodyPoints,
+                                  vector<Pose> &forelaserPoints,
+                                  vector<Pose> &limitlaserPoints);
+    bool    replayMappingScanFramesForSave(void);
 	void    Setmanualupdate(bool mode);
 	bool	Getmanualmode();
 	void	SetBackforward(bool mode);
@@ -521,6 +546,7 @@ void	NAVI_PutEncoderData(Pose *pPos);
 bool	NAVI_LoadMapAndLoc(const char* strMapName,Pose initPos, Pose initRange,vector<Pose> &vtWallPos);
 void	NAVI_CreateMap(double metersPerPixel);
 bool	NAVI_CreateMapWithMode(double metersPerPixel, bool forceNewMap);
+void    NAVI_ClearGeneratedMapFiles(void);
 void	NAVI_SaveMap(const char *strMapName);
 void	NAVI_SaveModifyMap(void);
 void	NAVI_SetGoalPoint(Pose goal);

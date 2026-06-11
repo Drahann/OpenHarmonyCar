@@ -140,15 +140,23 @@ static void clearGeneratedMapFilesForNewMapping()
         "/data/test/defultMap.txt.txt",
         "/data/test/defultMap.txt.txt.tmp",
         "/data/test/defultMap.txt.txt.bak",
+        "/data/test/zipedMap.txt",
+        "/data/test/zipedMap.txt.tmp",
+        "/data/test/zipedMap.txt.bak",
         "/data/test/unprobdefultMap.txt",
         "/data/test/unprobdefultMap.txt.tmp",
         "/data/test/unprobdefultMap.txt.bak",
         "/data/test/roadFile.txt",
         "/data/test/roadFile.txt.tmp",
+        "/data/test/roadFile.txt.bak",
         "/data/test/tmpcoverageMap.txt",
+        "/data/test/tmpcoverageMap.txt.tmp",
         "/data/test/initCoverageMap.txt",
+        "/data/test/initCoverageMap.txt.tmp",
         "/data/test/midMap.txt",
+        "/data/test/midMap.txt.tmp",
         "/data/test/coverageMap.txt",
+        "/data/test/coverageMap.txt.tmp",
         "/data/test/pathcheck.txt",
         "/data/test/pathplanmap.txt",
         "/data/test/testmap_astar.txt",
@@ -245,6 +253,17 @@ CNaviInterface::CNaviInterface(void) {
     m_CurPos.x = 0;
     m_CurPos.y = 0;
     m_CurPos.theta = 0;
+    m_CurPosForPath = m_CurPos;
+    m_lastxyt = m_CurPos;
+    m_nowxyt = m_CurPos;
+    m_lastxyt2 = m_CurPos;
+    globalOdoT = m_CurPos;
+    scanlinkpose = m_CurPos;
+    navipose = m_CurPos;
+    scanlinktest = m_CurPos;
+    m_poselastxyt = m_CurPos;
+    m_CurPos_pf = m_CurPos;
+    m_encoderInitialized = 0;
 
     chargemappose.x = 0;
     chargemappose.y = 0;
@@ -404,8 +423,12 @@ CNaviInterface::CNaviInterface(void) {
     curastar = 0;
     istartgo = 0;
     m_ifpf = 1;
+    clearMappingLaserFrames();
+    m_plaserdata = NULL;
     m_VisionWallData.clear();
     m_CollisionWallData.clear();
+    m_mappingScanFrames.clear();
+    m_mappingReplayInProgress = false;
 
 }
 
@@ -761,14 +784,114 @@ void CNaviInterface::ClearCollisionData(void) {
 
     pthread_mutex_unlock(&m_csPlan_mutex);
 }
-void CNaviInterface::putEncoderData(Pose *pPos) {
-    static int encodernum = 0;
 
-    if (encodernum == 0) {
+void CNaviInterface::resetScanMatcherRuntime(ScanMatcher *scanMatcher) {
+    if (scanMatcher == NULL) {
+        return;
+    }
+
+    Pose zeroPose;
+    zeroPose.x = 0;
+    zeroPose.y = 0;
+    zeroPose.theta = 0;
+
+    scanMatcher->g.nodes.clear();
+    scanMatcher->scans.clear();
+    scanMatcher->submapscore.clear();
+    scanMatcher->glevel.clear();
+    scanMatcher->pfswarm.clear();
+    scanMatcher->gmDirty = false;
+    scanMatcher->decimateCounter = 0;
+    scanMatcher->m_IfVaild_Encoder = false;
+    scanMatcher->Encoderpos = zeroPose;
+    scanMatcher->m_poselastxyt = zeroPose;
+    scanMatcher->SetXyt(zeroPose);
+    scanMatcher->gm.makeMeters(-25, -25, scanMatcher->gridmap_size,
+                               scanMatcher->gridmap_size,
+                               scanMatcher->metersPerPixel, 0);
+    scanMatcher->initprobmap();
+    scanMatcher->matcher.initWeight();
+    scanMatcher->pmatcher.initWeight();
+}
+
+void CNaviInterface::clearMappingLaserFrames(void) {
+    m_mappingReplayInProgress = false;
+    m_mappingScanFrames.clear();
+
+    pthread_mutex_lock(&m_csLaser_mutex);
+    m_stlaserdata.nranges = 0;
+    m_stlaserdata.ranges.clear();
+    m_stlaserdata.nintensities = 0;
+    m_stlaserdata.intensities.clear();
+    m_stlaserdata.rad0 = 0;
+    m_stlaserdata.radstep = 0;
+    pthread_mutex_unlock(&m_csLaser_mutex);
+
+    resetScanMatcherRuntime(m_pscanMatcher);
+}
+
+void CNaviInterface::cacheMappingScanFrame(vector<Pose> &bodyPoints,
+                                           vector<Pose> &forelaserPoints,
+                                           vector<Pose> &limitlaserPoints) {
+    MappingScanFrame frame;
+    if (m_pscanMatcher != NULL) {
+        m_pscanMatcher->getPosition(frame.pose);
+    }
+    frame.bodyPoints = bodyPoints;
+    frame.forelaserPoints = forelaserPoints;
+    frame.limitlaserPoints = limitlaserPoints;
+    m_mappingScanFrames.push_back(frame);
+
+    if (m_mappingScanFrames.size() == 1 ||
+        m_mappingScanFrames.size() % 20 == 0) {
+        printf("Mapping scan frame cached: count=%lu pose=(%.3f, %.3f, %.3f)\n",
+               (unsigned long)m_mappingScanFrames.size(),
+               frame.pose.x, frame.pose.y, frame.pose.theta);
+        fflush(stdout);
+    }
+}
+
+bool CNaviInterface::replayMappingScanFramesForSave(void) {
+    if (m_pscanMatcher == NULL || m_pmsSLAM == NULL) {
+        printf("Replay mapping scans failed: matcher or map server is null.\n");
+        fflush(stdout);
+        m_mappingScanFrames.clear();
+        return false;
+    }
+
+    if (m_mappingScanFrames.empty()) {
+        printf("Replay mapping scans failed: no cached laser frames.\n");
+        fflush(stdout);
+        return false;
+    }
+
+    vector<MappingScanFrame> frames;
+    frames.swap(m_mappingScanFrames);
+    m_mappingReplayInProgress = true;
+
+    resetScanMatcherRuntime(m_pscanMatcher);
+    g_count = 0;
+
+    for (size_t i = 0; i < frames.size(); ++i) {
+        vector<double> pose_flag;
+        m_pscanMatcher->SetXyt(frames[i].pose);
+        m_pscanMatcher->processScan(frames[i].bodyPoints,
+                                    frames[i].forelaserPoints, pose_flag);
+        doSLAM(frames[i].bodyPoints);
+    }
+
+    m_mappingReplayInProgress = false;
+    printf("Replay mapping scans finished: frames=%lu\n",
+           (unsigned long)frames.size());
+    fflush(stdout);
+    return true;
+}
+void CNaviInterface::putEncoderData(Pose *pPos) {
+    if (m_encoderInitialized == 0) {
         m_lastxyt.x = pPos->x;
         m_lastxyt.y = pPos->y;
         m_lastxyt.theta = pPos->theta;
-        encodernum = 1;
+        m_encoderInitialized = 1;
     }
 
     m_nowxyt.x = pPos->x;
@@ -799,7 +922,7 @@ void CNaviInterface::putEncoderData(Pose *pPos) {
         }
     }
 
-    if (m_eNaviType == MANUAL) {
+    if (m_eNaviType == MANUAL && !m_mappingReplayInProgress) {
 
         Pose curPose;
 
@@ -1668,11 +1791,18 @@ void CNaviInterface::update(vector<Pose> &bodyPoints,
         MANUAL) //手动模式，建图，用的是m_pscanMatcher，m_pmsSLAM，自主行走用的是m_pmatcher
     {
 
-        if (m_pscanMatcher != NULL) // vector<double> pose_flag;
-            m_pscanMatcher->processScan(bodyPoints, forelaserPoints, pose_flag);
-        doSLAM(bodyPoints); // m_pmsSLAM
         Pose curPos;
-        m_pscanMatcher->getPosition(curPos);
+        if (m_pscanMatcher != NULL && m_mapState == MAP_STATE_MAPPING &&
+            !m_mappingReplayInProgress) {
+            cacheMappingScanFrame(bodyPoints, forelaserPoints, limitlaserPoints);
+            m_pscanMatcher->getPosition(curPos);
+        } else if (m_pscanMatcher != NULL) {
+            m_pscanMatcher->getPosition(curPos);
+        } else {
+            curPos.x = 0;
+            curPos.y = 0;
+            curPos.theta = 0;
+        }
         if (pose_flag.size() == 0) //只有第一个点时为0
         {
             pose_flag.push_back(1.0);
@@ -4249,6 +4379,143 @@ void CNaviInterface::setLocationType(LocationType type) {
     pthread_mutex_unlock(&m_csLoc_mutex);
 }
 
+void CNaviInterface::resetMappingRuntimeState(void) {
+    Pose zeroPose;
+    zeroPose.x = 0;
+    zeroPose.y = 0;
+    zeroPose.theta = 0;
+
+    m_bIsLoc = false;
+    m_bConverged = false;
+    m_bPoseError = false;
+    m_bRevise = false;
+    m_bfind = false;
+    m_bfind2rc = false;
+    m_ifmodifymap = false;
+    m_bexpandmap = false;
+    m_bupdatemap = false;
+    m_bifrecenter = false;
+    m_bmanualupdate = false;
+    m_blaserdwa = false;
+    m_blaserastar = false;
+    m_bslam = false;
+    m_laser1only = false;
+    enableCoverage = false;
+    m_bautocharge = false;
+    m_bcreateautochargemap = false;
+    targetErr = false;
+    m_lastFullPathError = FULLPATH_OK;
+    m_eLocationType = SCANMATCH;
+    search_x_m = 0.2;
+    search_y_m = 0.2;
+    search_theta_rad = degrees_to_radians(15.0);
+    m_ifirstinitloc = 0;
+    ifirstpublish = 0;
+    m_ijumpnum = 0;
+    m_ilowscorenum = 0;
+    m_pf_count = 0;
+    m_ifastar = 1;
+    rrset = 0;
+    curastar = 0;
+    istartgo = 0;
+    pfright = 0;
+    vw_0 = 0;
+    ordi = 0;
+    ordi_1 = 0;
+    dvibration = 0;
+    m_laseronlyflag = 0;
+    m_ifpf = 1;
+    printnopathflag = 0;
+    nopathflag = 0;
+    nopathstatus = 0;
+    g_count = 0;
+    g_iSaveDateFlag = 0;
+
+    path.clear();
+    testpath.clear();
+    global2pointstrans.clear();
+    vpose.clear();
+    cpose.clear();
+    updateg.nodes.clear();
+    vtwallpose.clear();
+    m_VisionWallData.clear();
+    m_VisionWallDataCopy.clear();
+    m_CollisionWallData.clear();
+    m_CollisionWallDataCopy.clear();
+    gridPath.clear();
+    memset(mapfilename, 0, sizeof(mapfilename));
+
+    m_stlaserdata.nranges = 0;
+    m_stlaserdata.ranges.clear();
+    m_stlaserdata.nintensities = 0;
+    m_stlaserdata.intensities.clear();
+    m_stlaserdata.rad0 = 0;
+    m_stlaserdata.radstep = 0;
+
+    m_CurPos = zeroPose;
+    m_CurPosForPath = zeroPose;
+    m_lastxyt = zeroPose;
+    m_nowxyt = zeroPose;
+    m_lastxyt2 = zeroPose;
+    globalOdoT = zeroPose;
+    scanlinkpose = zeroPose;
+    navipose = zeroPose;
+    scanlinktest = zeroPose;
+    m_poselastxyt = zeroPose;
+    m_CurPos_pf = zeroPose;
+    lastupdatepose = zeroPose;
+    lastfixpose = zeroPose;
+    lastAmapupdatepose = zeroPose;
+    chargemappose = zeroPose;
+    lastchargemappose = zeroPose;
+    autochargemapcount = 0;
+    m_encoderInitialized = 0;
+
+    astarPlanner.FreePlanner();
+    if (fullCoverageAlg.coverageState != NULL) {
+        free(fullCoverageAlg.coverageState);
+        fullCoverageAlg.coverageState = NULL;
+    }
+    if (fullCoverageAlg.coverageGridMap != NULL) {
+        free(fullCoverageAlg.coverageGridMap);
+        fullCoverageAlg.coverageGridMap = NULL;
+    }
+    while (!fullCoverageAlg.pathIPoint.empty()) {
+        fullCoverageAlg.pathIPoint.pop();
+    }
+    fullCoverageAlg.algNum = -1;
+    fullCoverageAlg.isFinished = false;
+    fullCoverageAlg.nextGoal = zeroPose;
+    for (int i = 0; i < 8; ++i) {
+        fullCoverageAlg.roomVertex[i] = 0;
+    }
+    fullCoverageAlg.stcCoverage.adjList.clear();
+    fullCoverageAlg.stcCoverage.path.clear();
+    fullCoverageAlg.stcCoverage.goPath.clear();
+    fullCoverageAlg.bcdCoverage.clear();
+
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coopState = COOP_AVOID_NORMAL;
+    m_coopSeq = 0;
+    m_coopActiveSeq = 0;
+    m_coopActivePeer = -1;
+    m_coopTriggerReason = 0;
+    m_coopStateTimeMs = 0;
+    m_coopPendingStopRequest = false;
+    m_coopPendingStopSource = -1;
+    m_coopPendingStopSeq = 0;
+    m_coopSavedGoalValid = false;
+    m_coopSavedGoal = zeroPose;
+    m_coopSavedCoverageIndex = -1;
+    m_coopPeerPoseValid = false;
+    m_coopPeerHasGoal = false;
+    m_coopPeerPose = zeroPose;
+    m_coopPeerGoal = zeroPose;
+    m_coverageActive = false;
+    m_coverageTurnIndex = -1;
+    pthread_mutex_unlock(&m_coop_mutex);
+}
+
 bool CNaviInterface::createMap(double metersPerPixel, bool forceNewMap) {
 
     bool hasWaypoints = false;
@@ -4283,6 +4550,8 @@ bool CNaviInterface::createMap(double metersPerPixel, bool forceNewMap) {
 
     // MUTEX
     pthread_mutex_lock(&m_csLoc_mutex);
+    resetMappingRuntimeState();
+
     if (m_pscanMatcher != NULL) {
         delete m_pscanMatcher;
         m_pscanMatcher = NULL;
@@ -4449,8 +4718,21 @@ void CNaviInterface::saveMap(const char *strMapName) {
     setMapLifecycleState(MAP_STATE_SAVING);
     pthread_mutex_lock(&m_csLoc_mutex);
     if (m_eNaviType == MANUAL) {
-        drawMap();
-        saved = m_pmsSLAM->saveMap(strMapName);
+        if (replayMappingScanFramesForSave()) {
+            drawMap();
+            saved = m_pmsSLAM->saveMap(strMapName);
+            resetScanMatcherRuntime(m_pscanMatcher);
+            pthread_mutex_lock(&m_csLaser_mutex);
+            m_stlaserdata.nranges = 0;
+            m_stlaserdata.ranges.clear();
+            m_stlaserdata.nintensities = 0;
+            m_stlaserdata.intensities.clear();
+            m_stlaserdata.rad0 = 0;
+            m_stlaserdata.radstep = 0;
+            pthread_mutex_unlock(&m_csLaser_mutex);
+        } else {
+            saved = false;
+        }
     }
     pthread_mutex_unlock(&m_csLoc_mutex);
     if (saved) {
@@ -5496,6 +5778,12 @@ void NAVI_CreateMap(double metersPerPixel) {
 bool NAVI_CreateMapWithMode(double metersPerPixel, bool forceNewMap) {
     return g_NaviInterface.createMap(metersPerPixel, forceNewMap);
 }
+void NAVI_ClearGeneratedMapFiles(void) {
+    clearGeneratedMapFilesForNewMapping();
+    g_NaviInterface.clearNavigationStateAndStop();
+    g_NaviInterface.resetCoverageState();
+    g_NaviInterface.setMapLifecycleState(MAP_STATE_IDLE);
+}
 void NAVI_SaveMap(const char *strMapName) {fflush(stdout);
     g_NaviInterface.saveMap(strMapName);
 }
@@ -6132,7 +6420,8 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                     );
                     // 依次遍历 goPath 中的路径点
                     Pose endpose;
-                    while (!pObject->fullCoverageAlg.stcCoverage.goPath.empty())
+                    size_t stcGoIndex = 0;
+                    while (stcGoIndex < pObject->fullCoverageAlg.stcCoverage.goPath.size())
                     {
                         while (pObject->m_waypoints.size() > 0 && !(pObject->targetErr))
                         {
@@ -6146,10 +6435,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                             }
                         }
                         pObject->targetErr = false;
-                        IPoint nextIPoint = pObject->fullCoverageAlg.stcCoverage.goPath.front();
-                        pObject->fullCoverageAlg.stcCoverage.goPath.erase(
-                            pObject->fullCoverageAlg.stcCoverage.goPath.begin()
-                        );
+                        IPoint nextIPoint = pObject->fullCoverageAlg.stcCoverage.goPath[stcGoIndex++];
                         endpose = pObject->astarPlanner.GridToGlobal(nextIPoint.x, nextIPoint.y);
                         vector<double> target;
                         target.push_back(endpose.x);
@@ -6317,6 +6603,53 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
 	ys = (y1 < y2) ? (y1) : (y2);
 	xb = (xs == x1) ? (x2) : (x1);
 	yb = (ys == y1) ? (y2) : (y1);
+    if (astarPlanner.m_pGridState != NULL &&
+        astarPlanner.GMapWidth > 0 &&
+        astarPlanner.GMapLength > 0 &&
+        rob != NULL) {
+        IPoint startIPoint;
+        startIPoint.x = rob[0];
+        startIPoint.y = rob[1];
+        int stride = safesize > 0 ? safesize : ROBOTSIZE;
+        if (fullCoverageAlg.bcdCoverage.buildPathFromGridState(
+                astarPlanner.m_pGridState,
+                astarPlanner.GMapWidth,
+                astarPlanner.GMapLength,
+                xs,
+                ys,
+                xb,
+                yb,
+                startIPoint,
+                stride)) {
+            const char *roadFileName = "/data/test/roadFile.txt";
+            const char *roadTmpFileName = "/data/test/roadFile.txt.tmp";
+            remove(roadTmpFileName);
+            std::ofstream roadfile;
+            roadfile.open(roadTmpFileName, ios::out);
+            if (!roadfile.is_open()) {
+                std::cout << "Cannot open BCD path file for writing: "
+                          << roadTmpFileName << std::endl;
+                return;
+            }
+            for (size_t i = 0; i < fullCoverageAlg.bcdCoverage.fullPath.size(); ++i) {
+                const IPoint &point = fullCoverageAlg.bcdCoverage.fullPath[i];
+                roadfile << point.x << ',' << point.y << std::endl;
+            }
+            if (!closeAndReplaceTextFile(roadfile, roadTmpFileName, roadFileName)) {
+                printf("(CoverageThreadProc)Create BCD full path failed while replacing %s\n",
+                       roadFileName);
+                fflush(stdout);
+                return;
+            }
+            printf("(CoverageThreadProc)Create BCD full path points=%lu rect=(%d,%d)-(%d,%d) robot=(%d,%d) stride=%d\n",
+                   (unsigned long)fullCoverageAlg.bcdCoverage.fullPath.size(),
+                   xs, ys, xb, yb, rob[0], rob[1], stride);
+            fflush(stdout);
+            return;
+        }
+        printf("(CoverageThreadProc)BCD full path failed, fallback to rectangular zigzag.\n");
+        fflush(stdout);
+    }
 	// 定义矩形横纵向边长xlen, ylen
 	int xlen = 0, ylen = 0;
 	xlen = xb - xs;

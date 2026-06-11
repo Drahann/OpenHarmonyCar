@@ -330,12 +330,19 @@ void FullCoverageAlg::setValue(int GMapLength, int GMapWidth, IPoint currentIPoi
     // 设置前后左右方向的矩形范围
     for (int i = -10; i <= 10; i++) {
         for (int j = -10; j <= 10; j++) {
+            int nx = x + i;
+            int ny = y + j;
+            if (nx < 0 || nx >= GMapWidth || ny < 0 || ny >= GMapLength)
+            {
+                continue;
+            }
+            int index = ny * GMapWidth + nx;
             // 设置向前、向后、向左、向右的矩形区域
             // 例如向前是 x, y+方向 以及向后是 x, y-方向
             // 仅更新这些坐标范围内的 coverageState
-            if (coverageState[(y + j) * GMapWidth + (x + i)] == UNCOVERAGE_BUT_IN_ROOM)
+            if (coverageState[index] == UNCOVERAGE_BUT_IN_ROOM)
             {
-                coverageState[(y + j) * GMapWidth + (x + i)] = COVERGAED_AND_IN_ROOM;
+                coverageState[index] = COVERGAED_AND_IN_ROOM;
             }
         }
     }

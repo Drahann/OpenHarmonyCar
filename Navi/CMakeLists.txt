@@ -68,6 +68,7 @@ set(SRC_FILES
     planner/BFSSearch.cpp
     planner/ZigzagCoverage.cpp
     planner/STCCoverage.cpp
+    planner/BCDCoverage.cpp
     planner/FullPathCoverage.cpp
     planner/CleanPlanner.cpp
     planner/ant.cpp
