@@ -86,10 +86,32 @@ range resolution height width metersPerPixel x0 y0
 rowBitCount wordCount word0 word1 ...
 ```
 
-- 每一行地图对应一行压缩数据，`rowBitCount` 通常等于 `width`。
-- 地图栅格先转成二进制序列：障碍为 `1`，非障碍为 `0`；`defultMap.txt` 中的 `-1` 等价于压缩位 `1`。
-- 每 64 个 bit 打包为一个无符号 64 位整数，最后不足 64 bit 的部分左对齐并补 0。
-- `MapServer::loadZipedMap(zipedMap.txt, defultMap.txt)` 可将压缩文件解压回普通地图文本。
+压缩算法面向外部实现，不要求平板端调用机器人函数。机器人是 ARM64 架构，代码中使用 `unsigned long long` 保存 64 位分组；文件里写出的是十进制文本，所以不存在二进制端序问题。平板端必须按无符号 64 位整数读取；如果语言的普通数字只有 53 位精度，应使用 `BigInt`、`uint64` 或拆成两个 32 位整数处理。
+
+压缩流程：
+
+1. 读取普通地图头：`range resolution height width metersPerPixel x0 y0`。
+2. 按行处理地图数据，行数为 `height`，每行有效 bit 数为 `width`。
+3. 将每个栅格转成 1 bit：普通地图中的 `-1` 表示障碍，压缩为 `1`；普通地图中的 `0` 表示非障碍，压缩为 `0`。如果后续仍出现兼容文件里的 `1/0`，`1` 也按障碍处理。
+4. 每 64 个 bit 打包为一个无符号 64 位整数。第一个栅格放在该整数的最高位，即 bit 63；第二个栅格放 bit 62，依次向低位排列。
+5. 如果一行末尾不足 64 bit，仍写出最后一个 64 位整数，并把剩余低位补 0。补出来的 0 不是地图数据，解压时必须按 `rowBitCount` 忽略。
+6. 每行输出一行：`rowBitCount wordCount word0 word1 ...`。当前 `rowBitCount=width`，`wordCount=(width+63)/64`。
+
+解压流程：
+
+1. 校验第一行必须为 `ZMAP1`。
+2. 读取第二行头字段，得到 `height` 和 `width`。
+3. 从第三行开始逐行解压。每行先读 `rowBitCount` 和 `wordCount`，要求 `rowBitCount==width` 且 `wordCount==(width+63)/64`。
+4. 对第 `col` 个栅格，取 `wordIndex=col/64`，`bitOffset=col%64`，再取：
+
+```text
+bit = (word[wordIndex] >> (63 - bitOffset)) & 1
+```
+
+5. `bit=1` 还原为普通地图的 `-1`，`bit=0` 还原为普通地图的 `0`。
+6. 最后一组 64 位整数里的补零位不输出，只输出 `width` 个栅格。
+
+示例：如果一行 `width=70`，则 `wordCount=2`。第 0 到 63 个栅格在 `word0`，第 64 到 69 个栅格在 `word1` 的 bit 63 到 bit 58，`word1` 的 bit 57 到 bit 0 是补零。
 
 ### 4. 子机从主机拉取地图
 
