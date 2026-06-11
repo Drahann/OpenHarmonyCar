@@ -101,7 +101,11 @@ A 确认后，把最终发现命令写进 `udp-protocol.md`（协议变更）。
 
 App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，入会软总线持 `FleetMission` 黑板，把协同决策翻成本机 9 字节 UDP 下发给 `udp2lcm`、把心跳位姿写回黑板）。取代旧"每车装整 CarApp + startAbility 拉起"。规划见 `docs/car-agent-plan.md`。落地前需 A 确认：
 
-1. **OH 5.0 能否常驻一个无界面 ArkTS hap**（ServiceExtensionAbility）与你的 C/C++ 栈并存、开机自起？RK3566 资源是否吃得消？（你早前口头说"agent 可行"，这里落实形态。）
+1. **OH 5.0 能否常驻一个无界面 ArkTS hap**（ServiceExtensionAbility）与你的 C/C++ 栈并存、**开机自起 + 被杀重拉**？RK3566 资源吃得消？（你早前口头"agent 可行"，这里落实**具体怎么配**——一个 headless 服务默认不会自己开机起，需紫派系统侧放行。三选一，你看紫派镜像支持哪个、答一个即可：）
+   - **(a) 静态订阅 `BOOT_COMPLETED`**：agent hap 内置 `StaticSubscriberExtensionAbility` 订阅开机广播，收到即 `startServiceExtensionAbility` 拉起常驻服务。需紫派**允许该应用做静态订阅**（OH `static_subscriber` 白名单 + `ohos.permission.RECEIVE_STARTUP_NOTIFICATIONS` 系统级授权）。hap 侧代码 App 能写，**就缺紫派放行**。
+   - **(b) 预装为系统应用 + 常驻进程白名单**（最稳·产品级）：把 agent hap 烧进紫派镜像 preinstall（`install_list_capability.json`），给 `system_basic` 级、并加入**常驻进程(resident)白名单** → 系统开机拉起且被杀重拉。
+   - **(c) init / 开机脚本 `aa start`**（开发期最快）：紫派 init `.cfg` 或开机脚本里 `aa start -b com.example.carapp -a AgentServiceAbility`（你控 init，最省事）。
+   - 另：headless 服务被系统回收怎么**保活**？(b) 的 resident 白名单是持久解；(a)/(c) 能起来但长期存活仍建议配 resident。
 2. **本机 UDP 端口互斥**⚠️：`udp2lcm` 是否 bind `0.0.0.0:5001`（这样 agent 可打 `127.0.0.1:5001`）？只记一个 client 吗——若 **agent 与外部平板同时**对该车 5001 发指令会互抢。App 侧设计：**distributed 模式下 agent 是本机唯一 localhost 客户端，平板经黑板下发、不直连该车 UDP**；平板直连 UDP 只用于无 agent 的单车直控。需要为 agent 留独立 localhost 端口避让外部，还是同 5001 即可？
 3. **软总线信任**：平板↔紫派 OH 设备认证 / `networkId` 发现 / `distributedDataObject` 可信组网，紫派侧需做什么配置？
 4. 地图先走**方案B**（agent 触发 `cmd105`→你 `cmd124` wget），方案A（黑板传整图）后置——确认 OK？
@@ -300,3 +304,55 @@ grid_y = (world_y - y0) / metersPerPixel
 - **App 已改（统一落地）**：`RobotCommand.forceCreateMap=0x6d`；`ControlPage.startBuild` 改发 `'m'`（取代 `cmd0`）；`udp-protocol.md` 命令表补 `0x6d` + 修正 cmd0 语义 + cmd5 归零；app↔agent `protocol.ets` 逐字节同步。
 - **顺带统一的不一致**（A README §四 vs 旧 contracts）：① cmd0 语义 = 「心跳/兼容建图，有图时只当心跳」；② cmd5 初始位姿 = **归零 (0,0,0)**（旧 contracts 误写"取当前位姿"）。
 - **建议 A**：在 README/接口说明里**显式标注「App 开始建图请用 `'m'`、cmd0 不保证新建图」**，避免下个对接者再踩。
+
+---
+
+## 2026-06-11 · 视觉/视频流对接（→ 成员B / 香橙派）· App 侧 V1–V4 已实施
+
+> App 已按 `contracts/vision-stream-api.md` v1.0 对接香橙派视觉（`docs/vision-integration-plan.md`，分支 `app-harmony-core`）。
+> 以下为对接中需 B 确认/统一的问题（来自 plan §6），异步处理即可：
+
+1. **🔴 关键点 index ↔ name 顺序不一致（B 的 README 已自曝）**：契约表 §5 记 `0=center,1=pointer_tip,2=zero_mark,3=full_mark`，
+   但部署模型实际输出顺序 `0=pointer_tip,1=center,2=zero,3=full`。**App 已一律按 `name` 取点（绝不按 index）**，不受影响。
+   **请 B**：把契约表 §5 的 index 与模型真实输出对齐（或在契约里显式标注"按 name、index 仅示意"），免后人踩。
+2. **WS 背压**：App 慢时服务器是**积压旧帧**还是**只推最新**？App 端已做"只显最新帧 + 解码进行中丢帧"，
+   但若服务器侧也积压，端到端延迟仍会累积。**请 B 确认服务器推送策略**（最好只推最新 / 有界队列）。
+3. **关键点 / bbox 参考分辨率**：坐标是相对**该 JPEG 帧像素**还是摄像头原始分辨率？App 最简方案只显已叠加的图、不自绘，
+   故暂不受影响；若 App 后续自绘叠加需按帧分辨率对齐——**请 B 在契约注明坐标参考系**。
+4. **样例 fixtures**：**请 B 在 `contracts/fixtures/` 放一段样例**（几帧 JPEG + 对应 `frame_meta` JSON），供 App 离线对接联调
+   （现 App 用自建 `tools/mock-orangepi` 顶替，真实样例能校准）。
+5. **读数物理量纲**：`gauge_angles` 是占比百分比；App 默认显示 `%`，可经 `/api/gauge/configs` 量程换算物理量（MPa 等）。
+   **请 B 确认** `/api/summary` 的 `readings[].unit/value` 在已配置量程时是否已是物理量（避免双重换算）。
+6. **报告暂停推理**：`POST /api/data/report`（及 `/api/llm/query`）期间摄像头停推、视频会停——App 已给"生成中、视频暂停"提示；
+   **请 B 确认**生成期间 WS 是断开还是保持（仅无帧）、完成后是否自动恢复推流。
+7. **香橙派寻址**：IP 静态 `192.168.1.5`，App 做成可配置（持久化，默认此值）。是否需要发现（mDNS）/将来多香橙派多摄像头？暂记。
+8. **鉴权/并发**：`/ws/video` 是否限连接数？多端（平板 + 调试 PC）同时连是否互相影响？暂记。
+
+> ⚠️ 注：此条目落在 `app-harmony-core`，按 [[feedback-docs-main-code-branch]] 应 cherry-pick 同步到 `main`。
+
+---
+
+## 2026-06-12 · 🔴 Q13 分布式覆盖：请紫派按 App 侧设计对齐（真机两车都不动）→ A
+
+> 真机现象：master 建完图 → 平板给**两辆车各画一个覆盖矩形** → **两辆车都不动**。
+> 据 A `NewWheelCtrl/udp2lcm/udp2lcm.c::parseCmd` 的 `'i'`(105)/`'k'`(107)/`'l'`(108)/`5` handler 逐行核对，根因 = **紫派现有 handler 与 App 重构后的分布式设计不一致**。
+> 接口是双方共建的（[[CLAUDE]]：不一味迁就既有实现）——下面给出 **App 侧目标设计**，**请 A 按此对齐紫派代码 + 更新《接口功能与对接问题说明.md》，然后提交代码 + 文档**。
+
+### App 侧目标设计（请紫派对齐）
+**每辆车（含 master）各领一个矩形、统一用 107/108 覆盖**——对称、无主从特例。各车 agent 下发时序：
+- **master**（robot_id=0，自己建的图、一直有定位）：`cmd107`(对角点1) → `cmd108`(对角点2, byte1=0)。
+- **子车**（robot_id=1，需先取主机图、从起点归零）：`cmd105`(主机 IP 在 byte[1,2,4,6]，拉图) → 等 wget 完成 → `cmd5`(加载图 + 位姿归零到起点 0,0,0) → `cmd107` → `cmd108`(byte1=1)。
+- 紫派据两对角点 build FullRoad 覆盖(122) + 分布式跟踪(123)。
+
+### 请 A 改这两处（紫派现状与上面不一致）
+1. **【关键·master 不动的根因】`'l'`(cmd108) 对 `robot_id==0` 也要 build 122**：现状只在 `robot_id == 1` 分支 build FullRoad(122)；`robot_id==0`(master) 只 load+123、**不建 122** → master 无覆盖路径 → 不动。**请把 `robot_id==0` 分支也按两对角点 build 122**（与 `==1` 对称）。
+2. **`'l'`(cmd108) 别再内部重 load 地图/重置位姿**：现状 cmd108 内部又"加载地图(10) + 按 heartBeat 当前位姿设 `dparams[4,5,6]`"，会**覆盖**子车 `cmd5` 刚归零的位姿。**请让 cmd108 只 build 122+123**，地图加载/位姿归零交给前面的 `cmd5`（子车）/ 沿用当前定位（master）。
+
+### App/agent 侧随后配合（这是我们的活）
+- agent `Reconciler` 现在只发 `cmd5+107+108`，**会补子车的 `cmd105`(拉主机图)**——含 9 字节编码加"主机 IP 打进 byte[1,2,4,6]"支路 + 从黑板取 master IP。等你确认上面对齐后我们一起改、联调。
+
+### 顺带澄清：地图**不经软总线**（消解内部疑问）
+内部一度以为"子车从软总线取主机地图"。**不是**：现状 = **方案B**——子车 `cmd105`(`'i'`)→紫派 `cmd124` **wget** `http://<主机IP>:8000/defultMap.txt`（车间 HTTP）。软总线只载协调态（assignments/robots/area/进度），**不载地图文件**。方案A（整图走软总线）需 agent 文件写入能力，后置。
+
+> **请 A**：按上面 ① ② 对齐 `udp2lcm.c` 的 `'l'` handler + 更新接口文档的分布式覆盖时序，提交代码 + 文档；**先做 ① master 就能动**。App/agent 侧的 `cmd105` 我们随后补。
+> ⚠️ 本条落 `app-harmony-core`，按 [[feedback-docs-main-code-branch]] 应 cherry-pick 同步 `main`。
