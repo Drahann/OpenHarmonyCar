@@ -42,7 +42,7 @@ http://<紫派IP>:8000/defultMap.txt
 http://<紫派IP>:8000/zipedMap.txt
 ```
 
-默认地图文件名以代码为准：`defultMap.txt`。保存地图时会先保存未优化文件 `unprobdefultMap.txt`，随后优化生成 `defultMap.txt`、兼容显示文件 `defultMap.txt.txt` 和压缩地图 `zipedMap.txt`。当前 `Navi` 启动时会清理旧地图、路径和覆盖调试产物；建图命令被 `Navi` 接受并进入新一轮建图时，也会再次执行同样清理，不生成 `.bak` 备份。
+默认地图文件名以代码为准：`defultMap.txt`。保存地图时会先保存未优化文件 `unprobdefultMap.txt`，随后优化生成 `defultMap.txt`、兼容显示文件 `defultMap.txt.txt` 和压缩地图 `zipedMap.txt`。当前 `Navi` 启动时会清理旧地图、路径和覆盖调试产物；建图命令被 `Navi` 接受并进入新一轮建图时，也会再次执行同样清理，不生成 `.bak` 备份。重新建图还会清空 Navi 侧持有的全部雷达帧状态，包括最新输入帧、建图扫描帧缓存、`ScanMatcher::scans`、`Graph g`、子图评分和临时概率图状态。
 
 ### 3. 地图与输出文件说明
 
@@ -54,6 +54,7 @@ http://<紫派IP>:8000/zipedMap.txt
 - `Navi` 写主地图、兼容地图和覆盖路径时先写同目录 `.tmp`，写完且文件有效后再替换正式文件；算法运行中不会直接半写正式文件。
 - 子机执行 `105`/`'i'` 拉主机文件时也先下载到 `.tmp`，确认非空后再替换本机正式文件；下载失败时保留原正式文件。
 - `navigation` 启动和建图命令进入新一轮建图前，都会删除旧的 `defultMap.txt`、`defultMap.txt.txt`、`zipedMap.txt`、`unprobdefultMap.txt`、`roadFile.txt` 和覆盖调试图，避免旧数据影响首次普通建图或重新建图。
+- 建图命令接受后，`MANUAL` 建图阶段不再每收到一帧雷达就即时拼接地图，而是把本轮可用雷达扫描和当时里程计预测位姿缓存到队列。保存地图命令到来时，`Navi` 按队首到队尾逐帧回放，复用原 `ScanMatcher::processScan()` 和 `doSLAM()` 做匹配拼接，随后 `drawMap()` 与保存文件。保存结束后会清空本轮缓存和 matcher 历史，防止下一轮复用旧帧。
 
 | 文件名 | 位置/访问方式 | 用途 |
 | --- | --- | --- |
@@ -61,7 +62,7 @@ http://<紫派IP>:8000/zipedMap.txt
 | `unprobdefultMap.txt` | `/data/test/unprobdefultMap.txt` | 未优化地图/中间地图。保存地图命令执行时先写出该文件，再优化生成 `defultMap.txt`。写入过程使用 `unprobdefultMap.txt.tmp`。 |
 | `defultMap.txt.txt` | `/data/test/defultMap.txt.txt` | 兼容显示文件，由 `defultMap.txt` 同源生成；首行同为 7 字段，栅格为密排 `1/0`。App 新实现优先读取 `defultMap.txt`。 |
 | `zipedMap.txt` | `/data/test/zipedMap.txt`；HTTP 为 `http://<紫派IP>:8000/zipedMap.txt` | 压缩地图文件。保存 `defultMap.txt` 或 `unprobdefultMap.txt` 后生成，障碍位压缩为 64 位整数，适合 App 快速拉图；解压后可恢复为 `defultMap.txt` 的 `-1/0` 文本格式。 |
-| `roadFile.txt` | `/data/test/roadFile.txt`；子机可通过 `http://<主机IP>:8000/roadFile.txt` 获取 | 覆盖路径点文件，每行格式为 `x,y`。双车协同覆盖时用于让另一台车复用或跟踪主机生成的覆盖路线。写入和拉取过程使用 `roadFile.txt.tmp`。 |
+| `roadFile.txt` | `/data/test/roadFile.txt`；子机可通过 `http://<主机IP>:8000/roadFile.txt` 获取 | 覆盖路径点文件，每行格式为 `x,y`。双车协同覆盖时用于让另一台车复用或跟踪主机生成的覆盖路线。当前优先由 BCD 牛耕分解在所选矩形范围内按障碍生成；若 BCD 无法生成，再回退旧矩形牛耕。写入和拉取过程使用 `roadFile.txt.tmp`。 |
 | `tmpcoverageMap.txt` | `/data/test/tmpcoverageMap.txt` | 覆盖算法初始阶段的临时栅格调试输出，用于查看覆盖图生成前期状态。 |
 | `initCoverageMap.txt` | `/data/test/initCoverageMap.txt` | 覆盖算法初始化后的栅格输出，用于检查初始覆盖区域和栅格化结果。 |
 | `midMap.txt` | `/data/test/midMap.txt` | 覆盖算法中间过程输出，用于检查坐标变换、区域划分或中间覆盖结果。 |
@@ -215,7 +216,7 @@ wget http://<主机IP>:8000/roadFile.txt -O /data/test/roadFile.txt.tmp
 | `20` | 设置导航目标点，`dparams[0..2]=x,y,theta`。 |
 | `25` | 无路/规划异常回包，`bparams[0]` 为异常状态。 |
 | `23` | 删除/取消当前目标点。 |
-| `30` | 开始建图，`dparams[0]` 为分辨率，默认 `0.05m`；`iparams[1]!=0` 或 `bparams[0]!=0` 表示强制新建。普通建图也可作为首次建图使用，因为 `navigation` 启动时已清理旧地图文件。 |
+| `30` | 开始建图，`dparams[0]` 为分辨率，默认 `0.05m`；`iparams[1]!=0` 或 `bparams[0]!=0` 表示强制新建。普通建图也可作为首次建图使用，因为 `navigation` 启动时已清理旧地图文件。命令被接受后会清空上一轮全部建图雷达帧和 matcher 历史，本轮雷达帧先缓存，保存地图时再按队列回放拼接。 |
 | `32` | 保存地图；无文件名时保存为 `defultMap.txt`。 |
 | `51` | `SERVICE_COMMAND` 建图启动结果，`iparams[0]` 为是否成功启动。 |
 | `52` | `SERVICE_COMMAND` 保存地图阶段状态。 |
@@ -396,12 +397,12 @@ http://<紫派IP>:8000/defultMap.txt
 
 ### 6. 子区域是否只能矩形、能否多块/不规则
 
-当前分布式覆盖接口只支持一个轴对齐矩形区域，由两个对角点确定。`CreateFullPath()` 明确按 `x1,y1,x2,y2` 计算矩形，并要求 `x1 != x2` 且 `y1 != y2`。
+当前分布式覆盖接口仍只接收一个轴对齐矩形选择区域，由两个对角点确定，并要求 `x1 != x2` 且 `y1 != y2`。`CreateFullPath()` 现在优先在这个矩形范围内读取当前 A* 栅格状态，使用 BCD 牛耕分解生成 `roadFile.txt`：障碍、近障碍和危险区会被视为不可通行，自由区按列切成 cell，每个 cell 内按弓字形覆盖，cell 之间用 BFS 连接。若当前地图状态不足或 BCD 无法生成有效路径，才回退旧矩形牛耕路径。
 
 因此：
 
-- 当前支持：单块矩形。
-- 当前不支持：多块区域、不规则多边形。
+- 当前支持：单块矩形选择范围内的障碍感知覆盖。
+- 当前不支持：一次下发多块区域或不规则多边形选择范围。
 - 下发时序：先发 `'k'`/107 暂存对角点 1，再发 `'l'`/108 携带对角点 2 与 `robot_id`，否则从机无法生成 `122` 覆盖路径。
 
 ### 7. App 侧地图首行格式与栅格格式
@@ -420,7 +421,7 @@ range resolution height width metersPerPixel x0 y0
 
 - 命令 `5`：加载本机 `/data/test/defultMap.txt`，初始位姿为 `0,0,0`。
 - 命令 `106`/`'j'`：先加载本机地图，再接收主机下发的目标点。
-- 命令 `108`/`'l'`：主机路径中会加载本机地图；从机路径在已有对角点时加载本机地图、生成矩形覆盖路径，再执行分布式跟踪。
+- 命令 `108`/`'l'`：主机路径中会加载本机地图；从机路径在已有对角点时加载本机地图、按 BCD 优先生成覆盖路径，再执行分布式跟踪。
 - 子机地图来自命令 `105`/`'i'` 触发的 HTTP 拉图，文件落到 `/data/test/defultMap.txt`。
 
 ### 9. 其它模块对接结论汇总
@@ -432,7 +433,7 @@ range resolution height width metersPerPixel x0 y0
 - `defultMap.txt` 栅格为空格分隔 `-1/0`；`defultMap.txt.txt` 是兼容密排 `1/0`，不作为新 App 默认地图。
 - 当前 C/C++ 栈已实现的是车间 HTTP/wget 拉图。若采用软总线同步地图文本，需要 ArkTS agent 将文件安全落到 `/data/test/defultMap.txt`，并继续通过本机 UDP 触发加载地图。
 - ArkTS agent 建议只做软总线状态同步、UDP 5001 命令桥接、可选地图文件落地和心跳位姿回写，不建议直接绕过 `udp2lcm` 操作 LCM。
-- 子区域当前只支持一个矩形，由 `107`/`'k'` 的对角点 1 与 `108`/`'l'` 的对角点 2 表示；`108` 的 byte1 携带 `robot_id`，当前语义为 `0=主机/master`、`1=从机/sub`。
+- 子区域当前只支持一个矩形选择范围，由 `107`/`'k'` 的对角点 1 与 `108`/`'l'` 的对角点 2 表示；路径生成优先使用 BCD 牛耕分解处理矩形内障碍，失败才回退旧矩形牛耕；`108` 的 byte1 携带 `robot_id`，当前语义为 `0=主机/master`、`1=从机/sub`。
 - 协同避障不新增 App 侧 UDP 命令，也不需要改 `udp2lcm`。两车靠近后的坐标请求、停机、恢复都在 `Navi` 新增的 `COOP_AVOID` LCM 通道内完成。
 
 ## 八、维护建议
