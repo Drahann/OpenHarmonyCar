@@ -25,6 +25,9 @@ import { VideoView } from '../component/VideoView';
 import { mapUrlFor, FLEET_SESSION_ID } from '../constants/protocol';
 import { SPEED_ASTAR, SPEED_FULLPATH, SPEED_DEFAULT } from '../constants/ui';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
+import { Motion } from '../constants/motion';
+import { Icons } from '../constants/icons';
+import { IconButton } from '../component/IconButton';
 import { MapCanvas } from '../component/MapCanvas';
 import { Joystick } from '../component/Joystick';
 import { DeviceList } from '../component/DeviceList';
@@ -123,6 +126,15 @@ struct ControlPage {
     }
   }
 
+  /** 页面转场（docs/ui-polish-plan.md §3）：进场右移淡入，返场淡出。 */
+  pageTransition() {
+    PageTransitionEnter({ duration: Motion.slow, curve: Motion.curveStd })
+      .translate({ x: 24 })
+      .opacity(0)
+    PageTransitionExit({ duration: Motion.base, curve: Motion.curveStd })
+      .opacity(0)
+  }
+
   private async initConnection(): Promise<void> {
     try {
       await this.transport.bind();
@@ -193,16 +205,20 @@ struct ControlPage {
       cancelled = true;
     };
     if (blocking) {
-      this.mapLoading = true;     // 阻塞遮罩（结束建图后等存图落盘）
-      this.mapLoadFailed = false;
+      animateTo({ duration: Motion.fast, curve: Motion.curveStd }, () => {
+        this.mapLoading = true;   // 阻塞遮罩（结束建图后等存图落盘）
+        this.mapLoadFailed = false;
+      });
       this.bump();
     }
     const giveUp = (): void => {
       this.cancelPoll = null;
-      this.mapLoading = false;
-      if (blocking) {
-        this.mapLoadFailed = true;  // 阻塞式失败 → 弹错误提示+重试；非阻塞(进页查既有)失败 → 静默回建图卡
-      }
+      animateTo({ duration: Motion.fast, curve: Motion.curveStd }, () => {
+        this.mapLoading = false;
+        if (blocking) {
+          this.mapLoadFailed = true;  // 阻塞式失败 → 弹错误提示+重试；非阻塞(进页查既有)失败 → 静默回建图卡
+        }
+      });
       this.bump();
     };
     const attempt = (left: number): void => {
@@ -218,10 +234,12 @@ struct ControlPage {
         }
         if (this.mapLooksComplete(text)) {
           this.cancelPoll = null;
-          this.mapText = text;
-          this.mission.mapReady = true;
-          this.mapLoading = false;
-          this.mapLoadFailed = false;
+          animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
+            this.mapText = text;
+            this.mission.mapReady = true;
+            this.mapLoading = false;
+            this.mapLoadFailed = false;
+          });
           this.bump();
         } else if (left > 1) {
           setTimeout(() => attempt(left - 1), delayMs);
@@ -358,12 +376,14 @@ struct ControlPage {
       this.cancelPoll();
       this.cancelPoll = null;
     }
-    this.mapText = '';
-    this.mission.mapReady = false;
     // 用 'm'/0x6d **强制重新建图**：A 的 cmd0「有图时只当心跳」会被 Navi.createMap 忽略（→ 旧图不变 + 定位漂移，
     // 真机实证），必须 forceCreateMap(forceNewMap=true) 才会清空旧图从头建。见 contracts/udp-protocol.md。
     this.sendTo(this.ip, RobotCommand.forceCreateMap);
-    this.mapping = true;
+    animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
+      this.mapText = '';
+      this.mission.mapReady = false;
+      this.mapping = true;
+    });
     this.bump();
     this.toast('已开始建图——用摇杆驱动小车扫一圈，完成后点「结束建图」');
   }
@@ -371,7 +391,9 @@ struct ControlPage {
   /** 结束建图：cmd2（紫派 停轮控 + 存图32 + 加载导航图10）。完成后主动拉一次图。 */
   private finishBuild(): void {
     this.sendTo(this.ip, RobotCommand.afterEnd);
-    this.mapping = false;
+    animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
+      this.mapping = false;
+    });
     this.loadMap(this.ip, 8, 1500, true);  // cmd2 存图后拉图：**阻塞遮罩**重试等存图落盘（按行数齐全判完整，非字节阈值）
   }
 
@@ -455,7 +477,10 @@ struct ControlPage {
   private refreshConn(): void {
     const s: ConnState = this.ip.length > 0 ? this.transport.connStateOf(this.ip) : ConnState.discovered;
     if (s !== this.connState) {
-      this.connState = s;
+      // 状态点/文案变色带过渡（ui-polish-plan §3）
+      animateTo({ duration: 200, curve: Motion.curveStd }, () => {
+        this.connState = s;
+      });
     }
   }
 
@@ -605,7 +630,9 @@ struct ControlPage {
               .borderRadius(Radius.pill)
               .height(TOUCH_MIN)
               .onClick(() => {
-                this.mapLoadFailed = false;
+                animateTo({ duration: Motion.fast, curve: Motion.curveStd }, () => {
+                  this.mapLoadFailed = false;
+                });
               })
             Button('重试')
               .fontColor(AppColor.onPrimary)
@@ -637,6 +664,7 @@ struct ControlPage {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {})
+    .transition(TransitionEffect.OPACITY)
   }
 
   // 底部操作/建图 sheet —— **bottom-docked**（docked 到底部、内容向上生长，**永不超出界面**：修复旧 `.position(y:80%/84%)`
@@ -723,19 +751,15 @@ struct ControlPage {
       }
     }
     .width('100%')
+    .transition(TransitionEffect.OPACITY.combine(TransitionEffect.translate({ y: 12 })))
   }
 
+  // 顶栏（ui-polish-plan §5）：返回图标钮 + 状态胶囊（dot+IP+模式，点击=设备面板）+ 重新建图 + 视频图标钮。
+  // 「设备」按钮并入状态胶囊点击，顶栏从 5 个胶囊收敛为 3 个元素。
   @Builder
   TopBar() {
     Row() {
-      Button('‹ 返回')
-        .fontSize(FontSize.bodySm)
-        .fontColor(AppColor.textBody)
-        .backgroundColor(AppColor.surface)
-        .borderRadius(Radius.pill)
-        .height(40)
-        .padding({ left: Space.md, right: Space.md })
-        .onClick(() => router.back())
+      IconButton({ icon: Icons.back, onTap: () => router.back() })
       Row() {
         Circle({ width: 10, height: 10 })
           .fill(this.connDotColor())
@@ -744,12 +768,27 @@ struct ControlPage {
           .fontSize(FontSize.dataSm)
           .fontFamily(FontFamily.mono)
           .fontColor(AppColor.textBody)
+        Text(this.modeLabel())
+          .fontSize(FontSize.caption)
+          .fontColor(AppColor.textSecondary)
+          .margin({ left: Space.sm })
+        SymbolGlyph(Icons.expand)
+          .fontSize(13)
+          .fontColor([AppColor.textSecondary])
+          .margin({ left: Space.xs })
       }
       .padding({ left: Space.md, right: Space.md })
       .height(40)
       .backgroundColor(AppColor.surface)
       .borderRadius(Radius.pill)
       .margin({ left: Space.sm })
+      .shadow({
+        radius: Elevation.softRadius,
+        color: Elevation.softColor,
+        offsetX: 0,
+        offsetY: Elevation.softOffsetY
+      })
+      .onClick(() => this.toggleDevicePanel())
       Blank()
       if (this.mission.mapReady && !this.mapping) {
         Button('重新建图')
@@ -767,36 +806,39 @@ struct ControlPage {
       // 随时展开仪表识别视频（形态A）：独立 WS 连香橙派，与导航 UDP/HTTP 链路解耦——
       // pushUrl 不销毁本页（aboutToDisappear/stopHeartbeat 仅 pop 时触发），保活留在 RobotTransport 单例继续跑，
       // 进出视频页导航毫不受影响。见 docs/vision-integration-plan.md §3。
-      Button('视频')
-        .fontSize(FontSize.bodySm)
-        .fontColor(AppColor.primary)
-        .backgroundColor(AppColor.surface)
-        .border({ width: 1, color: AppColor.primary })
-        .borderRadius(Radius.pill)
-        .height(40)
-        .margin({ right: Space.sm })
-        .padding({ left: Space.md, right: Space.md })
-        .onClick(() => {
+      IconButton({
+        icon: Icons.video,
+        onTap: () => {
           router.pushUrl({ url: 'pages/VisionPage' }).catch((e: Error) => {
             log.e(`路由 VisionPage 失败：${e.message}`);
           });
-        })
-      Button('设备')
-        .fontSize(FontSize.bodySm)
-        .fontColor(AppColor.onPrimary)
-        .backgroundColor(AppColor.primary)
-        .borderRadius(Radius.pill)
-        .height(40)
-        .padding({ left: Space.md, right: Space.md })
-        .onClick(() => {
-          this.showDevicePanel = !this.showDevicePanel;
-        })
+        }
+      })
     }
     .width('100%')
     .padding(Space.md)
   }
 
-  // 仪表识别 PiP 小窗（形态B）。收起=小胶囊；展开=小视频卡 + 放大/收起。WS 生命周期=展开态（引用计数）。
+  /** 顶栏状态胶囊里的模式名。 */
+  private modeLabel(): string {
+    if (this.mode === ControlMode.astar) {
+      return '单机导航';
+    }
+    if (this.mode === ControlMode.fullpath) {
+      return '全路径覆盖';
+    }
+    return '多机协同';
+  }
+
+  /** 设备面板开合（带过渡）。 */
+  private toggleDevicePanel(): void {
+    animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
+      this.showDevicePanel = !this.showDevicePanel;
+    });
+  }
+
+  // 仪表识别 PiP 小窗（形态B）。收起=胶囊；展开=小视频卡 + 放大/关闭。WS 生命周期=展开态（引用计数）。
+  // 胶囊⇄小窗形变走软弹簧 + 两分支 scale/opacity 过渡（ui-polish-plan §3）。
   @Builder
   VisionPip() {
     Column() {
@@ -812,18 +854,20 @@ struct ControlPage {
               .fontColor(AppColor.primary)
               .backgroundColor(AppColor.surface)
               .borderRadius(Radius.pill)
-              .height(26)
+              .height(32)
               .padding({ left: Space.sm, right: Space.sm })
               .onClick(() => this.expandPipToFull())
-            Button('✕')
-              .fontSize(FontSize.label)
-              .fontColor(AppColor.textSecondary)
-              .backgroundColor(AppColor.surface)
-              .borderRadius(Radius.pill)
-              .height(26)
-              .margin({ left: Space.xs })
-              .padding({ left: Space.sm, right: Space.sm })
-              .onClick(() => this.closePip())
+            Button() {
+              SymbolGlyph(Icons.close)
+                .fontSize(13)
+                .fontColor([AppColor.textSecondary])
+            }
+            .type(ButtonType.Circle)
+            .width(28)
+            .height(28)
+            .backgroundColor(AppColor.surfaceMuted)
+            .margin({ left: Space.xs })
+            .onClick(() => this.closePip())
           }
           .width('100%')
           .padding({ bottom: Space.xs })
@@ -845,28 +889,40 @@ struct ControlPage {
           offsetX: 0,
           offsetY: Elevation.cardOffsetY
         })
+        .transition(TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.9, y: 0.9 })))
       } else {
-        Button('📹 仪表视频')
-          .fontSize(FontSize.label)
-          .fontColor(AppColor.primary)
-          .backgroundColor(AppColor.surface)
-          .border({ width: 1, color: AppColor.primary })
-          .borderRadius(Radius.pill)
-          .height(34)
-          .padding({ left: Space.md, right: Space.md })
-          .onClick(() => this.openPip())
+        Button() {
+          Row() {
+            SymbolGlyph(Icons.video)
+              .fontSize(16)
+              .fontColor([AppColor.primary])
+            Text('仪表视频')
+              .fontSize(FontSize.label)
+              .fontColor(AppColor.primary)
+              .margin({ left: Space.xs })
+          }
+        }
+        .height(40)
+        .backgroundColor(AppColor.surface)
+        .border({ width: 1, color: AppColor.primary })
+        .borderRadius(Radius.pill)
+        .padding({ left: Space.md, right: Space.md })
+        .onClick(() => this.openPip())
+        .transition(TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.9, y: 0.9 })))
       }
     }
     .position({ x: '3%', y: '12%' })
   }
 
-  /** 展开 PiP：起视频流（引用计数 acquire）。 */
+  /** 展开 PiP：起视频流（引用计数 acquire），形变走软弹簧。 */
   private openPip(): void {
     if (this.pipExpanded) {
       return;
     }
-    this.pipExpanded = true;
     this.vision.acquire(Storage.getVisionHost(), Storage.getVisionPort());
+    animateTo({ duration: Motion.slow, curve: Motion.springSoft }, () => {
+      this.pipExpanded = true;
+    });
   }
 
   /** 收起 PiP：释放视频流（计数归零才真正断开）。 */
@@ -874,8 +930,10 @@ struct ControlPage {
     if (!this.pipExpanded) {
       return;
     }
-    this.pipExpanded = false;
     this.vision.release();
+    animateTo({ duration: Motion.slow, curve: Motion.springSoft }, () => {
+      this.pipExpanded = false;
+    });
   }
 
   /** 放大到全屏 VisionPage（push 不销毁本页，PiP 仍持流；VisionPage 再 acquire 共享，返回不误断）。 */
@@ -888,29 +946,11 @@ struct ControlPage {
   @Builder
   ZoomFabs() {
     Column({ space: Space.sm }) {
-      this.Fab('＋', () => this.view('in'))
-      this.Fab('－', () => this.view('out'))
-      this.Fab('⊙', () => this.view('reset'))
+      IconButton({ icon: Icons.plus, size: TOUCH_MIN, glyph: 22, onTap: () => this.view('in') })
+      IconButton({ icon: Icons.minus, size: TOUCH_MIN, glyph: 22, onTap: () => this.view('out') })
+      IconButton({ icon: Icons.recenter, size: TOUCH_MIN, glyph: 22, onTap: () => this.view('reset') })
     }
     .position({ x: '88%', y: '40%' })
-  }
-
-  @Builder
-  Fab(label: string, action: () => void) {
-    Button(label)
-      .fontSize(FontSize.h3)
-      .fontColor(AppColor.textBody)
-      .backgroundColor(AppColor.surface)
-      .width(TOUCH_MIN)
-      .height(TOUCH_MIN)
-      .borderRadius(TOUCH_MIN / 2)
-      .shadow({
-        radius: Elevation.softRadius,
-        color: Elevation.softColor,
-        offsetX: 0,
-        offsetY: Elevation.softOffsetY
-      })
-      .onClick(action)
   }
 
   // 操作卡内容（按 mode 变体）。仅内容、不自带定位/卡片 chrome（由 BottomSheet 提供）。
@@ -926,6 +966,7 @@ struct ControlPage {
       }
     }
     .width('100%')
+    .transition(TransitionEffect.OPACITY.combine(TransitionEffect.translate({ y: 12 })))
   }
 
   @Builder
@@ -1125,28 +1166,48 @@ struct ControlPage {
     .width('100%')
   }
 
+  // 设备面板（ui-polish-plan §6.4）：全屏遮罩（点击关闭）+ 居中卡片（自身消费点击），出没带过渡。
   @Builder
   DevicePanel() {
     Column() {
-      DeviceList({
-        devices: this.devices,
-        connectedIps: this.connectedIps,
-        scanning: this.scanning,
-        onScan: () => this.startScan(),
-        onConnect: (ip: string) => {
-          this.connectTo(ip);
-          this.loadMap(ip, 1, 0, false);  // 切车查既有图（非阻塞、不轮询）
-          this.showDevicePanel = false;
-        },
-        onManualAdd: () => {
-          router.pushUrl({ url: 'pages/SetIPPage' }).catch((e: Error) => {
-            log.e(`路由 SetIPPage 失败：${e.message}`);
-          });
-        }
+      Column() {
+        DeviceList({
+          devices: this.devices,
+          connectedIps: this.connectedIps,
+          scanning: this.scanning,
+          onScan: () => this.startScan(),
+          onConnect: (ip: string) => {
+            this.connectTo(ip);
+            this.loadMap(ip, 1, 0, false);  // 切车查既有图（非阻塞、不轮询）
+            this.toggleDevicePanel();
+          },
+          onManualAdd: () => {
+            router.pushUrl({ url: 'pages/SetIPPage' }).catch((e: Error) => {
+              log.e(`路由 SetIPPage 失败：${e.message}`);
+            });
+          }
+        })
+      }
+      .width('80%')
+      .backgroundColor(AppColor.surface)
+      .borderRadius(Radius.lg)
+      .clip(true)
+      .shadow({
+        radius: Elevation.cardRadius,
+        color: Elevation.cardColor,
+        offsetX: 0,
+        offsetY: Elevation.cardOffsetY
       })
+      .onClick(() => {})
+      .transition(TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.96, y: 0.96 })))
     }
-    .width('80%')
-    .position({ x: '10%', y: '12%' })
+    .width('100%')
+    .height('100%')
+    .backgroundColor('rgba(0,0,0,0.40)')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => this.toggleDevicePanel())
+    .transition(TransitionEffect.OPACITY)
   }
 
   // ── 文案 ────────────────────────────────────────────────────────────────────

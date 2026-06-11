@@ -17,7 +17,8 @@ import { image } from '@kit.ImageKit';
 import { VisionService, VisionStreamListener, VisionConnState } from '../service/VisionService';
 import { FrameMeta } from '../model/vision';
 import { VIDEO_MIN_RENDER_INTERVAL_MS } from '../constants/vision';
-import { AppColor, FontSize } from '../constants/theme';
+import { FontSize, Space } from '../constants/theme';
+import { Icons } from '../constants/icons';
 import { Log, Logger } from '../utils/log';
 
 /** 只取帧流的订阅适配器（其余回调 no-op，避免与容器的 meta/state 订阅重复处理）。 */
@@ -85,14 +86,20 @@ export struct VideoView {
           .width('100%')
           .height('100%')
       } else {
-        Text(this.placeholder)
-          .fontSize(FontSize.body)
-          .fontColor(AppColor.textCaption)
+        Column() {
+          SymbolGlyph(Icons.video)
+            .fontSize(26)
+            .fontColor(['rgba(255,255,255,0.40)'])
+          Text(this.placeholder)
+            .fontSize(FontSize.bodySm)
+            .fontColor('rgba(255,255,255,0.65)')
+            .margin({ top: Space.sm })
+        }
       }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#000000')  // 视频底色黑，留边（Contain）不突兀
+    .backgroundColor('#15170f')  // 近黑 letterbox（带品牌墨相，ui-polish-plan §6.2）：留边（Contain）不突兀
   }
 
   // ── 丢帧解码（只显最新帧）──────────────────────────────────────────────────

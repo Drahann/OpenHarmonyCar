@@ -19,6 +19,9 @@ import { Storage } from '../service/storage';
 import { VideoView } from '../component/VideoView';
 import { ReadingPanel, GaugeReadingVM } from '../component/ReadingPanel';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation } from '../constants/theme';
+import { Motion } from '../constants/motion';
+import { Icons } from '../constants/icons';
+import { IconButton } from '../component/IconButton';
 import { Log, Logger } from '../utils/log';
 
 const log: Logger = Log.scoped('VisionPage');
@@ -102,18 +105,20 @@ struct VisionPage {
     log.i('close vision');
   }
 
+  /** 页面转场（docs/ui-polish-plan.md §3）：进场右移淡入，返场淡出。 */
+  pageTransition() {
+    PageTransitionEnter({ duration: Motion.slow, curve: Motion.curveStd })
+      .translate({ x: 24 })
+      .opacity(0)
+    PageTransitionExit({ duration: Motion.base, curve: Motion.curveStd })
+      .opacity(0)
+  }
+
   build() {
     Column() {
       // —— 顶栏 ——
       Row() {
-        Button('‹ 返回')
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.textBody)
-          .backgroundColor(AppColor.surface)
-          .borderRadius(Radius.pill)
-          .height(40)
-          .padding({ left: Space.md, right: Space.md })
-          .onClick(() => router.back())
+        IconButton({ icon: Icons.back, onTap: () => router.back() })
         Column() {
           Text('仪表识别')
             .fontSize(FontSize.h2)
@@ -199,7 +204,10 @@ struct VisionPage {
   }
 
   private onState(state: VisionConnState): void {
-    this.connState = state;
+    // 状态点/标签变色带过渡（ui-polish-plan §3）
+    animateTo({ duration: 200, curve: Motion.curveStd }, () => {
+      this.connState = state;
+    });
     if (state === VisionConnState.connected) {
       this.errorMessage = '';  // 连上即清旧错误
     }
@@ -286,7 +294,7 @@ struct VisionPage {
           .fontColor(AppColor.onPrimary)
           .backgroundColor(this.reportBusy ? AppColor.textCaption : AppColor.primary)
           .borderRadius(Radius.pill)
-          .height(36)
+          .height(40)
           .padding({ left: Space.md, right: Space.md })
           .enabled(!this.reportBusy)
           .onClick(() => this.generateReport())

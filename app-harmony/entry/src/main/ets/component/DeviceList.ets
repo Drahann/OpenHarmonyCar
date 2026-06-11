@@ -11,6 +11,7 @@
 
 import { DiscoveredRobot } from '../service/RobotTransport';
 import { AppColor, FontSize, FontFamily, Space, Radius, TOUCH_MIN } from '../constants/theme';
+import { Icons } from '../constants/icons';
 
 @Component
 export struct DeviceList {
@@ -78,9 +79,13 @@ export struct DeviceList {
 
       // 底部：手动添加 IP 兜底
       Row() {
-        Text('+ 手动添加 IP')
+        SymbolGlyph(Icons.plus)
+          .fontSize(14)
+          .fontColor([AppColor.info])
+        Text('手动添加 IP')
           .fontSize(FontSize.bodySm)
           .fontColor(AppColor.info)
+          .margin({ left: Space.xs })
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
@@ -136,8 +141,8 @@ export struct DeviceList {
         .fontColor(this.isConnected(item.ip) ? AppColor.onPrimary : AppColor.primary)
         .backgroundColor(this.isConnected(item.ip) ? AppColor.primary : AppColor.surface)
         .borderRadius(Radius.pill)
-        .border(this.isConnected(item.ip) ? undefined : { width: 1, color: AppColor.primary })
-        .height(36)
+        .border({ width: 1, color: AppColor.primary })  // 恒有描边：态切换不跳动
+        .height(40)
         .padding({ left: Space.md, right: Space.md })
         .enabled(!this.isConnected(item.ip))
         .onClick(() => {

@@ -8,6 +8,7 @@
  */
 
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation } from '../constants/theme';
+import { Icons } from '../constants/icons';
 
 /** 单个仪表读数的展示模型（容器从 FrameMeta / Summary 构造）。 */
 export interface GaugeReadingVM {
@@ -52,13 +53,20 @@ export struct ReadingPanel {
 
       // —— 错误条 ——
       if (this.errorMessage.length > 0) {
-        Text(`⚠ ${this.errorMessage}`)
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.onPrimary)
-          .backgroundColor(AppColor.danger)
-          .borderRadius(Radius.sm)
-          .padding(Space.sm)
-          .width('100%')
+        Row() {
+          SymbolGlyph(Icons.warn)
+            .fontSize(16)
+            .fontColor([AppColor.onPrimary])
+          Text(this.errorMessage)
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.onPrimary)
+            .margin({ left: Space.xs })
+            .layoutWeight(1)
+        }
+        .backgroundColor(AppColor.danger)
+        .borderRadius(Radius.sm)
+        .padding(Space.sm)
+        .width('100%')
       }
 
       Divider().color(AppColor.divider)

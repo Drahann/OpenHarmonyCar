@@ -17,6 +17,7 @@
 import { MoveDirection } from '../model/protocol';
 import { THROTTLE_INTERVAL_MS, SPEED_DEFAULT } from '../constants/ui';
 import { AppColor, Elevation, TOUCH_MIN } from '../constants/theme';
+import { Motion } from '../constants/motion';
 
 const DEFAULT_DIAMETER: number = 180; // 底盘直径（vp）
 const KNOB_RATIO: number = 0.42;      // 摇杆头直径 / 底盘
@@ -109,8 +110,11 @@ export struct Joystick {
   }
 
   private release(): void {
-    this.knobX = 0;
-    this.knobY = 0;
+    // 摇杆头弹簧回中（ui-polish-plan §3）；stop 指令立即下发，不等动画。
+    animateTo({ curve: Motion.springSnap }, () => {
+      this.knobX = 0;
+      this.knobY = 0;
+    });
     this.setDirection(MoveDirection.stop);
   }
 

@@ -10,6 +10,8 @@
  *   交互：点「连接」起**中性保活**(pending+stop，不建图/不运动) → 收到心跳即"已连接" → 点「进入控制」进 ControlPage。
  *   **单连接**：连新车自动断旧车（`RobotTransport.connectExclusive`），避免多车被半连接后各自 3s 急停。
  *
+ * UI 打磨（docs/ui-polish-plan.md §2/§3/§5/§6）：顶栏=标题+副行（左）+ 图标钮×2 + 唯一文字主钮（右）；
+ *   空态=圆环图形+主副文案+CTA；图标走 SymbolGlyph（icons.ets 单点）；空态⇄列表切换带过渡；页面转场。
  * ⚠️ 未经 DevEco 验证（本机无 hvigor）。
  */
 
@@ -18,6 +20,9 @@ import { ControlMode } from '../model/mission';
 import { RobotTransport, DiscoveredRobot, ConnState } from '../service/RobotTransport';
 import { RobotCommand, MoveDirection, UdpSendData } from '../model/protocol';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
+import { Motion } from '../constants/motion';
+import { Icons } from '../constants/icons';
+import { IconButton } from '../component/IconButton';
 import { Log, Logger } from '../utils/log';
 
 const log: Logger = Log.scoped('HomePage');
@@ -74,52 +79,58 @@ struct HomePage {
     // ⚠️ 不 stopHeartbeat：已连接的车保活继续，供 ControlPage 接管，避免导航间隙 3s 急停。
   }
 
+  /** 页面转场（docs/ui-polish-plan.md §3）：进场右移淡入，返场淡出。 */
+  pageTransition() {
+    PageTransitionEnter({ duration: Motion.slow, curve: Motion.curveStd })
+      .translate({ x: 24 })
+      .opacity(0)
+    PageTransitionExit({ duration: Motion.base, curve: Motion.curveStd })
+      .opacity(0)
+  }
+
   build() {
     Column() {
-      // 顶栏
+      // 顶栏：标题 + 副行（左）；互信/视觉图标钮 + 唯一文字主钮「发现设备」（右）
       Row() {
-        Text('巡检控制')
-          .fontSize(FontSize.h1)
-          .fontColor(AppColor.textTitle)
-          .fontWeight(FontWeight.Bold)
+        Column() {
+          Text('巡检控制')
+            .fontSize(FontSize.h1)
+            .fontColor(AppColor.textTitle)
+            .fontWeight(FontWeight.Bold)
+          Text(this.subTitle())
+            .fontSize(FontSize.caption)
+            .fontColor(AppColor.textSecondary)
+            .margin({ top: 2 })
+        }
+        .alignItems(HorizontalAlign.Start)
         Blank()
-        // 仪表识别视频入口（形态A：全屏视觉页）——独立 WS 连香橙派，与导航链路解耦，见 docs/vision-integration-plan.md
-        Button('识别视频')
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.primary)
-          .backgroundColor(AppColor.surface)
-          .border({ width: 1, color: AppColor.primary })
-          .borderRadius(Radius.pill)
-          .height(TOUCH_MIN)
-          .padding({ left: Space.md, right: Space.md })
-          .margin({ right: Space.sm })
-          .onClick(() => {
-            router.pushUrl({ url: 'pages/VisionPage' }).catch((e: Error) => {
-              log.e(`路由 VisionPage 失败：${e.message}`);
-            });
-          })
-        // 设备互信（软总线配对）入口——多机协同前一次性配对，见 DeviceTrustPage / docs/distributed-trust.md
-        Button('设备互信')
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.primary)
-          .backgroundColor(AppColor.surface)
-          .border({ width: 1, color: AppColor.primary })
-          .borderRadius(Radius.pill)
-          .height(TOUCH_MIN)
-          .padding({ left: Space.md, right: Space.md })
-          .margin({ right: Space.sm })
-          .onClick(() => {
+        // 设备互信（软总线配对）——多机协同前一次性配对，见 DeviceTrustPage / docs/distributed-trust.md
+        IconButton({
+          icon: Icons.trust,
+          onTap: () => {
             router.pushUrl({ url: 'pages/DeviceTrustPage' }).catch((e: Error) => {
               log.e(`路由 DeviceTrustPage 失败：${e.message}`);
             });
-          })
+          }
+        })
+        // 仪表识别视频（形态A：全屏视觉页）——独立 WS 连香橙派，与导航链路解耦，见 docs/vision-integration-plan.md
+        IconButton({
+          icon: Icons.video,
+          onTap: () => {
+            router.pushUrl({ url: 'pages/VisionPage' }).catch((e: Error) => {
+              log.e(`路由 VisionPage 失败：${e.message}`);
+            });
+          }
+        })
+          .margin({ left: Space.sm })
         Button(this.scanning ? '搜索中…' : '发现设备')
           .fontSize(FontSize.bodySm)
           .fontColor(AppColor.onPrimary)
           .backgroundColor(AppColor.primary)
           .borderRadius(Radius.pill)
-          .height(TOUCH_MIN)
+          .height(40)
           .padding({ left: Space.md, right: Space.md })
+          .margin({ left: Space.sm })
           .enabled(!this.scanning)
           .onClick(() => this.startScan())
       }
@@ -136,18 +147,9 @@ struct HomePage {
       .justifyContent(FlexAlign.SpaceBetween)
       .padding({ bottom: Space.md })
 
-      // 机器人卡片列表 / 空态
+      // 机器人卡片列表 / 空态（两分支带过渡；空↔非空翻转在 animateTo 内，见 refreshCards）
       if (this.cards.length === 0) {
-        Column() {
-          Text(this.scanning ? '正在搜索同网络下的车辆…' : '未发现车辆。确保平板与车在同一热点/局域网，再点"发现设备"。')
-            .fontSize(FontSize.body)
-            .fontColor(AppColor.textSecondary)
-            .textAlign(TextAlign.Center)
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .justifyContent(FlexAlign.Center)
-        .padding(Space.xl)
+        this.EmptyState()
       } else {
         List({ space: Space.md }) {
           ForEach(this.cards, (vm: CarCardVM) => {
@@ -158,6 +160,7 @@ struct HomePage {
         }
         .width('100%')
         .layoutWeight(1)
+        .transition(TransitionEffect.OPACITY)
       }
     }
     .width('100%')
@@ -166,20 +169,83 @@ struct HomePage {
     .backgroundColor(AppColor.pageBg)
   }
 
+  /** 顶栏副行：扫描态 / 车数概览。 */
+  private subTitle(): string {
+    if (this.scanning) {
+      return '正在搜索同网络车辆…';
+    }
+    return this.cards.length > 0 ? `发现 ${this.cards.length} 台车辆` : '未发现车辆';
+  }
+
+  // 空态：圆环图形（扫描中转 spinner）+ 主副文案 + CTA（docs/ui-polish-plan.md §6.1）
+  @Builder
+  EmptyState() {
+    Column() {
+      Stack() {
+        Column()
+          .width(92)
+          .height(92)
+          .borderRadius(46)
+          .border({ width: 1.5, color: AppColor.border })
+        Column()
+          .width(64)
+          .height(64)
+          .borderRadius(32)
+          .backgroundColor(AppColor.primarySoft)
+          .opacity(0.55)
+        if (this.scanning) {
+          LoadingProgress().width(34).height(34).color(AppColor.primary)
+        } else {
+          SymbolGlyph(Icons.search)
+            .fontSize(30)
+            .fontColor([AppColor.primary])
+        }
+      }
+      Text(this.scanning ? '正在搜索车辆' : '未发现车辆')
+        .fontSize(FontSize.h3)
+        .fontColor(AppColor.textBody)
+        .fontWeight(FontWeight.Bold)
+        .margin({ top: Space.lg })
+      Text('确保平板与车在同一热点 / 局域网')
+        .fontSize(FontSize.bodySm)
+        .fontColor(AppColor.textSecondary)
+        .textAlign(TextAlign.Center)
+        .margin({ top: Space.xs })
+      if (!this.scanning) {
+        Button('发现设备')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .padding({ left: Space.xl, right: Space.xl })
+          .margin({ top: Space.lg })
+          .onClick(() => this.startScan())
+      }
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .padding(Space.xl)
+    .transition(TransitionEffect.OPACITY)
+  }
+
   @Builder
   ModeChip(m: ModeOption) {
     Text(m.label)
       .fontSize(FontSize.bodySm)
       .fontColor(this.selectedMode === m.mode ? AppColor.onPrimary : AppColor.primary)
       .backgroundColor(this.selectedMode === m.mode ? AppColor.primary : AppColor.surface)
-      .border(this.selectedMode === m.mode ? undefined : { width: 1, color: AppColor.primary })
+      .border({ width: 1, color: AppColor.primary })  // 恒有描边：选中切换不跳动
       .borderRadius(Radius.pill)
       .height(TOUCH_MIN)
       .layoutWeight(1)
       .textAlign(TextAlign.Center)
       .margin({ right: m.mode === ControlMode.distributed ? 0 : Space.sm })
       .onClick(() => {
-        this.selectedMode = m.mode;
+        animateTo({ duration: Motion.fast, curve: Motion.curveStd }, () => {
+          this.selectedMode = m.mode;
+        });
       })
   }
 
@@ -206,14 +272,22 @@ struct HomePage {
       .layoutWeight(1)
       // 动作：已连接→进入控制；连接中→spinner；已发现/丢失→连接
       if (vm.state === ConnState.connected) {
-        Button('进入控制 〉')
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.onPrimary)
-          .backgroundColor(AppColor.primary)
-          .borderRadius(Radius.pill)
-          .height(36)
-          .padding({ left: Space.md, right: Space.md })
-          .onClick(() => this.enterControl(vm.ip))
+        Button() {
+          Row() {
+            Text('进入控制')
+              .fontSize(FontSize.bodySm)
+              .fontColor(AppColor.onPrimary)
+            SymbolGlyph(Icons.forward)
+              .fontSize(14)
+              .fontColor([AppColor.onPrimary])
+              .margin({ left: Space.xs })
+          }
+        }
+        .backgroundColor(AppColor.primary)
+        .borderRadius(Radius.pill)
+        .height(40)
+        .padding({ left: Space.md, right: Space.md })
+        .onClick(() => this.enterControl(vm.ip))
       } else if (vm.state === ConnState.connecting) {
         Row() {
           LoadingProgress().width(18).height(18).color(AppColor.warning)
@@ -229,7 +303,7 @@ struct HomePage {
           .backgroundColor(AppColor.surface)
           .border({ width: 1, color: AppColor.primary })
           .borderRadius(Radius.pill)
-          .height(36)
+          .height(40)
           .padding({ left: Space.md, right: Space.md })
           .onClick(() => this.connect(vm.ip))
       }
@@ -253,7 +327,15 @@ struct HomePage {
       const st: ConnState = this.transport.connStateOf(d.ip);
       list.push({ ip: d.ip, state: st, detail: this.detailOf(st, d.ip) });
     }
-    this.cards = list;
+    // 空态⇄列表翻转时走动画上下文，让两分支的 transition 生效；常规刷新直赋（每 600ms，不动画）。
+    const flips: boolean = (this.cards.length === 0) !== (list.length === 0);
+    if (flips) {
+      animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
+        this.cards = list;
+      });
+    } else {
+      this.cards = list;
+    }
   }
 
   private detailOf(state: ConnState, ip: string): string {

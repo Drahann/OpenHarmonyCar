@@ -11,6 +11,9 @@ import { router } from '@kit.ArkUI';
 import { Storage } from '../service/storage';
 import { ControlMode } from '../model/mission';
 import { AppColor, FontSize, FontFamily, Space, Radius, TOUCH_MIN } from '../constants/theme';
+import { Motion } from '../constants/motion';
+import { Icons } from '../constants/icons';
+import { IconButton } from '../component/IconButton';
 import { Log, Logger } from '../utils/log';
 
 const log: Logger = Log.scoped('SetIPPage');
@@ -26,18 +29,20 @@ struct SetIPPage {
   @State private ip: string = Storage.getRobotIp(0);
   @State private touched: boolean = false;
 
+  /** 页面转场（docs/ui-polish-plan.md §3）：进场右移淡入，返场淡出。 */
+  pageTransition() {
+    PageTransitionEnter({ duration: Motion.slow, curve: Motion.curveStd })
+      .translate({ x: 24 })
+      .opacity(0)
+    PageTransitionExit({ duration: Motion.base, curve: Motion.curveStd })
+      .opacity(0)
+  }
+
   build() {
     Column({ space: Space.lg }) {
       // 顶栏
       Row() {
-        Button('‹ 返回')
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.textBody)
-          .backgroundColor(AppColor.surface)
-          .borderRadius(Radius.pill)
-          .height(40)
-          .padding({ left: Space.md, right: Space.md })
-          .onClick(() => router.back())
+        IconButton({ icon: Icons.back, onTap: () => router.back() })
         Blank()
       }
       .width('100%')

@@ -1,7 +1,10 @@
 /**
  * 统一主题 token —— 融合 style/ 五套设计（融合决策见 docs/ui-design.md）。
  * 取向：F&F 极简(new/) 为骨架基底；Google Maps 移动端为地图/控制屏范式；Area 墨绿为品牌主色；
- *       Google/Colin 高饱和色为语义状态色；iOS(plants) 圆角卡片为组件质感；等宽字体承载遥测数字。
+ *       语义状态色降饱和入族（原 Google 高饱和色，调整见 docs/ui-polish-plan.md §1）；
+ *       iOS(plants) 圆角卡片为组件质感；等宽字体承载遥测数字。
+ * 色板：**方案A「暖纸墨绿」**（2026-06-11 用户拍板，对比见 docs/palette-preview.html）——
+ *       全部中性色统一为暖米白"纸"，墨绿品牌不动，地图未知区转暖灰（牛皮纸图纸）。
  *
  * ⚠️ 未经 DevEco 验证（本机无 hvigor）。纯 token 常量，UI 组件统一从此导入（单一来源）。
  * ⚠️ 自定义字体（Instrument Sans / Satoshi / Roboto Mono 等）需在 EntryAbility 用 font.registerFont
@@ -10,83 +13,83 @@
 
 /** 配色（hex 字符串；ArkUI 的 fontColor/backgroundColor/border 直接接受）。 */
 export class AppColor {
-  // —— 品牌 / 主色（Area 墨绿系）——
+  // —— 品牌 / 主色（Area 墨绿系，方案A 保持不动）——
   static readonly primary: string = '#485c11';        // 主按钮 / 主操作 / 选中
   static readonly primaryPressed: string = '#3a4a0e'; // 按下态
-  static readonly primarySoft: string = '#dfecc6';    // 主色浅底 / 标签底（Area accent-2）
+  static readonly primarySoft: string = '#e4ebc8';    // 主色浅底 / 标签底（暖调微调）
   static readonly onPrimary: string = '#ffffff';      // 主色之上的文字
 
-  // —— 中性 / 表面（F&F 极简 + Area 页底）——
-  static readonly pageBg: string = '#edf4f1';         // 整页淡绿底（要更中性可改 '#f6f7f8'）
+  // —— 中性 / 表面（暖米白"纸"，与品牌墨绿同温度）——
+  static readonly pageBg: string = '#f3f2ea';         // 整页暖米白纸底（方案A 核心）
   static readonly surface: string = '#ffffff';        // 卡片 / 浮层
-  static readonly surfaceMuted: string = '#ececec';   // 次级表面（F&F bg-muted）
-  static readonly divider: string = '#e9e9e9';        // 分割线
-  static readonly border: string = '#dfe4ea';         // 描边（Maps line）
+  static readonly surfaceMuted: string = '#eae8dd';   // 次级表面（暖）
+  static readonly divider: string = '#e7e5da';        // 分割线
+  static readonly border: string = '#dcd9cb';         // 描边
 
-  // —— 文字 ——
-  static readonly textTitle: string = '#000000';
-  static readonly textBody: string = '#1f2329';
-  static readonly textSecondary: string = '#6f7787';  // 次要 / 说明（Maps muted）
-  static readonly textCaption: string = '#929292';    // 注释 / 占位
+  // —— 文字（纯黑→带绿相的墨色，浅色 UI 更柔）——
+  static readonly textTitle: string = '#1d2016';
+  static readonly textBody: string = '#2b2f23';
+  static readonly textSecondary: string = '#6f7461';  // 次要 / 说明（暖灰绿）
+  static readonly textCaption: string = '#9b9d8d';    // 注释 / 占位
 
-  // —— 语义 / 状态色（Google + Colin）——
-  static readonly info: string = '#1a73e8';           // 信息 / 链接（Google blue）
-  static readonly success: string = '#34a853';        // 成功 / 在线（Google green）
-  static readonly warning: string = '#fbbc04';        // 警告 / 暂停（Google yellow）
-  static readonly danger: string = '#ea4335';         // 错误 / 急停（Google red）
+  // —— 语义 / 状态色（原 Google 色降饱和调暖入族，见 ui-polish-plan §1.1 问题3）——
+  static readonly info: string = '#4678b8';           // 信息 / 链接（钢蓝）
+  static readonly success: string = '#3f9352';        // 成功 / 在线
+  static readonly warning: string = '#dfa32f';        // 警告 / 暂停（琥珀）
+  static readonly danger: string = '#d9503f';         // 错误 / 急停（砖红）
 
-  // —— 机器人状态（对应 model/mission.ets RobotStatus）——
-  static readonly robotOnline: string = '#34a853';    // online / idle
-  static readonly robotCovering: string = '#1a73e8';  // covering / scanning（运行中）
-  static readonly robotPaused: string = '#fbbc04';    // 协同避让暂停（multi-robot-collab §双车协同避障）
-  static readonly robotError: string = '#ea4335';     // error
-  static readonly robotOffline: string = '#929292';   // offline
+  // —— 机器人状态（对应 model/mission.ets RobotStatus；与语义色同值）——
+  static readonly robotOnline: string = '#3f9352';    // online / idle
+  static readonly robotCovering: string = '#4678b8';  // covering / scanning（运行中）
+  static readonly robotPaused: string = '#dfa32f';    // 协同避让暂停（multi-robot-collab §双车协同避障）
+  static readonly robotError: string = '#d9503f';     // error
+  static readonly robotOffline: string = '#9b9d8d';   // offline
 
   // —— 地图渲染（与 constants/ui.ets 的 MAP_*_COLOR 对齐，给语义别名）——
   static readonly mapFree: string = '#ffffff';        // 空旷
-  static readonly mapWall: string = '#202124';        // 障碍（比纯黑略柔，Maps 风）
+  static readonly mapWall: string = '#23261c';        // 障碍（暖近黑）
   static readonly mapTarget: string = '#485c11';      // 目标点（主色）
-  static readonly mapPin: string = '#ea4335';         // 机器人位姿 pin（Maps red teardrop）
+  static readonly mapPin: string = '#d9503f';         // 机器人位姿 pin（砖红泪滴）
 }
 
 /**
  * 地图配色 —— MapCanvas 专用「干净建筑图纸」风（贴合品牌墨绿 #485c11 + 浅底，与 AppColor 同源）。
- * 取向：浅色楼层平面图——浅冷灰未知区 + 白色已扫图纸 + **墨绿平滑矢量墙体**（等高线软填充 + 描边，
- *       非栅格方块）+ 克制语义标记（Maps 泪滴目标 pin、带朝向的机器人圆点，软投影非辉光）。
- * 说明：第一版深色霓虹「指挥中心 HUD」经用户否决（不贴品牌），改为本浅色图纸方案，见 docs/map-ui-redesign.md。
+ * 方案A：未知区由冷蓝灰转**暖灰纸**——整图成"牛皮纸图纸"，与页底 #f3f2ea 同温度
+ *       （白色已扫图纸 + 墨绿平滑矢量墙体不变；等高线管线见 docs/map-ui-redesign.md）。
+ * 说明：第一版深色霓虹「指挥中心 HUD」经用户否决（不贴品牌），见 docs/map-ui-redesign.md。
  * ⚠️ 纯 token 常量。未经 DevEco 验证。
  */
 export class MapTheme {
-  // —— 背景（未知 / 图纸外）：极浅冷灰，与品牌淡绿页底协调；轻微渐变出景深 ——
-  static readonly bg: string = '#e9eef1';
-  static readonly bgEdge: string = '#dde5ea';
+  // —— 背景（未知 / 图纸外）：暖灰纸，与暖米白页底协调；轻微渐变出景深 ——
+  static readonly bg: string = '#edebe0';
+  static readonly bgEdge: string = '#e2dfd0';
 
   // —— 已扫地面（白色图纸）——
   static readonly floor: string = '#ffffff';
-  static readonly floorEdge: string = '#e2e9da';          // 图纸描边（极浅绿）
-  static readonly grid: string = 'rgba(72,92,17,0.055)';  // 图纸上的极淡比例网格（品牌绿调）
+  static readonly floorEdge: string = '#e3e7d2';          // 图纸描边（极浅绿）
+  static readonly grid: string = 'rgba(72,92,17,0.05)';   // 图纸上的极淡比例网格（品牌绿调）
 
   // —— 墙体（品牌墨绿；平滑等高线 = 软填充 + 描边）——
-  static readonly wallFill: string = 'rgba(72,92,17,0.15)';
+  static readonly wallFill: string = 'rgba(72,92,17,0.14)';
   static readonly wallStroke: string = '#485c11';
 
   // —— 机器人状态（清爽语义色，非霓虹；对应 model/mission.ets RobotStatus）——
-  static readonly robotOnline: string = '#2e7d32';   // online / idle
-  static readonly robotCovering: string = '#1a73e8'; // covering / scanning
-  static readonly robotError: string = '#ea4335';    // error
-  static readonly robotOffline: string = '#9aa3ad';  // offline
+  static readonly robotOnline: string = '#357a41';   // online / idle
+  static readonly robotCovering: string = '#4678b8'; // covering / scanning
+  static readonly robotError: string = '#d9503f';    // error
+  static readonly robotOffline: string = '#a3a294';  // offline
   static readonly robotRing: string = '#ffffff';     // 车体白环
   static readonly robotLabel: string = '#ffffff';    // 车号文字
 
-  // —— 目标点（Maps 泪滴 pin，品牌红 + 白心）——
-  static readonly target: string = '#ea4335';
+  // —— 目标点（Maps 泪滴 pin，砖红 + 白心）——
+  static readonly target: string = '#d9503f';
   static readonly targetInner: string = '#ffffff';
 
   // —— 覆盖子区域（品牌墨绿：软填充 + 实线边 + 角标）——
   static readonly region: string = '#485c11';
 
   // —— 标记投影（抬起感，非辉光）——
-  static readonly markerShadow: string = 'rgba(33,42,12,0.30)';
+  static readonly markerShadow: string = 'rgba(40,42,28,0.28)';
 }
 
 /** 字号（fp；平板数据型尺度，避免 Colin 200px 巨字）。 */
