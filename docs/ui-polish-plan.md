@@ -87,11 +87,16 @@ MapTheme.robotCovering/Error 同 info/danger；floor/ring/label/targetInner 恒�
 新建 **`constants/icons.ets`**：集中导出全部 symbol 资源名（单点），真机编译若某名不存在，
 只改这一个文件（DevEco 资源面板 → Symbol 库挑近似名）。意向映射：
 
+> **首编校验（2026-06-11 hvigor）**：下表名称除 `dot_viewfinder` 外全部通过编译；回中图标已改用
+> **`sys.symbol.scope`**（十字准星，对照 SDK `ets-loader/sysResource.js` symbol 段核实存在；备选
+> `local`/`circle_viewfinder`——鸿蒙定位族叫 `local*` 不是 `location*`）。同轮另修：自定义组件成员
+> **不可叫 `size`**（与 CustomComponent 通用属性方法重名）→ IconButton 改名 `diameter`。
+
 | 现状 | 位置 | 替换 symbol（意向名） |
 |---|---|---|
 | `‹ 返回` | ControlPage:731 / VisionPage:109 | `sys.symbol.chevron_left`（40×40 圆形白底图标钮） |
 | `＋` `－` | ControlPage:891-892 | `sys.symbol.plus` / `sys.symbol.minus` |
-| `⊙`（回中） | ControlPage:893 | `sys.symbol.paintpalette` ✗ → 用 `sys.symbol.position`/`dot_viewfinder` 类（定位回中语义） |
+| `⊙`（回中） | ControlPage:893 | **`sys.symbol.scope`**（已核实；`dot_viewfinder` 不存在） |
 | `✕`（PiP 关） | ControlPage:818 | `sys.symbol.xmark` |
 | `📹 仪表视频` | ControlPage:849 | `sys.symbol.video` + 文字「仪表视频」 |
 | `视频`（顶栏） | ControlPage:770 | `sys.symbol.video` 图标钮 |

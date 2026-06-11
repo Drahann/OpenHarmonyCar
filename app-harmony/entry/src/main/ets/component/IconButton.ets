@@ -10,8 +10,8 @@ import { AppColor, Elevation } from '../constants/theme';
 export struct IconButton {
   /** symbol 资源（从 constants/icons.ets 的 Icons 取）。 */
   icon: Resource = $r('sys.symbol.xmark');
-  /** 按钮直径（vp）：顶栏 40 / FAB 44（TOUCH_MIN）。 */
-  size: number = 40;
+  /** 按钮直径（vp）：顶栏 40 / FAB 44（TOUCH_MIN）。⚠️ 不可叫 `size`——与 CustomComponent 通用属性方法重名（编译报错）。 */
+  diameter: number = 40;
   /** 图标字号（vp）。 */
   glyph: number = 20;
   /** 图标颜色。 */
@@ -27,8 +27,8 @@ export struct IconButton {
         .fontColor([this.color])
     }
     .type(ButtonType.Circle)
-    .width(this.size)
-    .height(this.size)
+    .width(this.diameter)
+    .height(this.diameter)
     .backgroundColor(this.bg)
     .shadow({
       radius: Elevation.softRadius,

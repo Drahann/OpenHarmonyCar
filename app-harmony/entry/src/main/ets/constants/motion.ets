@@ -17,7 +17,7 @@ export class Motion {
   /** 标准出入曲线（快进慢停）。 */
   static readonly curveStd: Curve = Curve.FastOutSlowIn;
   /** 软弹簧：PiP 胶囊⇄小窗等卡片形变。 */
-  static readonly springSoft: ICurve = curves.springMotion(0.4, 0.85);
+  static readonly springSoft: curves.ICurve = curves.springMotion(0.4, 0.85);
   /** 快弹簧：摇杆松手回中（快、略弹）。 */
-  static readonly springSnap: ICurve = curves.springMotion(0.3, 0.65);
+  static readonly springSnap: curves.ICurve = curves.springMotion(0.3, 0.65);
 }

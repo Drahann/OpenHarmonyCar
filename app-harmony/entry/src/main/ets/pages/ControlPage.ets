@@ -946,9 +946,9 @@ struct ControlPage {
   @Builder
   ZoomFabs() {
     Column({ space: Space.sm }) {
-      IconButton({ icon: Icons.plus, size: TOUCH_MIN, glyph: 22, onTap: () => this.view('in') })
-      IconButton({ icon: Icons.minus, size: TOUCH_MIN, glyph: 22, onTap: () => this.view('out') })
-      IconButton({ icon: Icons.recenter, size: TOUCH_MIN, glyph: 22, onTap: () => this.view('reset') })
+      IconButton({ icon: Icons.plus, diameter: TOUCH_MIN, glyph: 22, onTap: () => this.view('in') })
+      IconButton({ icon: Icons.minus, diameter: TOUCH_MIN, glyph: 22, onTap: () => this.view('out') })
+      IconButton({ icon: Icons.recenter, diameter: TOUCH_MIN, glyph: 22, onTap: () => this.view('reset') })
     }
     .position({ x: '88%', y: '40%' })
   }
