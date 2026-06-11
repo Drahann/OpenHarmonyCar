@@ -24,6 +24,8 @@ export type MessageListener = (data: UdpReceiveData, remoteIp: string) => void;
 const BROADCAST_ADDR: string = '255.255.255.255';
 /** 发现期重复探测间隔。 */
 const DISCOVER_PING_INTERVAL_MS: number = 1000;
+/** 香橙派视觉设备的发现响应码（byte0=0x07）：App 广播 0x06 发现，香橙派回 0x07 表明"我是视觉源、不是车"（见 contracts/udp-protocol.md 设备发现）。 */
+const VISION_DISCOVERY_RESP: number = 0x07;
 /** 心跳新鲜阈值（ms）：保活中且距上次心跳 < 此值判"已连接"；心跳 500ms，留 ~4 帧容差。 */
 const HEARTBEAT_FRESH_MS: number = 2000;
 /** RX 心跳 trace 节流（ms）：DEBUG_WIRE 开时每 ip 最多约 1/s 打印（心跳 500ms，避免刷屏）。 */
@@ -301,7 +303,7 @@ export class RobotTransport {
    *    （此前用 `cmd0` 兜底会让全网车判"被连"、3s 收不到后续指令即急停；A 实现 0x06 后已切换。见 contracts/udp-protocol.md。）
    */
   discover(onUpdate: DiscoverListener, durationMs: number = CONNECT_TIMEOUT_MS,
-    ping: RobotCommand = RobotCommand.discoveryPing): () => void {
+    ping: RobotCommand = RobotCommand.discoveryPing, onVision?: (ip: string) => void): () => void {
     const found: Map<string, DiscoveredRobot> = new Map<string, DiscoveredRobot>();
     let pinger: number = -1;
     let ender: number = -1;
@@ -309,6 +311,12 @@ export class RobotTransport {
 
     const probe: MessageListener = (data: UdpReceiveData, ip: string) => {
       if (!active) {
+        return;
+      }
+      if (data.state === VISION_DISCOVERY_RESP) {     // 香橙派视觉(0x07)：不是车，单独回调（设视觉 host）
+        if (onVision !== undefined) {
+          onVision(ip);
+        }
         return;
       }
       const now: number = Date.now();

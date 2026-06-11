@@ -529,6 +529,9 @@ struct ControlPage {
     this.scanning = true;
     this.stopDiscover = this.transport.discover((robots: DiscoveredRobot[]) => {
       this.devices = robots;
+    }, undefined, undefined, (ip: string) => {
+      Storage.setVisionHost(ip);   // 香橙派热点 DHCP 动态 IP：发现即更新视觉源 host（取代写死 IP，见 contracts/udp-protocol.md）
+      this.toast(`发现香橙派视觉 @ ${ip}`);
     });
     setTimeout(() => {
       this.scanning = false;
