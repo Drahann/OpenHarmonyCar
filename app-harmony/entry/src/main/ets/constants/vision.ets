@@ -2,16 +2,16 @@
  * 与香橙派（成员B）视觉推理服务对接的常量 —— 唯一来源，与 contracts/vision-stream-api.md v1.0 对齐。
  *
  * 服务部署在**香橙派本机**（FastAPI+Uvicorn，Ascend 310B1），App 直连，无云端/独立服务器。
- * 基地址 `http://<host>:<port>`（默认 192.168.1.5:8000，可在界面改；持久化见 service/storage.ets）。
+ * 基地址 `http://<host>:<port>`（默认 192.168.107.139:8000 = WiFi "Drahann" 网络，可在界面改；持久化见 service/storage.ets）。
  *
  * 🔴 与导航链路（紫派 UDP :5001 / HTTP :8000）**完全解耦**：不同设备、不同 IP、不同协议。
- *    注意：香橙派 :8000（视觉，IP 192.168.1.5）与紫派 :8000（地图 HTTP，紫派 IP）**不同设备勿混**。
+ *    注意：香橙派 :8000（视觉，WiFi IP 192.168.107.139）与紫派 :8000（地图 HTTP，紫派 IP）**不同设备勿混**。
  * ⚠️ 改这里属于"协议对接"参数，若涉及端点/字段须同步 contracts/vision-stream-api.md 并通知香橙派侧。
  */
 
 // ── 网络（contracts/vision-stream-api.md §1）────────────────────────────────
-/** 香橙派默认 IP（局域网静态）。可在界面改，持久化于 storage。 */
-export const VISION_DEFAULT_HOST: string = '192.168.1.5';
+/** 香橙派默认 IP（WiFi "Drahann" 网络）。可在界面改，持久化于 storage。 */
+export const VISION_DEFAULT_HOST: string = '192.168.107.139';
 /** 视觉服务端口。 */
 export const VISION_DEFAULT_PORT: number = 8000;
 

@@ -1,54 +1,75 @@
-# 服务器 API 契约 · 香橙派 → 服务器 → App
+# 服务器 API 契约 · 香橙派 → App（WiFi 直连）
 
-**版本 v0.0（待立项）**
+**版本 v1.0（已定稿）**
 
-> ## ⚠️ 开工第一件事：先拍板"服务器"是什么
-> 设计文档里"服务器"承担：接收香橙派上报的**处理后视频流 + 结构化识别数据**，统一做
-> **视频转发 / 数据管理**，并向 App 提供**读取接口**。但以下未定，必须先定，否则 App 与香橙派无法对接：
-> - [ ] **部署位置**：云端（代码里出现过 `116.63.15.79`）/ 紫派 / 香橙派本机 / 独立一台？
-> - [ ] **归属**：谁实现、谁维护这台服务器？（不在当前三人明确分工里）
-> - [ ] **网络可达性**：与 App、香橙派是否同网段；是否需公网/内网穿透。
+> ## 已确定
+> - **部署位置**：香橙派本机（FastAPI + Uvicorn，端口 8000）
+> - **归属**：成员 B 实现维护，服务直接运行在香橙派上，无需独立服务器
+> - **网络**：WiFi "Drahann" 局域网直连，香橙派 IP `192.168.107.139`（wlan0）
+> - **备用**：有线 eth0 IP `192.168.1.5`（同一服务，`0.0.0.0:8000` 双栈监听）
+> - **平板连接**：平板连同一 WiFi "Drahann"，WebSocket 连 `ws://192.168.107.139:8000/ws/video`
 
 ## 已知需求（来自设计文档 2.2.7 / 3.2.10）
 
 - 香橙派输出：叠加了**检测框 / 关键点 / 实时读数 / 告警状态**的处理后视频帧 + 对应结构化数据。
-- 服务器：视频转发、数据管理、对 App 提供读取接口。
 - App：读取处理后视频与元数据，前端实时展示，与导航界面统一。
-- 性能参考：端到端推理 ~40ms，前端视频流目标 ~15 FPS。
+- 性能参考：端到端推理 ~73ms/帧，实际约 10 FPS；JPEG 帧均 ~17KB，带宽 ~1.4 Mbps。
 
-## 待定的接口设计（下面是**草案/选项**，立项后定稿）
+## 视频流（已选定）
 
-### 视频流（三选一或其它）
 | 方案 | 优点 | 适配性 |
 |---|---|---|
-| RTSP | 通用、低延迟 | App 端需播放器组件 |
-| HTTP-FLV / HLS | 浏览器/网页友好 | HLS 延迟偏大 |
-| WebSocket + JPEG 帧 | 简单、易和读数数据同通道 | 带宽稍高 |
+| ~~RTSP~~ | 通用、低延迟 | App 端需播放器组件 |
+| ~~HTTP-FLV / HLS~~ | 浏览器/网页友好 | HLS 延迟偏大 |
+| **WebSocket + JPEG 帧** | **简单、读数数据同通道** | **已实现，JPEG Quality 50** |
 
-### 识别数据（建议 JSON；下面是草案 schema，待香橙派+App 共同定稿）
+### WebSocket 协议
+
+- **端点**：`ws://<host>:8000/ws/video`
+- **交替推送**：二进制帧（JPEG）→ 文本帧（JSON 元数据），循环
+- **JPEG**：OpenCV `imencode('.jpg', frame, [JPEG_QUALITY, 50])` 输出，含叠加的检测框/关键点/读数
+- **JSON 元数据字段**：
+
 ```json
 {
-  "ts": 1730000000000,
+  "type": "frame_meta",
   "frame_id": 12345,
-  "meters": [
+  "timestamp": 1730000000.123,
+  "fps": 10.5,
+  "inference_time_ms": 73.2,
+  "yolo_time_ms": 21.0,
+  "pose_time_ms": 8.5,
+  "num_detections": 1,
+  "detections": [
     {
-      "meter_id": "PG-01",
       "bbox": [x, y, w, h],
-      "keypoints": { "center": [x,y], "pointer_tip": [x,y], "zero": [x,y], "full": [x,y] },
-      "reading": 0.42,
-      "unit": "MPa",
-      "alarm": false
+      "score": 0.95,
+      "keypoints": [
+        {"name": "center", "x": 320, "y": 240, "conf": 0.99},
+        {"name": "pointer_tip", "x": 280, "y": 160, "conf": 0.97},
+        {"name": "zero_mark", "x": 200, "y": 300, "conf": 0.95},
+        {"name": "full_mark", "x": 440, "y": 300, "conf": 0.93}
+      ]
     }
-  ]
+  ],
+  "gauge_angles": [80.5]
 }
 ```
 
-### 拉取接口（草案）
-- `GET /stream`        —— 处理后视频流（协议见上）
-- `GET /readings/latest` —— 最新一帧识别结果（上面的 JSON）
-- `GET /readings?from=&to=` —— 历史读数（若服务器做存储）
+### REST 端点
+
+| 端点 | 方法 | 说明 |
+|---|---|---|
+| `/api/summary` | GET | 实时状态（fps/latency/readings） |
+| `/api/video/status` | GET | 摄像头运行状态（running/fps/frame_count） |
+| `/api/history` | GET | 最近 600 条读数记录 |
+| `/api/thresholds` | POST | 设置报警阈值（`{"low":N,"high":N}`） |
+| `/api/gauge/configs` | GET | 仪表配置（量程/阈值/显示名） |
+| `/api/data/report` | POST | 生成 DeepSeek 分析报告（暂停摄像头释放 NPU） |
+| `/api/data/reports` | GET | 历史报告列表（limit/offset） |
 
 ## 联调前置
 
-- App 侧已具备 HTTP 请求能力（`@kit.NetworkKit`），可直接对接 HTTP/WebSocket 类方案。
-- 定稿后，请在 `fixtures/` 放一段样例视频 + 一份样例 JSON，供 App 离线对接联调。
+- App 侧已具备 WebSocket + HTTP 能力（`@kit.NetworkKit`），`app-harmony-core` 分支已实现完整客户端。
+- 平板与香橙派须连同一 WiFi "Drahann"。
+- 默认地址 `192.168.107.139:8000`，可在 App 设置页修改。
