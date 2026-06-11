@@ -226,8 +226,8 @@ struct VisionPage {
       const isUnknown: boolean = Number.isNaN(percent);
       list.push({
         label: `表 ${i + 1}`,
-        valueText: `${percent.toFixed(1)} %`,
-        sub: det !== undefined ? `score ${det.score.toFixed(2)}` : '',
+        valueText: Number.isFinite(percent) ? `${percent.toFixed(1)} %` : '— %',
+        sub: (det !== undefined && Number.isFinite(det.score)) ? `score ${det.score.toFixed(2)}` : '',
         alarm: false,
         unknown: isUnknown
       });

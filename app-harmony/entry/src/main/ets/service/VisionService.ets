@@ -180,18 +180,23 @@ export class VisionService {
 
     // 每帧两条交替：二进制 ArrayBuffer = JPEG；文本 string = frame_meta / error
     ws.on('message', (_err: BusinessError, value: string | ArrayBuffer) => {
-      if (value instanceof ArrayBuffer) {
-        this.listeners.forEach((l: VisionStreamListener) => l.onFrame(value));
-        return;
-      }
-      if (typeof value === 'string') {
-        const msg: VisionTextMessage = parseVisionText(value);
-        if (msg.meta !== null) {
-          this.listeners.forEach((l: VisionStreamListener) => l.onMeta(msg.meta as FrameMeta));
-        } else if (msg.error !== null) {
-          this.log.w(`server error: ${msg.error}`);
-          this.listeners.forEach((l: VisionStreamListener) => l.onStreamError(msg.error as string));
+      // 整段 try/catch 兜底：单帧数据异常（缺字段 / 解码失败 / listener 抛）绝不崩整 App（真机数据多变）。
+      try {
+        if (value instanceof ArrayBuffer) {
+          this.listeners.forEach((l: VisionStreamListener) => l.onFrame(value));
+          return;
         }
+        if (typeof value === 'string') {
+          const msg: VisionTextMessage = parseVisionText(value);
+          if (msg.meta !== null) {
+            this.listeners.forEach((l: VisionStreamListener) => l.onMeta(msg.meta as FrameMeta));
+          } else if (msg.error !== null) {
+            this.log.w(`server error: ${msg.error}`);
+            this.listeners.forEach((l: VisionStreamListener) => l.onStreamError(msg.error as string));
+          }
+        }
+      } catch (e) {
+        this.log.e(`vision message handler error: ${JSON.stringify(e)}`);
       }
     });
 

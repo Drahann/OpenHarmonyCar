@@ -265,19 +265,25 @@ function toStatus(s: string): ReadingStatus {
   return ReadingStatus.unknown;
 }
 
+/** 容错取数：非 number（缺字段/类型错）一律 NaN，避免下游 `.toFixed`/数学运算崩 UI（B 实测输出可能缺 `score` 等字段）。 */
+function num(v: number | undefined | null): number {
+  return typeof v === 'number' ? v : NaN;
+}
+
 function toKeypoint(r: RawKeypoint): Keypoint {
-  return new Keypoint(r.name, r.x, r.y, r.conf);
+  return new Keypoint(r.name ?? '', num(r.x), num(r.y), num(r.conf));
 }
 
 function toDetection(r: RawDetection): Detection {
   const kps: Keypoint[] = (r.keypoints ?? []).map((k: RawKeypoint) => toKeypoint(k));
-  return new Detection(r.bbox ?? [], r.score, kps);
+  return new Detection(r.bbox ?? [], num(r.score), kps);   // ⚠️ score 缺失则 NaN（不再 undefined → 不崩 .toFixed）
 }
 
 function toFrameMeta(r: RawFrameMeta): FrameMeta {
   const dets: Detection[] = (r.detections ?? []).map((d: RawDetection) => toDetection(d));
-  return new FrameMeta(r.frame_id, r.timestamp, r.fps, r.inference_time_ms,
-    r.yolo_time_ms, r.pose_time_ms, r.num_detections, dets, r.gauge_angles ?? []);
+  const angles: number[] = (r.gauge_angles ?? []).map((a: number) => num(a));
+  return new FrameMeta(num(r.frame_id), num(r.timestamp), num(r.fps), num(r.inference_time_ms),
+    num(r.yolo_time_ms), num(r.pose_time_ms), num(r.num_detections), dets, angles);
 }
 
 /**
@@ -304,7 +310,7 @@ export function parseSummary(text: string): Summary | null {
   try {
     const r: RawSummary = JSON.parse(text) as RawSummary;
     const readings: Reading[] = (r.readings ?? []).map((x: RawReading) =>
-      new Reading(x.value, x.unit, x.label, toStatus(x.status), x.gauge_id));
+      new Reading(num(x.value), x.unit ?? '', x.label ?? '', toStatus(x.status ?? ''), num(x.gauge_id)));
     return new Summary(r.fps, r.latency_ms, r.frame_id, r.over_limit, readings);
   } catch (e) {
     return null;
