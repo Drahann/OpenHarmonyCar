@@ -356,3 +356,26 @@ grid_y = (world_y - y0) / metersPerPixel
 
 > **请 A**：按上面 ① ② 对齐 `udp2lcm.c` 的 `'l'` handler + 更新接口文档的分布式覆盖时序，提交代码 + 文档；**先做 ① master 就能动**。App/agent 侧的 `cmd105` 我们随后补。
 > ⚠️ 本条落 `app-harmony-core`，按 [[feedback-docs-main-code-branch]] 应 cherry-pick 同步 `main`。
+
+---
+
+## 2026-06-12 · 🆕 香橙派热点动态 IP → 加 `0x07` 发现响应（→ 成员B / 香橙派）
+
+> 香橙派改连 WiFi 热点（`a33ccc3` 已把 App 默认 host 改 `192.168.107.139`），但那是 **DHCP 动态 IP、会随租约失效**——不能写死。
+> 让香橙派**和车一样可被 App 广播发现**（协议已写进 `udp-protocol.md`「设备发现」+ 命令表 `0x07`）：
+
+- **请 B**：在香橙派起一个 **UDP 监听 `5001`**，收到 App 的 `0x06` 广播发现 ping → 回 **9 字节 `[0]=0x07`**（其余 0），**只回包、不做别的**（与 FastAPI 视觉服务并存，~15 行独立线程 / asyncio task）。
+- **App 侧已实现**：`RobotTransport.discover` 收到 `[0]=0x07` → `Storage.setVisionHost(源IP)`；平板扫一次设备即自动定位香橙派、取代写死 IP（`ControlPage.startScan`）。
+- 这样香橙派 IP 再变都不用改 App。⚠️ 本条落 `app-harmony-core`，应 cherry-pick 同步 `main`。
+
+---
+
+## 2026-06-12 · 🔴 真机视觉崩溃：`frame_meta.detections[]` 缺 `score`（→ 成员B / 香橙派）
+
+> 真机连上 `ws://<香橙派>:8000/ws/video`、JPEG 解码正常，但收到**第一帧带检测的 `frame_meta` 即崩**：
+> `TypeError: Cannot read property toFixed of undefined`（App `det.score.toFixed`）。根因 = **B 实际推送的 `detections[]` 对象里没有 `score`**（或字段名不同），而 `vision-stream-api.md` 约定 detection = `{bbox, score, keypoints}`。
+
+- **App 已加固**（已 push）：解析层把缺失/非数字字段一律转 `NaN`、WS 消息处理**整段 try/catch** → **再缺字段也不崩**（该读数显示「—」而已）。
+- **请 B**：让 `frame_meta.detections[]` 每个对象**带 `score`**（YOLO 检测置信度，float），与 `vision-stream-api.md` 对齐；**若你那边字段名不是 `score`**（如 `conf`/`confidence`），**告诉我们真实字段名**，App 按你的改。
+- 顺带核对 `gauge_angles` / `keypoints[].conf` / `fps` / `inference_time_ms` 等是否都按契约字段名输出（App 现已容错，但字段对齐了读数/置信度才显示正确）。
+> ⚠️ 本条落 `app-harmony-core`，应 cherry-pick 同步 `main`。
