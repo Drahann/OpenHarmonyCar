@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "车载无界面 agent 模块（紫派常驻）",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {}
+}

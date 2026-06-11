@@ -1,15 +1,14 @@
-// 🚧 car-agent 模块清单——运行时=无界面常驻服务（AgentServiceAbility / ServiceExtensionAbility）
-//    + 一次性配对界面（PairingAbility / UIAbility，仅配网期手动拉起，见 docs/distributed-trust.md）。
-// ⚠️ 未经 DevEco 验证：紫派(RK3566/OH5.0) 的 deviceTypes、service 扩展的开机自起方式、
-//    以及所有 $资源引用（$string:perm_datasync / $media:app_icon / $string:app_name /
-//    $color:start_window_background）均待 DevEco 工程集成时在 resources 补 + 成员A 校验。
-//    见 docs/car-agent-plan.md §6.5 与 contracts/integration-qa.md Q6。
+// car-agent 模块清单。运行时入口 = **AgentAbility（UIAbility 外壳）**托管 AgentCore（黑板↔本机 UDP 桥）。
+// 为什么不是 headless ServiceExtensionAbility：它是系统 API，第三方公共 SDK 编不过（见 docs/car-agent-plan.md §6.5 /
+//   contracts/integration-qa.md Q6.1）。当前 UIAbility 壳=可用公共 SDK 编译/装机/联调的过渡形态；逻辑全在 AgentCore，
+//   将来上紫派系统应用时换 ServiceExtension 壳托管同一 core 即可。另含一次性配对 PairingAbility（配网期拉起，处理 PIN）。
+// ⚠️ deviceTypes/开机自起仍待紫派系统侧（A）校验。
 {
   "module": {
-    "name": "car_agent",
+    "name": "entry",
     "type": "entry",
-    "description": "车载无界面 agent（紫派常驻）",
-    "mainElement": "AgentServiceAbility",
+    "description": "车载 agent（紫派常驻；当前 UIAbility 外壳过渡形态）",
+    "mainElement": "AgentAbility",
     "pages": "$profile:pairing_pages",
     "deviceTypes": [
       "default"
@@ -25,7 +24,7 @@
         "reason": "$string:perm_datasync",
         "usedScene": {
           "abilities": [
-            "AgentServiceAbility"
+            "AgentAbility"
           ],
           "when": "inuse"
         }
@@ -33,23 +32,34 @@
     ],
     "abilities": [
       {
+        "name": "AgentAbility",
+        "srcEntry": "./ets/agentability/AgentAbility.ets",
+        "description": "车载 agent 运行时入口（UIAbility 外壳，托管 AgentCore：黑板↔本机 UDP 桥）",
+        "icon": "$media:layered_image",
+        "label": "$string:app_name",
+        "startWindowIcon": "$media:startIcon",
+        "startWindowBackground": "$color:start_window_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "ohos.want.action.home"
+            ]
+          }
+        ]
+      },
+      {
         "name": "PairingAbility",
         "srcEntry": "./ets/pairingability/PairingAbility.ets",
-        "description": "一次性设备互信配对界面（仅配网期手动拉起；运行时用 headless 的 AgentServiceAbility）",
-        "icon": "$media:app_icon",
+        "description": "一次性设备互信配对界面（仅配网期手动拉起；运行时用 AgentAbility）",
+        "icon": "$media:layered_image",
         "label": "$string:app_name",
-        "startWindowIcon": "$media:app_icon",
+        "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true
-      }
-    ],
-    "extensionAbilities": [
-      {
-        "name": "AgentServiceAbility",
-        "srcEntry": "./ets/serviceextability/AgentServiceAbility.ets",
-        "type": "service",
-        "exported": true,
-        "description": "车载 agent 常驻服务：黑板↔本机 UDP 桥"
       }
     ]
   }
