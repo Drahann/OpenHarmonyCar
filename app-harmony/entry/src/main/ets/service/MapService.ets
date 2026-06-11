@@ -19,13 +19,21 @@
 
 import { http } from '@kit.NetworkKit';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { MAP_GRID_WALL } from '../constants/protocol';
+import { MAP_GRID_WALL, MAP_HTTP_PORT, mapUrlFor } from '../constants/protocol';
 import { MAP_READY_MIN_BYTES, MAP_POLL_INTERVAL_MS } from '../constants/ui';
 import { MapTransform } from '../model/geometry';
 import { CoarseGrid } from '../model/mapContour';
 import { Log, Logger } from '../utils/log';
 
 const log: Logger = Log.scoped('MapService');
+
+/**
+ * 压缩地图（A 紫派 README §3「压缩地图 zipedMap.txt」）：保存 defultMap.txt 后生成，~6× 小，适合 App 快速拉图。
+ * 首行 = magic `ZMAP1`；第 2 行 = 与 defultMap.txt 相同的 7 值头；第 3 行起每行 = `rowBitCount wordCount word0 word1 ...`，
+ * 每 64 格打包成一个**无符号 64 位整数**（十进制文本），cell0 在 bit63、依次向低位；bit=1 即障碍（等价普通图 -1）。
+ */
+const ZIPED_MAP_MAGIC: string = 'ZMAP1';
+const ZIPED_MAP_FILE_NAME: string = 'zipedMap.txt';
 
 /**
  * 解析后的地图（纯数据，无画布依赖）。
@@ -201,6 +209,21 @@ export class MapService {
   }
 
   /**
+   * 优先拉**压缩图** zipedMap.txt（~6× 小、快），不存在/非 ZMAP1/失败则**回退**普通 defultMap.txt。
+   * 两者都返回原文：压缩图保留 ZMAP1 文本，由 parseMap / mapLooksComplete 自动识别解压，调用方无需区分。
+   * 解决真机"6.5MB 普通图在紫派单线程 server 上 ~47KB/s 拉不完"（见 ControlPage.loadMap 注释 + integration-qa）。
+   */
+  static fetchMapPreferZiped(ip: string, timeoutMs: number = 30000): Promise<string> {
+    const zipedUrl: string = `http://${ip}:${MAP_HTTP_PORT}/${ZIPED_MAP_FILE_NAME}`;
+    return MapService.fetchMapText(zipedUrl, timeoutMs).then((t: string): string => {
+      if (t.startsWith(ZIPED_MAP_MAGIC)) {
+        return t;
+      }
+      throw new Error('ziped 非 ZMAP1');   // server 返回了别的（错误页/占位）→ 走回退
+    }).catch((): Promise<string> => MapService.fetchMapText(mapUrlFor(ip), timeoutMs));
+  }
+
+  /**
    * 轮询拉图，直到文本字节数 ≥ minBytes（认为 SLAM 已产出完整地图）才回调 onReady。
    * 返回一个取消函数。取代旧"幻读"toast + 递归 setTimeout。
    */
@@ -240,23 +263,67 @@ export class MapService {
     };
   }
 
+  /** 是否为压缩地图（首行 = ZMAP1 magic）。 */
+  static isZipedMap(rawLines: string[]): boolean {
+    return rawLines.length > 0 && rawLines[0].trim() === ZIPED_MAP_MAGIC;
+  }
+
+  /**
+   * 解一行压缩数据 `rowBitCount wordCount word0 word1 ...` → 归一化栅格行（1=障碍/0=空旷）。
+   * 第 col 格 = `word[col>>6]` 的 bit `(63-(col&63))`（cell0 在最高位 bit63，依次向低位）；bit=1 即障碍。
+   * **必须用 BigInt 读 64 位字**——ArkTS number 仅 53 位整数精度，任一高 11 位置位（常见：前 11 格有障碍即触发）
+   * 用普通 number 会丢位 → 整行错乱（A README §3 明确要求 BigInt/uint64）。末字超出 width 的补零位按 width 忽略。
+   */
+  static decodeZipedRow(line: string, width: number): Uint8Array {
+    const toks: string[] = line.split(/\s+/);
+    const n: number = width > 0 ? width : MapService.toInt(toks[0]);   // width 缺失 → 回退 rowBitCount
+    const cells: Uint8Array = new Uint8Array(n > 0 ? n : 0);
+    const wordCount: number = MapService.toInt(toks[1]);
+    for (let wi = 0; wi < wordCount; wi++) {
+      const tok: string | undefined = toks[2 + wi];
+      if (tok === undefined) {
+        break;
+      }
+      // 无符号 64 位字 → 64 位二进制串（MSB 在前，左侧补零到 64）：bits[j] = bit(63-j) = 第 (base+j) 格。
+      // 用一次 BigInt→string 取代逐格 BigInt 移位（1800² 图省 ~10× BigInt 运算，避免 UI 线程 parse 卡顿）。
+      const bits: string = BigInt(tok).toString(2).padStart(64, '0');
+      const base: number = wi << 6;                                    // 此字覆盖 cell [base, base+64)
+      const limit: number = Math.min(64, n - base);
+      for (let j = 0; j < limit; j++) {
+        cells[base + j] = bits[j] === '1' ? 1 : 0;
+      }
+    }
+    return cells;
+  }
+
   /**
    * 解析地图文本，按给定画布尺寸算出包围盒、正方形化、格尺寸与变换参数。
-   * 移植自旧 MakeCanvas 的几何部分（去掉画布绘制副作用）。
+   * 移植自旧 MakeCanvas 的几何部分（去掉画布绘制副作用）。两种源格式归一进同一套 grid（见下）。
    */
   static parseMap(text: string, canvasWidth: number, canvasHeight: number): ParsedMap {
     const rawLines: string[] = text.split('\n');
-    // 归一化所有行为栅格：grid[0]=首行(头)占位空行、grid[y>=1]=数据行（与包围盒/startY 同索引系）。
-    const grid: Uint8Array[] = [];
-    for (let y = 0; y < rawLines.length; y++) {
-      grid.push(y === 0 ? new Uint8Array(0) : MapService.parseRow(rawLines[y]));
-    }
-
-    // 首行**按位置**取 height/width（真机 7 值首行 `range resolution height width metersPerPixel x0 y0`；
-    // 旧 App 即取 parts[2]/[3]）。注意：不能"取末两个"——末两个是 x0/y0（世界坐标偏移，常为负）。
-    const headerParts: string[] = (rawLines.length > 0 ? rawLines[0] : '').trim().split(/\s+/);
+    // 两种源格式统一进同一套 grid：① 普通图（defultMap.txt：空格 -1/0 或密排 1/0）② 压缩图（zipedMap.txt：首行 ZMAP1）。
+    // 压缩图头在第 2 行(index 1)、数据从第 3 行起；普通图头在第 1 行(index 0)、数据从第 2 行起。
+    const ziped: boolean = MapService.isZipedMap(rawLines);
+    const headerIdx: number = ziped ? 1 : 0;
+    // 头**按位置**取 height/width（7 值头 `range resolution height width metersPerPixel x0 y0`；旧 App 即取 parts[2]/[3]）。
+    // 注意：不能"取末两个"——末两个是 x0/y0（世界坐标偏移，常为负）。
+    const headerParts: string[] = (rawLines.length > headerIdx ? rawLines[headerIdx] : '').trim().split(/\s+/);
     let height: number = MapService.toInt(headerParts[2]);
     let width: number = MapService.toInt(headerParts[3]);
+
+    // 归一化为 grid：grid[0]=头占位空行、grid[y>=1]=数据行（与包围盒/startY 同索引系，两格式同坐标系）。
+    const grid: Uint8Array[] = [];
+    grid.push(new Uint8Array(0));
+    for (let y = headerIdx + 1; y < rawLines.length; y++) {
+      if (ziped) {
+        const t: string = rawLines[y].trim();
+        grid.push(t.length === 0 ? new Uint8Array(0) : MapService.decodeZipedRow(t, width));
+      } else {
+        grid.push(MapService.parseRow(rawLines[y]));
+      }
+    }
+
     if (!(height > 0) || !(width > 0)) {
       // 回退：首行非标准/缺失（如 fixture 的 `40 40`）→ 按实际数据推断
       let maxCols: number = 0;
@@ -272,7 +339,7 @@ export class MapService {
       height = dataRows;
       width = maxCols;
     }
-    log.i(`[parseMap] 首行="${headerParts.join(' ')}" → height=${height} width=${width} rows=${rawLines.length}`);
+    log.i(`[parseMap] ${ziped ? 'ZMAP1压缩 ' : ''}首行="${headerParts.join(' ')}" → height=${height} width=${width} rows=${grid.length - 1}`);
 
     let yMin: number = Infinity;
     let yMax: number = -Infinity;
@@ -314,6 +381,11 @@ export class MapService {
     // 把绘制区域尽量正方形化
     const drawHeight: number = yMax - yMin + 1;
     const drawWidth: number = xMax - xMin + 1;
+    // 偏移排查用：记录正方形化**前**的障碍包围盒（位置+尺寸），供真机比对两次建图是否一致。
+    const rawXMin: number = xMin;
+    const rawYMin: number = yMin;
+    const rawXMax: number = xMax;
+    const rawYMax: number = yMax;
     const squareSize: number = Math.max(1, Math.max(drawWidth, drawHeight));
     const difference: number = (drawWidth - drawHeight) / 2;
     if (difference > 0) {
@@ -328,6 +400,10 @@ export class MapService {
     const gridHeight: number = canvasHeight / squareSize;
     const gridSize: number = (gridWidth + gridHeight) / 2;
     const txtAverSize: number = (width + height) / 2;
+
+    // 偏移排查：障碍包围盒（方形化前/后）决定地图在画布上的居中与缩放，**与 x0/y0 无关**（墙体渲染不吃 x0/y0）。
+    // 两次建图比对：首行 x0/y0（见上一条日志）或此包围盒若变 → 地图数据/SLAM 原点变（A 侧）；两者完全一致而画面仍偏 → App 侧。
+    log.i(`[parseMap] 障碍包围盒 raw x[${rawXMin}..${rawXMax}] y[${rawYMin}..${rawYMax}] → 方形化 x[${xMin}..${xMax}] y[${yMin}..${yMax}] squareSize=${squareSize}`);
 
     return new ParsedMap(height, width, xMin, yMin, xMax, yMax, squareSize,
       gridWidth, gridHeight, gridSize, txtAverSize, grid);

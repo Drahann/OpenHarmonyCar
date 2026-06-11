@@ -68,13 +68,44 @@ function parseRow(line) {
   for (let i = 0; i < t.length; i++) cells[i] = t[i] === '1' ? 1 : 0;
   return cells;
 }
+// 镜像：解一行压缩数据 `rowBitCount wordCount word0 ...` → 归一化栅格行（1=障碍）。cell col = word[col>>6] 的 bit(63-(col&63))。
+function decodeZipedRow(line, width) {
+  const toks = line.split(/\s+/);
+  const n = width > 0 ? width : parseInt(toks[0], 10);   // width 缺失时回退 rowBitCount
+  const cells = new Uint8Array(n > 0 ? n : 0);
+  const wordCount = parseInt(toks[1], 10);
+  for (let wi = 0; wi < wordCount; wi++) {
+    const tok = toks[2 + wi];
+    if (tok === undefined) break;
+    const bits = BigInt(tok).toString(2).padStart(64, '0'); // 无符号 64 位 → MSB 在前的 64 位串：bits[j]=bit(63-j)=第(base+j)格
+    const base = wi << 6, limit = Math.min(64, n - base);
+    for (let j = 0; j < limit; j++) cells[base + j] = bits[j] === '1' ? 1 : 0;
+  }
+  return cells;
+}
+// 仅测试用：把 0/1 行压成 ZMAP1（生成解压用例的输入，逆 decodeZipedRow）。
+function compressZiped(headerLine, rows) {
+  const width = rows.length ? rows[0].length : 0, wordCount = Math.ceil(width / 64);
+  const out = ['ZMAP1', headerLine];
+  for (const row of rows) {
+    const words = new Array(wordCount).fill(0n);
+    for (let col = 0; col < width; col++) if (row[col]) words[col >> 6] |= (1n << BigInt(63 - (col & 63)));
+    out.push(`${width} ${wordCount} ${words.map((w) => w.toString()).join(' ')}`);
+  }
+  return out.join('\n');
+}
 function parseMap(text, canvasW, canvasH) {
   const rawLines = text.split('\n');
-  const grid = [];
-  for (let y = 0; y < rawLines.length; y++) grid.push(y === 0 ? new Uint8Array(0) : parseRow(rawLines[y]));
-  const headerParts = (rawLines[0] ?? '').trim().split(/\s+/);
+  const ziped = rawLines.length > 0 && rawLines[0].trim() === 'ZMAP1';  // 压缩图：首行 ZMAP1，头在第 2 行
+  const headerIdx = ziped ? 1 : 0;
+  const headerParts = (rawLines[headerIdx] ?? '').trim().split(/\s+/);
   let height = parseInt(headerParts[2], 10);  // 位置：range resolution height width ...
   let width = parseInt(headerParts[3], 10);
+  const grid = [new Uint8Array(0)];           // grid[0]=头占位；grid[y>=1]=数据行
+  for (let y = headerIdx + 1; y < rawLines.length; y++) {
+    if (ziped) { const t = rawLines[y].trim(); grid.push(t.length === 0 ? new Uint8Array(0) : decodeZipedRow(t, width)); }
+    else grid.push(parseRow(rawLines[y]));
+  }
   if (!(height > 0) || !(width > 0)) {        // 回退：首行非标准 → 按数据推断
     let maxCols = 0, dataRows = 0;
     for (let y = 1; y < grid.length; y++) if (grid[y].length > 0) { dataRows++; if (grid[y].length > maxCols) maxCols = grid[y].length; }
@@ -298,6 +329,48 @@ console.log('真机地图格式（首行 range resolution height width metersPer
   check('空格分隔 -1 识别为障碍：xMin=0', rm.startX === 0, `startX=${rm.startX}`);
   check('空格分隔 -1 识别为障碍：xMax=4', rm.endX === 4, `endX=${rm.endX}`);
   check('未把负偏移当行列（rows/cols 均 >0）', rm.rows > 0 && rm.cols > 0, `rows=${rm.rows} cols=${rm.cols}`);
+}
+
+// ── ③c 压缩地图 ZMAP1（A README §3：1 bit/格，64 格打包成无符号 64 位整数）：解压等价 + 位序 + 补零 ──
+console.log('压缩地图 ZMAP1（解压 + 与普通图等价 + 位序/补零）：');
+{
+  // 同一张 4×5 图：压缩 → parseMap 应与普通图 parseMap 逐字段一致
+  const rows = [[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]];
+  const header = '0.05 0.05 4 5 0.05 -45 -44';
+  const z = compressZiped(header, rows);
+  check('压缩首行 = ZMAP1', z.split('\n')[0] === 'ZMAP1');
+  const zm = parseMap(z, 1000, 1000);
+  const pm = parseMap([header, '-1 -1 -1 -1 -1', '-1 0 0 0 -1', '-1 0 0 0 -1', '-1 -1 -1 -1 -1'].join('\n'), 1000, 1000);
+  check('ZMAP1 解出 rows=4/cols=5', zm.rows === 4 && zm.cols === 5, `rows=${zm.rows} cols=${zm.cols}`);
+  check('ZMAP1 解压结果与普通图 parseMap 逐字段一致',
+    zm.rows === pm.rows && zm.cols === pm.cols && zm.startX === pm.startX && zm.endX === pm.endX &&
+    zm.startY === pm.startY && zm.endY === pm.endY && zm.squareSize === pm.squareSize,
+    `ziped=${JSON.stringify(zm)} plain=${JSON.stringify(pm)}`);
+}
+{
+  // A README 示例：width=70 → wordCount=2；cell 64..69 落在 word1 的 bit63..58。造一行：cell 0、64、69 为障碍。
+  const width = 70, row = new Array(width).fill(0);
+  row[0] = 1; row[64] = 1; row[69] = 1;
+  const dataLine = compressZiped(`0.05 0.05 1 ${width} 0.05 0 0`, [row]).split('\n')[2];
+  const toks = dataLine.split(/\s+/);
+  check('示例 width=70 → wordCount=2', parseInt(toks[1], 10) === 2, `wordCount=${toks[1]}`);
+  check('word0 = 2^63（cell0 在最高位 bit63）', BigInt(toks[2]) === (1n << 63n), `word0=${toks[2]}`);
+  check('word1 = 2^63+2^58（cell64→bit63, cell69→bit58）', BigInt(toks[3]) === ((1n << 63n) | (1n << 58n)), `word1=${toks[3]}`);
+  const dec = decodeZipedRow(dataLine, width);
+  let bitsOk = dec[0] === 1 && dec[64] === 1 && dec[69] === 1, zeros = true;
+  for (let i = 0; i < width; i++) if (i !== 0 && i !== 64 && i !== 69 && dec[i] !== 0) zeros = false;
+  check('解回 cell0/64/69=障碍、其余空旷（高位精度未丢）', bitsOk && zeros);
+  check('解回长度 = width（忽略末字补零位）', dec.length === width, `len=${dec.length}`);
+}
+{
+  // 高位精度回归：一整行 64 格全障碍 → word0 = 2^64-1（>2^53），用普通 number 解会丢位，BigInt 不丢。
+  const width = 64, row = new Array(width).fill(1);
+  const dataLine = compressZiped(`0.05 0.05 1 ${width} 0.05 0 0`, [row]).split('\n')[2];
+  check('全障碍行 word0 = 2^64-1', dataLine.split(/\s+/)[2] === (2n ** 64n - 1n).toString(), dataLine);
+  const dec = decodeZipedRow(dataLine, width);
+  let allWall = true;
+  for (let i = 0; i < width; i++) if (dec[i] !== 1) allWall = false;
+  check('全障碍行解回 64 格全 1（BigInt 不丢高位）', allWall);
 }
 
 // ── ④ 共享层副本同步（car-agent 自带共享层 vs app-harmony 权威；§6.1 "改一处改两处" 守卫）──

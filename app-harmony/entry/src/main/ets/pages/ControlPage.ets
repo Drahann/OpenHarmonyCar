@@ -22,7 +22,7 @@ import { MapService } from '../service/MapService';
 import { VisionService } from '../service/VisionService';
 import { Storage } from '../service/storage';
 import { VideoView } from '../component/VideoView';
-import { mapUrlFor, FLEET_SESSION_ID } from '../constants/protocol';
+import { FLEET_SESSION_ID } from '../constants/protocol';
 import { SPEED_ASTAR, SPEED_FULLPATH, SPEED_DEFAULT } from '../constants/ui';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
 import { Motion } from '../constants/motion';
@@ -43,6 +43,9 @@ interface ControlRouteParams {
 // 命令时序：紫派对"先暂存后使用"的命令对需要处理间隔，避免 UDP 乱序/未处理完（对照旧 App 的命令间延时）。
 const CMD_SEQ_GAP_MS: number = 300;            // 107→108 之间
 const FULLPATH_START_DELAY_MS: number = 1000;  // 选完 4 顶点(104)到启动全路径(102)，对照旧 App 1s
+// A* 到达判定：机器人位姿与终点的**栅格距离平方** ≤ 此值即判定到达（对照旧 App distributedsecondPage 的 calcArriveDistance）。
+// 旧 App：arriveDistance=4 → (4²)<<1 = 32（cell²），即半径 √32≈5.66 格 ≈ 28cm（1 格 = 5cm）。
+const ASTAR_ARRIVE_DIST2_CELLS: number = 32;
 
 @Entry
 @Component
@@ -63,6 +66,7 @@ struct ControlPage {
   @State private fpVertices: Point[] = [];          // 全路径已选顶点（4 个：左下/右下/右上/左上）
   @State private joyHidden: boolean = false;        // 收起摇杆
   @State private astarNavigating: boolean = false;  // astar：已下发目标、导航中（分步引导用）
+  @State private astarArrived: boolean = false;     // astar：本轮已判定到达终点（引导文案用；选新点/重导航即清）
   @State private connState: ConnState = ConnState.discovered;  // 本车实时连接状态（心跳新鲜度派生，驱动命令门控）
 
   private ip: string = '';
@@ -78,6 +82,7 @@ struct ControlPage {
   private fleet: FleetMissionService = FleetMissionService.getInstance();
   private remoteListener: MissionSyncListener | null = null;
   @State private distUseAgent: boolean = true;  // true=经 agent(黑板)；false=平板直发兜底(cmd107/108)
+  @State private distActiveCarId: number = 1;    // 当前正在为哪辆车划分子区域（车选择器选中项；= carId）
   // 仪表识别 PiP 小窗（形态B）：独立 WS 连香橙派，与导航链路解耦；引用计数 acquire/release。
   private vision: VisionService = VisionService.getInstance();
   @State private pipExpanded: boolean = false;
@@ -184,6 +189,7 @@ struct ControlPage {
       r.x = data.x;
       r.y = data.y;
       r.r = data.r;
+      this.checkAstarArrival(r, from);  // A* 导航中→看是否已接近终点（到达判定）
     }
     this.refreshConn();  // 收到心跳即时刷新连接状态（连接中→已连接）
     this.bump();
@@ -225,10 +231,10 @@ struct ControlPage {
       if (cancelled) {
         return;
       }
-      // 临时「先跑通」：结束建图后的阻塞拉图给 10 分钟读超时——A 的 `python -m http.server`（单线程）在 RK3566 上
-      // 跑 SLAM 时送 ~6.5MB 大图仅 ~47KB/s，30s 拉不完（真机 log errCode 2300028 超时）。最终修在 A 侧
-      // （gzip / 多线程 server / 缩图，见 contracts/integration-qa.md）。进页"查既有图"仍 30s，避免长占 A 的单线程 server。
-      MapService.fetchMapText(mapUrlFor(ip), blocking ? 600000 : 30000).then((text: string) => {
+      // 优先拉**压缩图** zipedMap.txt（~6× 小，A README §3「适合 App 快速拉图」），失败/不存在回退普通 defultMap.txt。
+      // 阻塞拉图给 10 分钟读超时：压缩图通常秒级，但**回退**到 ~6.5MB 普通图时，A 的单线程 `python -m http.server`
+      // 在 RK3566 跑 SLAM 时仅 ~47KB/s（真机 errCode 2300028 超时），故保留长超时兜底。进页"查既有图"仍 30s。
+      MapService.fetchMapPreferZiped(ip, blocking ? 600000 : 30000).then((text: string) => {
         if (cancelled) {
           return;
         }
@@ -267,20 +273,23 @@ struct ControlPage {
    */
   private mapLooksComplete(text: string): boolean {
     const rawLines: string[] = text.split('\n');
-    if (rawLines.length < 3) {
+    // 压缩图(zipedMap.txt)首行=ZMAP1，头在第 2 行、数据从第 3 行起；普通图头在第 1 行、数据从第 2 行起。
+    const ziped: boolean = MapService.isZipedMap(rawLines);
+    const headerIdx: number = ziped ? 1 : 0;
+    if (rawLines.length < headerIdx + 3) {
       log.w(`[mapLooksComplete] 行数不足 ${rawLines.length}`);
       return false;
     }
-    const headerH: number = parseInt(rawLines[0].trim().split(/\s+/)[2], 10); // 首行声明行数
+    const headerH: number = parseInt(rawLines[headerIdx].trim().split(/\s+/)[2], 10); // 头声明行数
     let dataRows: number = 0;
-    for (let y = 1; y < rawLines.length; y++) {
+    for (let y = headerIdx + 1; y < rawLines.length; y++) {
       if (rawLines[y].trim().length > 0) {
         dataRows++;
       }
     }
     const expected: number = (Number.isNaN(headerH) || headerH <= 0) ? 5 : Math.floor(headerH * 0.9);
     const ok: boolean = dataRows >= expected && dataRows >= 2;
-    log.i(`[mapLooksComplete] 首行="${rawLines[0].trim()}" headerH=${headerH} dataRows=${dataRows} expected=${expected} ok=${ok}`);
+    log.i(`[mapLooksComplete] ${ziped ? 'ZMAP1 ' : ''}首行="${rawLines[headerIdx].trim()}" headerH=${headerH} dataRows=${dataRows} expected=${expected} ok=${ok}`);
     return ok;
   }
 
@@ -299,6 +308,7 @@ struct ControlPage {
     if (this.mode === ControlMode.astar) {
       this.mission.endPoints = [new EndPoint(p.x, p.y)];
       this.astarNavigating = false;  // 新目标 → 回到"待开始导航"
+      this.astarArrived = false;     // 选了新点 → 清除上轮"已到达"
       this.bump();
     } else if (this.mode === ControlMode.distributed) {
       this.distCorners.push(p);
@@ -352,13 +362,38 @@ struct ControlPage {
     }
     this.sendTo(this.ip, RobotCommand.startRoute, undefined, e.x, e.y);
     this.astarNavigating = true;
+    this.astarArrived = false;
     this.toast('已下发目标点，开始导航');
   }
 
   private cancelRoute(): void {
     this.sendTo(this.ip, RobotCommand.endRoute);
     this.astarNavigating = false;
+    this.astarArrived = false;
     this.toast('已取消导航');
+  }
+
+  /**
+   * A* 到达判定（对照旧 App distributedsecondPage：`dx²+dy² ≤ calcArriveDistance` 即"到达终点"）。
+   * 仅 astar 模式、导航中、且是当前车(this.ip)的位姿心跳时生效：算机器人与终点的栅格距离平方,
+   * ≤ 阈值即判定到达 → 收起"导航中"态 + toast。**不向车下发停车**：A* 由紫派侧抵达自停,
+   * 本判定只用于 App 的 UI 反馈（与旧 App `stop()` 仅清本地计时器、不命令车一致）。
+   */
+  private checkAstarArrival(r: RobotRuntime, from: string): void {
+    if (this.mode !== ControlMode.astar || !this.astarNavigating || from !== this.ip) {
+      return;
+    }
+    const e: EndPoint | undefined = this.mission.endPoints[0];
+    if (e === undefined || e.x === null || e.y === null) {
+      return;
+    }
+    const dx: number = r.x - e.x;
+    const dy: number = r.y - e.y;
+    if (dx * dx + dy * dy <= ASTAR_ARRIVE_DIST2_CELLS) {
+      this.astarNavigating = false;
+      this.astarArrived = true;
+      this.toast('到达终点');
+    }
   }
 
   private stopFullpath(): void {
@@ -397,39 +432,89 @@ struct ControlPage {
     this.loadMap(this.ip, 8, 1500, true);  // cmd2 存图后拉图：**阻塞遮罩**重试等存图落盘（按行数齐全判完整，非字节阈值）
   }
 
-  /** 划子区域：107=对角点1，108=对角点2(byte1=robotId)。byte1 经 encodeSend 的 runState 写入。 */
-  private sendDistArea(c1: Point, c2: Point, robotId: number): void {
-    this.sendTo(this.ip, RobotCommand.distAreaCorner1, undefined, c1.x, c1.y); // cmd107 先暂存对角点1
+  /** 划子区域：107=对角点1，108=对角点2(byte1=robotId)。byte1 经 encodeSend 的 runState 写入。发给指定车 ip（兜底直发）。 */
+  private sendDistArea(ip: string, c1: Point, c2: Point, robotId: number): void {
+    this.sendTo(ip, RobotCommand.distAreaCorner1, undefined, c1.x, c1.y); // cmd107 先暂存对角点1
     // 隔开再发 108：紫派要先处理 107 暂存，108 才能据两点生成覆盖矩形（122）
     setTimeout(() => {
-      this.sendTo(this.ip, RobotCommand.distAreaCorner2, robotId, c2.x, c2.y);
+      this.sendTo(ip, RobotCommand.distAreaCorner2, robotId, c2.x, c2.y);
     }, CMD_SEQ_GAP_MS);
   }
 
-  /** 划好一块覆盖矩形：默认经车载 agent（写 FleetMission 黑板）；distUseAgent=false 时平板直发兜底。 */
+  /**
+   * 划好一块覆盖矩形,**指派给当前选中的车 distActiveCarId**。assignments 按 carId **增量 upsert**
+   * （替换该车那块、保留其它车的）——多车各持一块,不再整体替换。robotId 由 carId 推（车1=主=0,其余=从=1,A 文档主从约定）。
+   * 默认经车载 agent（写 FleetMission 黑板,各车自主读自己的）；distUseAgent=false 时平板直发该车 IP 兜底。
+   */
   private assignArea(c1: Point, c2: Point): void {
-    const r: RobotRuntime | undefined = this.robotOf(this.ip);
-    const carId: number = r !== undefined ? r.index : 1;
+    const carId: number = this.distActiveCarId;
     const robotId: number = carId <= 1 ? 0 : 1;  // 主/单车=0，从车=1（A 文档 robotId 主从）
-    this.mission.assignments = [new Assignment(carId, c1, c2, robotId)];
+    // 按 carId upsert：滤掉该车旧块再追加新块,其它车的子区域原样保留（修复"画第二块覆盖第一块"）。
+    const next: Assignment[] = this.mission.assignments.filter((a: Assignment): boolean => a.carId !== carId);
+    next.push(new Assignment(carId, c1, c2, robotId));
+    this.mission.assignments = next;
     if (this.distUseAgent) {
       // 写黑板：phase=covering 让各车 agent 的 reconcile 进入覆盖；agent 读到自己 carId 的 assignment 后本机发 cmd107/108
       this.mission.phase = MissionPhase.covering;
       this.fleet.publishMission(this.mission);
     } else {
-      this.sendDistArea(c1, c2, robotId);  // 平板直发兜底（无 agent / 软总线不通时）
+      // 平板直发兜底（无 agent / 软总线不通时）：发到该车自己的 IP（找不到则回退当前直连车 this.ip）。
+      const target: RobotRuntime | undefined = this.mission.robots.find((rr: RobotRuntime): boolean => rr.index === carId);
+      const ip: string = (target !== undefined && target.ip.length > 0) ? target.ip : this.ip;
+      this.sendDistArea(ip, c1, c2, robotId);
     }
-    this.toast(this.distUseAgent ? '已写入黑板：各车 agent 将执行覆盖' : '已下发覆盖区域（平板直发兜底）');
+    this.toast(this.distUseAgent ? `已写入黑板：车${carId} 区域 → 各车 agent 执行` : `已下发车${carId} 覆盖区域（平板直发）`);
   }
 
-  /** 黑板远端变更（各车 agent 回写位姿/进度）：只取 robots 更新显示；assignments 由平板掌权、不被覆盖。 */
+  /** 清除当前选中车的子区域（画错重画）：滤掉该 carId 的 assignment，其它车保留；agent 模式同步黑板。 */
+  private clearActiveArea(): void {
+    const carId: number = this.distActiveCarId;
+    this.mission.assignments = this.mission.assignments.filter((a: Assignment): boolean => a.carId !== carId);
+    this.distCorners = [];  // 清掉半选的对角点
+    if (this.distUseAgent) {
+      this.fleet.publishMission(this.mission);  // 同步黑板：该车 agent 看到自己的块没了即可停领
+    }
+    this.toast(`已清除车${carId} 区域`);
+    this.bump();
+  }
+
+  /** 黑板远端变更（各车 agent 回写位姿/进度/状态）：取 robots 更新显示 + 状态变化弹提示；assignments 由平板掌权、不被覆盖。 */
   private onRemoteMission(s: MissionSnapshot): void {
+    const prevStatus: Map<number, RobotStatus> = new Map();
+    for (const r of this.mission.robots) {
+      prevStatus.set(r.index, r.status);
+    }
     this.mission.robots = s.robots.map((d: RobotRuntimeDTO): RobotRuntime => {
       const rr: RobotRuntime = new RobotRuntime(d.index, d.ip, d.networkId);
       rr.applyDTO(d);
       return rr;
     });
+    // agent 状态变化 → 平板弹小提示（操作者无需上车看 hilog 即可知道"某车 agent 收到任务/下发了命令"）
+    for (const r of this.mission.robots) {
+      const p: RobotStatus | undefined = prevStatus.get(r.index);
+      if (p !== undefined && p !== r.status) {
+        this.toast(`车${r.index}：${this.robotStatusText(r.status)}`);
+      }
+    }
     this.bump();
+  }
+
+  /** 远端机器人状态 → 平板提示文案。 */
+  private robotStatusText(s: RobotStatus): string {
+    switch (s) {
+      case RobotStatus.covering:
+        return 'agent 已下发覆盖/执行命令';
+      case RobotStatus.scanning:
+        return '扫描中';
+      case RobotStatus.done:
+        return '完成';
+      case RobotStatus.error:
+        return '异常';
+      case RobotStatus.idle:
+        return '空闲';
+      default:
+        return '离线';
+    }
   }
 
   // ── 缩放 FAB ────────────────────────────────────────────────────────────────
@@ -859,12 +944,12 @@ struct ControlPage {
               .onClick(() => this.expandPipToFull())
             Button() {
               SymbolGlyph(Icons.close)
-                .fontSize(13)
+                .fontSize(15)
                 .fontColor([AppColor.textSecondary])
             }
             .type(ButtonType.Circle)
-            .width(28)
-            .height(28)
+            .width(32)
+            .height(32)
             .backgroundColor(AppColor.surfaceMuted)
             .margin({ left: Space.xs })
             .onClick(() => this.closePip())
@@ -880,6 +965,11 @@ struct ControlPage {
           .borderRadius(Radius.sm)
           .clip(true)
         }
+        // 卡片**必须显式给宽** = 视频 192 + 左右 padding(Space.sm×2)。否则内部 header Row 的 width('100%')
+        // 会一路向最外层 Stack 求值 → 卡片被撑满全屏 → 视频(192)被居中成"长条中间一小块"、放大/关闭键被挤到
+        // 屏幕右缘外（=用户反馈"长条状、视频只在中间、根本关不掉"的根因）。给定宽后整列自适应收回成小卡。
+        .width(192 + Space.sm * 2)
+        .alignItems(HorizontalAlign.Start)
         .padding(Space.sm)
         .backgroundColor(AppColor.surface)
         .borderRadius(Radius.md)
@@ -1136,11 +1226,38 @@ struct ControlPage {
           })
       }
       .width('100%')
+      // ② 选车：这块子区域指派给哪辆车（多车各领一块，不再互相覆盖）。车来自 mission.robots（连设备/agent 回报）。
+      Text('② 选车划分（给哪辆车划这块）')
+        .fontSize(FontSize.caption)
+        .fontColor(AppColor.textSecondary)
+        .width('100%')
+      Row({ space: Space.sm }) {
+        ForEach(this.mission.robots, (r: RobotRuntime) => {
+          this.DistCarChip(r)
+        }, (r: RobotRuntime) => `${r.index}`)
+      }
+      .width('100%')
+      Row() {
+        Text(this.distAssignedText())
+          .fontSize(FontSize.caption)
+          .fontColor(AppColor.textSecondary)
+          .layoutWeight(1)
+        Button('清除本车区域')
+          .fontSize(FontSize.caption)
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(28)
+          .padding({ left: Space.sm, right: Space.sm })
+          .onClick(() => this.clearActiveArea())
+      }
+      .width('100%')
       Text(this.distHint())
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textSecondary)
         .width('100%')
-      Text('③ 各车覆盖进度')
+      Text('④ 各车覆盖进度')
         .fontSize(FontSize.caption)
         .fontColor(AppColor.textSecondary)
         .width('100%')
@@ -1226,8 +1343,11 @@ struct ControlPage {
 
   /** astar 分步引导文案：未选点 → 已选点待导航 → 导航中。 */
   private astarHint(): string {
+    if (this.astarArrived) {
+      return '已到达终点 · 点地图可重新选目标';
+    }
     if (this.astarNavigating) {
-      return '导航中…（点「取消」停止；到达后可重新点图选目标）';
+      return '导航中…（点「取消」停止；接近终点会自动判定到达）';
     }
     if (this.hasTarget()) {
       return `目标已选 ${this.targetText()} · 点「开始导航」`;
@@ -1236,9 +1356,40 @@ struct ControlPage {
   }
 
   private distHint(): string {
+    const who: string = `车${this.distActiveCarId}`;
     if (this.distCorners.length === 1) {
-      return '② 已选对角点1，点第二个对角点完成子区域';
+      return `③ 为${who}：已选对角点1，再点第二个对角点完成子区域`;
     }
-    return '② 点地图选两个对角点划分覆盖子区域（对角矩形）';
+    return `③ 为${who}：点地图选两个对角点划分覆盖子区域（对角矩形）`;
+  }
+
+  /** 已分配区域速览（哪些车已有子区域）。 */
+  private distAssignedText(): string {
+    if (this.mission.assignments.length === 0) {
+      return '尚未分配任何区域';
+    }
+    const ids: number[] = this.mission.assignments
+      .map((a: Assignment): number => a.carId)
+      .sort((x: number, y: number): number => x - y);
+    return `已分配：${ids.map((i: number): string => `车${i}`).join('、')}`;
+  }
+
+  /** 选车 chip：高亮当前 distActiveCarId；点选切换"为哪辆车划分"。样式同 AlgChip。 */
+  @Builder
+  DistCarChip(r: RobotRuntime) {
+    Text(`车${r.index}`)
+      .fontSize(FontSize.bodySm)
+      .fontColor(this.distActiveCarId === r.index ? AppColor.onPrimary : AppColor.primary)
+      .backgroundColor(this.distActiveCarId === r.index ? AppColor.primary : AppColor.surface)
+      .border(this.distActiveCarId === r.index ? undefined : { width: 1, color: AppColor.primary })
+      .borderRadius(Radius.pill)
+      .height(TOUCH_MIN)
+      .layoutWeight(1)
+      .textAlign(TextAlign.Center)
+      .onClick(() => {
+        this.distActiveCarId = r.index;
+        this.distCorners = [];   // 切车清掉半选的对角点，避免跨车凑成一块
+        this.bump();
+      })
   }
 }
