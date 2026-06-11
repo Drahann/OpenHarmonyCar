@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>配色方案对比 · OpenHarmonyCar App</title>
+<style>
+  /* 预览专用页（docs/ui-polish-plan.md §1 的配套）。四列：现状 + 方案A/B/C。
+     每列用同一套 mock UI（顶栏/车卡/语义 chip/地图/底部卡/文字样张），只换色板。 */
+  body{margin:0;padding:28px;background:#fafafa;font-family:'HarmonyOS Sans SC','MiSans','Microsoft YaHei',sans-serif}
+  h1{font-size:20px;margin:0 0 4px}
+  p.note{font-size:13px;color:#666;margin:0 0 20px}
+  #root{display:grid;grid-template-columns:repeat(4,minmax(300px,1fr));gap:20px;max-width:1560px}
+  .col h2{font-size:15px;margin:0 0 2px}
+  .col .desc{font-size:12px;color:#777;min-height:34px;margin:0 0 8px;line-height:1.5}
+  .panel{border-radius:18px;padding:14px;border:1px solid #e3e3e3;background:var(--bg)}
+  .mono{font-family:'Roboto Mono',Consolas,monospace}
+
+  .topbar{display:flex;gap:8px;margin-bottom:12px}
+  .pill{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:999px;
+        padding:7px 12px;font-size:12px;color:var(--body);box-shadow:0 2px 8px rgba(0,0,0,.07)}
+  .dot{width:9px;height:9px;border-radius:50%}
+
+  .card{background:var(--surface);border-radius:14px;padding:12px;box-shadow:0 4px 14px rgba(60,64,67,.13);margin-bottom:12px}
+  .card .t{font-size:14px;font-weight:600;color:var(--title)}
+  .card .ip{font-size:11px;color:var(--sec);margin:2px 0 8px}
+  .btnrow{display:flex;gap:8px}
+  .btn{border-radius:999px;padding:8px 16px;font-size:12px;font-weight:500}
+  .btn.primary{background:var(--primary);color:#fff}
+  .btn.outline{background:var(--surface);color:var(--primary);border:1px solid var(--primary)}
+
+  .chips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .chip{border-radius:999px;padding:5px 10px;font-size:11px;font-weight:500}
+
+  .sheet{background:var(--surface);border-radius:16px;padding:10px 12px 12px;box-shadow:0 6px 18px rgba(60,64,67,.15);margin-top:12px}
+  .handle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 8px}
+  .sheet .hint{font-size:12px;color:var(--body);margin-bottom:8px}
+  .btn.block{display:block;text-align:center}
+
+  .spec{margin-top:12px;background:var(--surface);border-radius:14px;padding:12px;box-shadow:0 4px 14px rgba(60,64,67,.10)}
+  .spec .h{font-size:16px;font-weight:700;color:var(--title)}
+  .spec .b{font-size:12px;color:var(--body);margin-top:4px;line-height:1.6}
+  .spec .s{font-size:11px;color:var(--sec);margin-top:2px}
+  .readings{display:flex;gap:16px;margin-top:8px;font-size:15px;font-weight:600}
+</style>
+</head>
+<body>
+<h1>配色方案对比（在浏览器里看真色）</h1>
+<p class="note">同一套 mock 界面 × 四套色板。重点看：①页底/地图底/品牌绿是否"一个温度"；②语义色（蓝绿黄红）与品牌是否成家族；③地图观感。选定后我只改 theme.ets（token 单一来源，类名字段不动）。</p>
+<div id="root"></div>
+
+<script>
+const palettes = [
+  {
+    name: '现状',
+    desc: '冷薄荷页底 + 冷蓝灰地图底 + 暖橄榄品牌 + Google 原色语义——三个色温世界。',
+    bg:'#edf4f1', surface:'#ffffff', border:'#dfe4ea',
+    primary:'#485c11', soft:'#dfecc6',
+    title:'#000000', body:'#1f2329', sec:'#6f7787',
+    info:'#1a73e8', ok:'#34a853', warn:'#fbbc04', danger:'#ea4335',
+    mapBg:'#e9eef1', wallStroke:'#485c11', wallFill:'rgba(72,92,17,.15)',
+    grid:'rgba(72,92,17,.055)', pin:'#ea4335', robot:'#2e7d32'
+  },
+  {
+    name: '方案A · 暖纸墨绿（推荐）',
+    desc: '全部中性色统一成暖米白"纸"，墨绿不动；语义色降饱和入族。地图变成牛皮纸图纸，和发布会视频的米白基调同源。',
+    bg:'#f3f2ea', surface:'#ffffff', border:'#dcd9cb',
+    primary:'#485c11', soft:'#e4ebc8',
+    title:'#1d2016', body:'#2b2f23', sec:'#6f7461',
+    info:'#4678b8', ok:'#3f9352', warn:'#dfa32f', danger:'#d9503f',
+    mapBg:'#edebe0', wallStroke:'#485c11', wallFill:'rgba(72,92,17,.14)',
+    grid:'rgba(72,92,17,.05)', pin:'#d9503f', robot:'#357a41'
+  },
+  {
+    name: '方案B · 冷瓷松绿',
+    desc: '反向修法：品牌迁就冷底——墨绿换成偏蓝的松绿，页底/地图底统一冷灰绿。实验室器械般的冷静。代价：换品牌色，地图墙体跟着变。',
+    bg:'#eef2ef', surface:'#ffffff', border:'#d7ded9',
+    primary:'#36573e', soft:'#d9e8d8',
+    title:'#141915', body:'#242a26', sec:'#68726b',
+    info:'#3f78c8', ok:'#3a9e63', warn:'#e3a52e', danger:'#e0503f',
+    mapBg:'#e9efeb', wallStroke:'#36573e', wallFill:'rgba(54,87,62,.15)',
+    grid:'rgba(54,87,62,.055)', pin:'#e0503f', robot:'#3a9e63'
+  },
+  {
+    name: '方案C · 最小修复',
+    desc: '只修硬伤：页底与地图底统一为同一冷灰绿、纯黑标题改墨色、明黄微降。Google 语义色保留。改动最小，但"双绿撞色/拼贴感"仍在。',
+    bg:'#edf2ef', surface:'#ffffff', border:'#dfe4ea',
+    primary:'#485c11', soft:'#dfecc6',
+    title:'#181b12', body:'#1f2329', sec:'#6f7787',
+    info:'#1a73e8', ok:'#34a853', warn:'#eaaf1f', danger:'#ea4335',
+    mapBg:'#eaf0ed', wallStroke:'#485c11', wallFill:'rgba(72,92,17,.15)',
+    grid:'rgba(72,92,17,.055)', pin:'#ea4335', robot:'#2e7d32'
+  }
+];
+
+function mapSvg(p){
+  return `<svg width="100%" viewBox="0 0 280 170" style="border-radius:12px;background:${p.mapBg};display:block">
+    <rect x="18" y="16" width="244" height="138" rx="8" fill="#ffffff"/>
+    ${[46,76,106,136].map(y=>`<line x1="18" y1="${y}" x2="262" y2="${y}" stroke="${p.grid.replace('rgba','rgba')}" stroke-width="1"/>`).join('')}
+    ${[58,98,138,178,218].map(x=>`<line x1="${x}" y1="16" x2="${x}" y2="154" stroke="${p.grid}" stroke-width="1"/>`).join('')}
+    <path d="M34,36 Q34,30 40,30 L116,30 Q122,30 122,36 L122,66 Q122,72 128,72 L186,72 Q192,72 192,66 L192,38 Q192,32 198,32 L240,32 Q246,32 246,38 L246,134 Q246,140 240,140 L40,140 Q34,140 34,134 Z"
+          fill="none" stroke="${p.wallStroke}" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M150,100 Q150,94 156,94 L176,94 Q182,94 182,100 L182,116 Q182,122 176,122 L156,122 Q150,122 150,116 Z"
+          fill="${p.wallFill}" stroke="${p.wallStroke}" stroke-width="2.5" stroke-linejoin="round"/>
+    <polyline points="60,120 96,120 96,92 130,86 210,86 222,104" fill="none"
+              stroke="${p.primary}" stroke-width="2" stroke-dasharray="5 5" opacity=".75"/>
+    <circle cx="60" cy="120" r="9" fill="${p.robot}" stroke="#fff" stroke-width="2.5"/>
+    <path d="M60,113 L65,121 L55,121 Z" fill="#fff"/>
+    <circle cx="222" cy="100" r="7" fill="${p.pin}"/>
+    <path d="M222,116 L216,103 L228,103 Z" fill="${p.pin}"/>
+    <circle cx="222" cy="100" r="2.6" fill="#fff"/>
+  </svg>`;
+}
+
+function mix(c, pct){ return `color-mix(in srgb, ${c} ${pct}%, white)`; }
+
+document.getElementById('root').innerHTML = palettes.map(p=>`
+<div class="col" style="--bg:${p.bg};--surface:${p.surface};--border:${p.border};--primary:${p.primary};
+     --title:${p.title};--body:${p.body};--sec:${p.sec}">
+  <h2>${p.name}</h2>
+  <p class="desc">${p.desc}</p>
+  <div class="panel">
+    <div class="topbar">
+      <div class="pill">‹</div>
+      <div class="pill"><span class="dot" style="background:${p.ok}"></span><span class="mono">192.168.1.7</span></div>
+      <div class="pill" style="background:${p.primary};color:#fff">设备</div>
+    </div>
+    <div class="card">
+      <div class="t">巡检车 1</div>
+      <div class="ip mono">192.168.1.7 · 已连接 · 心跳正常</div>
+      <div class="btnrow">
+        <span class="btn primary">进入控制</span>
+        <span class="btn outline">断开</span>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip" style="color:${p.info};background:${mix(p.info,14)}">信息</span>
+      <span class="chip" style="color:${p.ok};background:${mix(p.ok,14)}">正常</span>
+      <span class="chip" style="color:${p.warn};background:${mix(p.warn,18)}">警告</span>
+      <span class="chip" style="color:${p.danger};background:${mix(p.danger,14)}">告警</span>
+      <span class="chip" style="color:${p.primary};background:${p.soft}">品牌</span>
+    </div>
+    ${mapSvg(p)}
+    <div class="sheet">
+      <div class="handle"></div>
+      <div class="hint">① 点地图选目标点 → ② 点「开始导航」</div>
+      <span class="btn primary block">开始导航</span>
+    </div>
+    <div class="spec">
+      <div class="h">仪表识别</div>
+      <div class="b">正文文字的可读性样张：连接香橙派后实时显示读数与告警。</div>
+      <div class="s">次要说明 · 192.168.1.5:8000</div>
+      <div class="readings mono">
+        <span style="color:${p.ok}">67.4 %</span>
+        <span style="color:${p.danger}">88.2 %</span>
+        <span style="color:${p.sec}">— %</span>
+      </div>
+    </div>
+  </div>
+</div>`).join('');
+</script>
+</body>
+</html>
