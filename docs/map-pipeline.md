@@ -14,6 +14,7 @@
 |---|---|---|---|---|
 | **`defultMap.txt`** | `range resolution height width metersPerPixel x0 y0`（**7 值**，空格分隔） | **空格分隔**整数，每个后跟空格 | **`-1`**=障碍、`0`=空旷 | ✅ 当前 `MAP_FILE_NAME` |
 | **`defultMap.txt.txt`** | 同上 7 值 | **密排单字符**（无分隔） | **`1`**=障碍、`0`=空旷 | 旧 App 当年拉的就是它 |
+| **`zipedMap.txt`** 🆕 | `ZMAP1` + 同上 7 值（在**第 2 行**） | 每行 `rowBitCount wordCount word0…`，64 格/无符号 64 位整数 | 位 **`1`**=障碍 | **App 现首选拉取**（`fetchMapPreferZiped`，BigInt 解压；见 `contracts/map-format.md`「压缩地图格式」） |
 
 - `height`=行数(rows)、`width`=列数(cols)，在**首行第 3、4 个位置**（`parts[2]`、`parts[3]`）。
 - `x0 y0`=地图栅格 `[0][0]` 的**世界坐标偏移**（真机常为负，如 `-45 -44`）。`metersPerPixel`≈0.05m/格。
