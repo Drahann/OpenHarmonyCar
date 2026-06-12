@@ -80,8 +80,8 @@ robots:      [{ index, ip, networkId, online, x, y, r, command, progress, status
 1. 平板令 master 建图（UDP `cmd 0` 起 … `cmd 2` 结束建图）。
 2. **master agent**：建好图 → 写 `map.ref` / `area`，`phase = dividing`。
 3. **平板（规划器）**：在共享地图上划子区域 → 写 `assignments`，`phase = covering`。（交互在平板，符合"平板做划分、交互性好"）
-4. **每台子车 agent**：看到自己的 `assignments[carId]` → 本机 UDP 下发"对角点1 `cmd107` + 对角点2&robot_id `cmd108`"，
-   紫派据矩形规划 FullRoad 覆盖(**LCM 122**) + 分布式跟踪(**123**)；子机另经 `cmd105` 拉主机地图。
+4. **每台车 agent**：master 看到自己的 `assignments[carId]` 后下发 `cmd107 -> cmd108(robot_id=0)`；sub 先经 `cmd105` 拉主机地图，确认本机地图可用后下发 `cmd5 -> cmd107 -> cmd108(robot_id=1)`。
+   紫派据矩形规划 FullRoad 覆盖(**LCM 122**) + 分布式跟踪(**123**)。
 5. 各车覆盖中，心跳 `x/y/r` → agent 写回 `robots[carId].pose/progress`；平板实时渲染所有车的位置/朝向/进度。
 
 ## 定位约定（关键）：子机从 master 起点出发
@@ -89,20 +89,20 @@ robots:      [{ index, ip, networkId, online, x, y, r, command, progress, status
 地图坐标系原点锚在 **master 建图起始位姿**。**子车从 master 的同一物理起点、同一朝向出发** → 它在地图坐标系里的初始位姿**按构造 = (0, 0, 0°)**。
 
 - 因此**无需全局重定位、无需操作员点选初始位姿、无需新增"注入位姿"命令**——✅ A确认：子机用 UDP **`cmd 5`** 加载地图时，紫派把初始位姿**强制设为 (0,0,0)**（给 LCM 10 传 `dparams[4..6]=0,0,0`）。
-  ⚠️ 但 `cmd 2 / 'j'/106 / 'l'/108` 的加载地图逻辑**沿用当前心跳位姿、不归零**——故子机入场务必走 **`cmd 5`**（或 agent 确保传 0,0,0）。
+  ⚠️ 但 `cmd 2 / 'j'/106` 的加载地图逻辑**沿用当前心跳位姿、不归零**。`cmd108/'l'` 不再加载地图或重置定位，只生成并启动覆盖路径——故子机入场务必在 `cmd108` 前走 **`cmd 5`**。
 - 由此 [`map-format.md`](map-format.md) 里"子机与主机坐标系是否对齐"那条 ⚠️ **按构造消解**。
 - 注意：**朝向比位置敏感**（位置差几厘米无妨，起始朝向差几度会随距离累积放大）。起点要把**位置 + 朝向都标死**（卡位/线），且**顺序出发**（master 离开起点后子车再占位）。
 - 后续可叠加激光重定位（AMCL/scan-match）放宽"必须从原点出发"的约束，作为增强。
 
-## 地图传输：两种，二选一
+## 地图传输：本轮主流程为方案 B
 
 | 方案 | 机制 | 优点 | 代价 |
 |---|---|---|---|
-| **A · 走软总线**（推荐做 demo 亮点） | master agent 把 `map.text` 写入 `FleetMission` → 自动同步到各子车 agent → agent 落地为本机地图文件（紫派机器人栈读取的 `/data/test/defultMap.txt`）供规划 | "地图经软总线共享"可见、自洽、不依赖车间网络 | agent 要能把地图写进紫派栈读取的路径/方式（⚠️ 与紫派定）；~3MB 上总线（LAN 可接受） |
-| **B · 走车间** | 子机 UDP `cmd105`（主机 IP 在 byte[1,2,4,6]）→ LCM `124` 直接拉图 | 复用现成、轻 | 地图不"经软总线"；软总线只载协调态 |
+| **B · 走车间（本轮采用）** | 子机 UDP `cmd105`（主机 IP 在 byte[1,2,4,6]）→ LCM `124` 直接拉图 | 复用现成、与紫派 C/C++ 栈已实现能力一致 | 地图不"经软总线"；软总线只载协调态 |
+| **A · 走软总线（后续增强）** | master agent 把 `map.text` 写入 `FleetMission` → 自动同步到各子车 agent → agent 落地为本机地图文件（紫派机器人栈读取的 `/data/test/defultMap.txt`）供规划 | "地图经软总线共享"可见、自洽 | agent 要先具备安全写 `/data/test` 的能力，且要处理较大文本负载 |
 
 ✅ **A确认现状 = 方案 B**：紫派代码已实现子机 `cmd105/'i'`→`cmd124` 用 `wget` 从主机拉 **`defultMap.txt` + `roadFile.txt`**
-（`NaviInterface.cpp:4799-4818`，URL 无 `/data/test` 前缀）。**方案 A** 需新增紫派 ArkTS agent 的文件写入能力，留作后续增强（demo 亮点）。
+（`NaviInterface.cpp:4799-4818`，URL 无 `/data/test` 前缀）。本轮按接口审计要求采用方案 B；**方案 A** 需新增紫派 ArkTS agent 的文件写入能力，留作后续增强。
 
 无论 A/B，**协调态（`area`/`assignments`/`robots`/进度）都走软总线**。
 
@@ -117,7 +117,7 @@ robots:      [{ index, ip, networkId, online, x, y, r, command, progress, status
 ## 各端职责
 
 - **平板 App（owner）**：UI、触发建图、区域划分、`FleetMission` 读写与可视化、把子区域顶点用 master 坐标系下发。
-- **紫派 agent（ArkTS，需新增/集成）**：入软总线、`FleetMission` ↔ 本机 UDP 桥接、（方案A）落地地图文件、回报位姿/进度。
+- **紫派 agent（ArkTS，需新增/集成）**：入软总线、`FleetMission` ↔ 本机 UDP 桥接、按方案 B 在 sub 覆盖前触发 `cmd105` 拉图并等待可用、回报位姿/进度。
 - **紫派机器人栈（成员A）**：SLAM/建图、覆盖规划（单机 `127/125`；**分布式矩形 `122/123`，触发自 `cmd107/108`**）、**方案B 车间拉图（`cmd124` 拉 `defultMap.txt`+`roadFile.txt`）**、子机 `cmd5` 加载图后位姿归零到原点、**双车协同避障（`COOP_AVOID` LCM，见下）**。
 
 ## 双车协同避障（A commit `59fc335`；⚠️ App 无需改协议）
@@ -143,7 +143,7 @@ robots:      [{ index, ip, networkId, online, x, y, r, command, progress, status
 3. ✅ **地图传输 = 方案 B**（`cmd124` wget 拉 `defultMap.txt`+`roadFile.txt`）；方案 A 待 agent 增强。
 4. ✅ **紫派 agent 可行**：C/C++ 栈无需改造即可被 agent 经 localhost UDP 桥接；常驻属 HAP 部署问题（A：现有代码未含 agent，但接口边界已足够）。
 5. ✅ **子区域 = 单个轴对齐矩形**（2 对角点 + robot_id，要求 `x1≠x2 ∧ y1≠y2`），**不支持多块/不规则**；
-   **下发时序**：先 `cmd107`(对角点1) 后 `cmd108`(对角点2+robot_id)，否则从机无法生成 `122` 覆盖路径。
+   **下发时序**：先 `cmd107`(对角点1) 后 `cmd108`(对角点2+robot_id)。`robot_id=0/1` 都会生成 `122` 覆盖路径并执行 `123`；对角点不完整或 `robot_id` 非法会拒绝本次 `108`。
 
 > **仍开放**的对接问题（App→紫派，写在 [`integration-qa.md`](integration-qa.md) 供双方 AI 异步读）：
 > ① 协同避障"暂停"状态如何让 App 可见；② >2 车的避障 / tie-break；③ `roadFile.txt` 是否需 App 关心。

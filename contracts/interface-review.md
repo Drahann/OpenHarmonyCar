@@ -41,11 +41,10 @@ cmd105('i') 把主机 IP 四段塞进 `byte[1],[2],[4],[6]`——**跳过 [3],[5
 
 ## 4. 地图相关
 
-### 4a. 首行"取末两个整数"（结论：**A 已背书并主动建议，settled，不立问题**）
-A 的地图首行 = `range resolution height width`（4 值，`Navi/main.cpp` 分片读取）。**A 在《接口…说明》§7 明确**：
-map-format 旧写"行数 列数"不够准确，**建议 App 兼容"首行末两个整数作为高宽"**——正是 App 现在的做法。
-- **判定**：这**不是**被迫的单边妥协，而是 **A 主动认可/建议**的方案，字段顺序与"末2=高(行)宽(列)"均已确认。**无需向 A 立问题**。
-- **可选 App 侧小收紧**（不涉 A）：format 既已确认，可把"按固定位置 `[2]=height,[3]=width` 解析"作主路径、"末两个"留作旧 2-token fallback——纯防御，**当前实现已足够，不强制**。
+### 4a. 地图首行 7 字段（结论：按固定位置取 `parts[2]/[3]`）
+A 的 HTTP 地图文件首行 = `range resolution height width metersPerPixel x0 y0`（7 值，`Navi/map/MapServer.cpp` 写出）。`height/width` 固定在第 3、4 字段；末两个字段是 `x0/y0` 世界偏移，不能当高宽。
+- **判定**：旧的“取末两个整数作为高宽”只适用于 4 值分片头语境，不适用于 App 拉取的 HTTP `defultMap.txt`。A 侧说明已在 2026-06-12 订正。
+- **App 侧要求**：主路径按固定位置 `[2]=height,[3]=width` 解析，同时解析 `metersPerPixel/x0/y0` 供坐标换算；旧 fixture 兼容逻辑可作为防御保留。
 
 ### 4b. 地图就绪靠"字节数 ≥ 324e4"（结论：脆，**已在 Q8**，并入跟踪不另立）
 `MAP_READY_MIN_BYTES = 324e4` ≈ 预期 1800×1800 满图字节数（`constants/ui.ets`）。真图更小则**永远判不就绪**。

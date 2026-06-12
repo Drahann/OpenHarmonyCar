@@ -11,14 +11,16 @@
 >
 > 关联契约：[`udp-protocol.md`](udp-protocol.md)、[`udp-protocol-crosscheck.md`](udp-protocol-crosscheck.md)、[`map-format.md`](map-format.md)、[`multi-robot-collab.md`](multi-robot-collab.md)、[`integration-qa.md`](integration-qa.md)、[`interface-review.md`](interface-review.md)、[`docs/map-pipeline.md`](../docs/map-pipeline.md)。
 
+> **A 侧处理记录（2026-06-12）**：X1/X2 已按“以 App 设计为准”落地到紫派 `cmd108/'l'`：`robot_id=0/1` 都先发布 `122` 生成覆盖路径，再发布 `123` 执行；`108` 不再发布 `ROBOT_CONTROL 10` 加载地图或重置定位。分布式传图本轮按 X3/X4 的方案 B（`cmd105/124 + HTTP/wget`）推进，软总线只承载协调态。
+
 ---
 
 ## 0. 速览（按严重度排序）
 
 | # | 流程阶段 | 严重度 | 一句话 | 建议方向（待裁决） | 状态 |
 |---|---|---|---|---|---|
-| **X1** | 分布式覆盖 | 🔴 高 | `cmd108('l')` 仅给从机(robot_id=1) build 覆盖路径(122)，主机(0)不 build → **master 不动** | 以 **App 设计**为准 → A 改 | 真机已暴露（Q13①）|
-| **X2** | 分布式覆盖 | 🔴 高 | `cmd108('l')` 内部又 load 图 + 用当前位姿，**覆盖** `cmd5` 刚归零的 (0,0,0) | 以 **App 设计**为准 → A 改 | 真机已暴露（Q13②）|
+| **X1** | 分布式覆盖 | 🔴 高 | `cmd108('l')` 仅给从机(robot_id=1) build 覆盖路径(122)，主机(0)不 build → **master 不动** | 以 **App 设计**为准 → A 改 | **A 已处理（2026-06-12）** |
+| **X2** | 分布式覆盖 | 🔴 高 | `cmd108('l')` 内部又 load 图 + 用当前位姿，**覆盖** `cmd5` 刚归零的 (0,0,0) | 以 **App 设计**为准 → A 改 | **A 已处理（2026-06-12）** |
 | **X3** | 分布式拉图 | 🔴 高 | agent `Reconciler` **不发 `cmd105`** 拉主机图 → 子车 `cmd5` 加载的是不存在/过期本机图 | **App/agent 改**（补 cmd105）| 新确认（Q13 提及）|
 | **M1** | 地图坐标 | 🔴 高 | App **未应用 `x0/y0` 世界偏移** → 机器人 pin / 选点下发**整体偏一个常量** | 需裁决（App 落公式 *或* A 归零 x0/y0）| 新确认（Q12/§5「待落实」）|
 | **X4** | 分布式拉图 | 🟠 中 | 即便补 `cmd105`，`cmd124` wget **异步无完成信号** → `cmd5` 可能早于拉图完成（race）| 双方议（agent 等待 *或* A 给信号）| 新发现 |
@@ -120,11 +122,10 @@
 - **🧭 以哪方为准（待裁决）：** ☐ 以紫派格式为准 → **App 落 A12 公式**（推荐）　☐ 以 App 为准 → **A 把导出地图归一到 `x0=y0=0`**　☐ 双方议
   - **建议（Claude）：以紫派为准、App 改**。`x0/y0` 对 A 的规划有意义（栅格左下角世界坐标），不应强迫 A 归零。App 解析首行 `x0/y0`，在 `MapTransform` 增字段，`canvasToMap/mapToCanvas` 与 pin 渲染按 `grid = world − x0*20`（5cm 单位下 `x0_cells = round(x0/metersPerPixel)`）做平移。**纯 App 侧改动**，A 无需动代码（仅请 A 复核公式与符号）。
 
-### M2 ✅ 对齐（代码）/ ⚠️ A 文档残留 —— 首行取 `parts[2]/[3]`
+### M2 ✅ 对齐（代码）/ ✅ A 文档已订正 —— 首行取 `parts[2]/[3]`
 - App 按位置取 `height=parts[2]、width=parts[3]`（`MapService.ets:312-313`），与紫派 `MapServer.cpp` 写出顺序一致（crosscheck §十、A12 已确认）。**代码对齐**。
-- **残留**：A 的《接口功能与对接问题说明.md》**§9 仍写「取首行末两个整数作为高宽」**——那是 LCM `MAPFILE` 4 值分片头的路径，与 HTTP 7 值文件**不同**；照它会把 `x0/y0` 当行列 → 空气图。
-- **🧭 以哪方为准（待裁决）：** ☐ A 订正文档 §9（推荐）　☐ 维持
-  - **建议（Claude）：请 A 删/订正 §9 的「取末两个」表述**（A 的 `README.md 0db78ed` 已写对「固定取第 3、4 字段」，§9 实已被取代）。**纯文档**，无代码。
+- **A 侧处理（2026-06-12）**：《接口功能与对接问题说明.md》§9 已订正为 HTTP `defultMap.txt` 按 7 字段解析，`height/width` 固定取第 3、4 字段，末两个字段是 `x0/y0` 世界偏移。
+- **🧭 裁决：无需继续处理**。
 
 ### M3 🟡 低 —— 压缩图 `ZMAP1` 行格式缺契约级定义
 - **App 现状**：`fetchMapPreferZiped` 优先拉 `zipedMap.txt`，`decodeZipedRow` 按 `rowBitCount wordCount word0…`、每 64 格打包成**无符号 64 位整数**、`cell0` 在 **bit63**、`BigInt` 解（`MapService.ets:277-297`）。

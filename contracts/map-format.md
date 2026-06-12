@@ -68,7 +68,7 @@ rowBitCount wordCount word0 word1 ...               ← 第 3 行起：每行一
 
 > **原点与 0°（✅ A确认，《接口…说明》§六.2-3）**：地图原点 = 紫派**建图/定位初始位姿**；`theta=0` 指向 **+X**，
 > 正角 **CCW** 朝 +Y。多机时子车用 UDP **`cmd 5`** 加载地图会把初始位姿**强制归零到 (0,0,0)**
-> （`cmd 2/'j'/'l'` 则沿用当前心跳位姿，不归零）——故"子机从 master 起点出发"须经 `cmd 5`（见 `multi-robot-collab.md` §定位约定）。
+> （`cmd 2/'j'` 则沿用当前心跳位姿，不归零；`cmd108/'l'` 不再加载地图）——故"子机从 master 起点出发"须经 `cmd 5`（见 `multi-robot-collab.md` §定位约定）。
 
 > 换算实现见 App `canvas2map / map2canvas`。紫派侧只需保证：**地图文件格式稳定 + 心跳里的 x/y/r
 > 与地图同一真实世界坐标系**。坐标系原点/朝向定义若有调整，必须在此文档同步。
@@ -77,7 +77,7 @@ rowBitCount wordCount word0 word1 ...               ← 第 3 行起：每行一
 
 - [x] 坐标**单位 = 1/20 m = 5cm**，与格子 1:1。
 - [x] `r`（朝向）= **度**，[-180,180]；`theta=0` = +X，正角 CCW 朝 +Y。
-- [x] **原点 = 建图/定位初始位姿**；子机经 **`cmd 5`** 加载图归零到 (0,0,0)（`cmd 2/'j'/'l'` 沿用当前位姿，不归零）。
+- [x] **原点 = 建图/定位初始位姿**；子机经 **`cmd 5`** 加载图归零到 (0,0,0)（`cmd 2/'j'` 沿用当前位姿，不归零；`cmd108/'l'` 不再加载地图）。
 - [x] 地图**文件名 = `defultMap.txt`**（`.txt.txt` 启动即删，弃用）。
 - [x] 地图**首行 = 7 值 `range resolution height width metersPerPixel x0 y0`**；行列 = `parts[2]/[3]`，**不是末两个**（末两个是 `x0/y0` 偏移）。
 - [x] 分布式地图传输 = **方案 B**（子机 `cmd124` wget 拉 `defultMap.txt` + `roadFile.txt`）；方案 A 需新增 agent 写文件能力后再实现。
