@@ -15,6 +15,31 @@
 
 ---
 
+## 裁决记录（2026-06-12，用户已与 A 沟通）
+
+- **A 的回应**：A 于 `docs/plan6-app-purplepi-interface-change-plan.md`（`main` `fecfddc`）读本审计后回应——**X1/X2(P1)、C1(P4)、M1(P5，附换算公式)、C4(P6)、X5/X7 全部接受**，并独立复核认同 N2（中性保活非问题）。A 认领紫派 `cmd108`(P1) 为第一优先。
+- **唯一分歧 = 传图（X3/X4）**：A plan6 P2 主张**方案A**（地图走分布式软总线、sub agent 落地 `/data/test`）。**用户裁决：忽略方案A，地图维持方案B**（紫派 `cmd105`→`cmd124` HTTP `wget`，已就绪）。
+  > 依据：**软总线的创新点 = 实时协调黑板**（`assignments`/`robots`/位姿/进度/`phase`/`area`），那才是分布式协同本体；地图是 ~MB 静态大文件，`distributedDataObject` 不适合 blob 批量传输（会和延迟敏感的协调态抢同步通道），且方案A 绑死"agent 写 `/data/test`"未解决的部署/权限(Q6.1)。**软总线已被协调态充分体现，地图无须上总线。** 方案A 仅作可选 demo 增强保留。
+- **据此分工**：
+  - **紫派（A）**：改 `cmd108/'l'`(P1) —— master/sub 都 build 122、`108` 内不再 load 图/重置位姿、成功后清暂存。其余维持现状（`cmd105/124` 保留作方案B 主路径，**不弃用**）。
+  - **App/agent**：**C1**(distributed 平板不直连 master) + **M1**(x0/y0 坐标换算) + **X3**(agent 补 `cmd105` 方案B：master IP 打进 byte[1,2,4,6]、子车 `105→5→107→108`)。
+- **不采纳** plan6 的 P2（方案A 软总线落地图）与 P3 中"sub 经软总线落图后才 cmd5"的前置——改为方案B 的 `cmd105`→wget。X4（wget 完成时机）由 App/agent 侧延时/确认处理。
+- **遗留小项（非分歧）**：M2（请 A 订正接口说明 §9「取末两个」）、M3（ZMAP1 写进 `map-format.md`）A 未在 plan6 点到，低优先。
+
+### 实施状态（2026-06-12 · App 侧已落地，**未经 DevEco 编译**）
+
+| 项 | 改动 | 文件 |
+|---|---|---|
+| **C1** ✅ | distributed 模式平板不直连 master（仅非 distributed 才 `connectTo`；地图仍 HTTP 拉） | `ControlPage.ets::initConnection` |
+| **M1** ✅ | 解析首行 `metersPerPixel/x0/y0` 并在 world↔grid 边界应用（`grid=(world/20−x0)/mpp`）；pin/选点/矩形/目标共用 | `MapService.ets`(parseMap+ParsedMap)、`model/geometry.ets`(MapTransform+canvasToMap/mapToCanvas)；**已同步 car-agent 副本** |
+| **X3** ✅ | agent：master→`107,108`（不发 cmd5）；sub→`105→5→107,108`；master IP 经黑板 `map.ref` 下发；cmd105 IP 打 `byte[1,2,4,6]`（复用 encodeSend） | `car-agent Reconciler.ets`、`AgentCore.ets`；`ControlPage.assignArea`(写 `map.ref`) |
+| **X4** ✅ | agent 发 cmd105 后**轮询本机 `:8000`** 确认图落地再发 cmd5（取代盲等固定时长；超时兜底） | `car-agent AgentCore.ets` |
+
+- **验证**：Node 镜像测试 `tools/verify/verify.mjs`(53 项，含新增 x0/y0 偏移用例 + car-agent 逐字节同步守卫) + `verify-reconciler.mjs`(12 项，含 master/sub 分支 + 拉图等待) **全绿**。
+- **待办**：① DevEco 编译 + 真机联调；② **紫派侧 A 改 `cmd108`(P1)** 后分布式 master 才会动（端到端依赖）。
+
+---
+
 ## 0. 速览（按严重度排序）
 
 | # | 流程阶段 | 严重度 | 一句话 | 建议方向（待裁决） | 状态 |
