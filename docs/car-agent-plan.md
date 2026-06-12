@@ -44,7 +44,7 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
 ## 2. 形态与复用（关键设计取向）
 
 - **形态**：瘦 hap，运行时入口 = **无 Page 的 ServiceExtensionAbility / 常驻 Ability**（headless）。
-  **🔑 bundleName 必须 = `com.example.carapp`**（与平板 App 同——`distributedDataObject` 跨设备同步要求两端同 bundle；见 `docs/distributed-trust.md` 决策·已答④ / integration-qa Q9）。
+  **🔑 bundleName 必须 = `com.example.carapp`**（与平板 App 同——`distributedDataObject` 跨设备同步要求两端同 bundle；见 `docs/archive/distributed-trust.md` 决策·已答④ / integration-qa Q9）。
   除 headless 入口外，**另含一次性配对 UIAbility**（仅配网期拉起，处理设备互信 PIN 的保险——以防接受方需"目标包在运行"才弹系统 PIN；运行时不用），故有一个极简 page。
 - **最大复用 app-harmony 的 UI 无关层**——这是省力关键，app-harmony 的 `model/` + `service/` 本就无 UI 依赖：
   - `model/protocol.ets`（`encodeSend`/`decodeReceive`、命令枚举）——**逐字节同款，必须共享**。
@@ -60,12 +60,12 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
 - **P0 规划**（本文件）✅ 2026-06-07。
 - **P1 设计细化**：定 ① 复用策略（HAR vs 复制）+ 目录骨架；② **reconciler 状态机**（黑板 `phase/assignment` → 本机命令序列；
   幂等：黑板未变不重发、变了才发；到点/超时迁移）；③ localhost 传输配置（端口/与外部 App 直连路径的**互斥**，见 §4 风险）；
-  ④ 黑板写回节流（心跳 500ms，写黑板别太频）；⑤ **先落地共享日志** `utils/log.ets`（[`logging-plan.md`](logging-plan.md) **L1**，
+  ④ 黑板写回节流（心跳 500ms，写黑板别太频）；⑤ **先落地共享日志** `utils/log.ets`（[`logging-plan.md`](archive/logging-plan.md) **L1**，
   App 与 agent 同用、属共享层基底）。产出：本文件「设计」节 + 必要时序图。
 - **P2 脚手架**：`car-agent/` hap（`module.json5` 声明 ServiceExtensionAbility、权限：分布式 datasync / 软总线 / UDP；无 page）；
   接好共享 `model`/`service`；能起、入会、打印黑板。
 - **P3 实现核心**：reconciler（黑板变更 → localhost UDP）+ 心跳回写（localhost 心跳 → 黑板 RobotRuntime）+ 保活
-  + **agent 日志**（[`logging-plan.md`](logging-plan.md) **L3**：无界面刚需——复用 `Log` + 滚动文件 sink + reconciler 决策/回写日志）。
+  + **agent 日志**（[`logging-plan.md`](archive/logging-plan.md) **L3**：无界面刚需——复用 `Log` + 滚动文件 sink + reconciler 决策/回写日志）。
 - **P4 测试**：纯映射逻辑（assignment→命令序列）进 `tools/verify` 镜像；起 `mock-purplepi` 当本机栈、
   另起一个"假平板"（可扩 `tools/mock-app` 或新 `mock-tablet` 写黑板）跑 **agent↔mock-purplepi** 闭环；
   软总线双机用两实例桩。
@@ -78,7 +78,7 @@ agent 仅按心跳状态如实回报）、地图方案A（黑板传整图）—�
   无 agent 的单车直控。需 A 确认 `udp2lcm` 是否 bind `0.0.0.0:5001`（agent 可打 `127.0.0.1:5001`）、是否需独立 localhost 端口避让外部。
 - **OH 5.0 能否常驻无界面 ArkTS hap**：A 早前口头"agent 可行"，需落实 ServiceExtensionAbility 常驻 + 开机自起 + 资源占用（RK3566）。
 - **软总线信任**：平板↔紫派 OH 设备认证/`networkId` 发现、`distributedDataObject` 可信组网门槛。
-  **→ 已定（2026-06-08·用户）**：**保留 DDO 软总线** + **一次性账号无关配对**（平板=发起方、紫派配网期接 **HDMI 显示器**确认 PIN，团队既有成熟流程）；评估过纯 LAN socket 黑板退路（`FleetMissionService` 传输无关、可随时切）。卡点"车无界面没法点 PIN"已消解。详见 `docs/distributed-trust.md`「决策」+ integration-qa Q9。
+  **→ 已定（2026-06-08·用户）**：**保留 DDO 软总线** + **一次性账号无关配对**（平板=发起方、紫派配网期接 **HDMI 显示器**确认 PIN，团队既有成熟流程）；评估过纯 LAN socket 黑板退路（`FleetMissionService` 传输无关、可随时切）。卡点"车无界面没法点 PIN"已消解。详见 `docs/archive/distributed-trust.md`「决策」+ integration-qa Q9。
 - **位姿对齐**：子机"从 master 同物理起点同朝向、顺序出发 → 构造位姿 (0,0,0)"的编排谁来保证（agent 收到 `cmd5` 即归零，已确认）。
 - **地图**：先方案B（agent 触发 `cmd105`→紫派 `cmd124` wget）；方案A（黑板传整图）后置。
 - 这些汇总成 **integration-qa.md 新问题块（Q6 起）**，供 A 异步答。

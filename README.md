@@ -19,13 +19,14 @@
                    │  读取处理后视频 + 识别结果(JSON)                                    │ LCM 信道
                    ▼                                                                   ▼
         ┌─────────────────────┐      上报视频流 + 结构化读数            ┌──────────────────────────┐
-        │      服务器 (?)       │ ◀──────────────────────────────────── │   香橙派 Orange Pi          │
+        │      香橙派视觉       │ ◀──────────────────────────────────── │   香橙派 Orange Pi          │
         │  视频转发 / 数据管理   │                                       │   昇腾 NPU · YOLOv5s+关键点 │
         └─────────────────────┘                                        └──────────────────────────┘
 ```
 
-> ⚠️ **图中"服务器"的归属与部署位置尚未拍板**（云端？紫派？香橙派本机？），见
-> [`contracts/server-api.md`](contracts/server-api.md) 顶部的待定项——这是开工前要先确定的第一件事。
+> ✅ **图中"服务器"已定 = 香橙派本机**（FastAPI + Uvicorn，端口 8000）：App 经 WebSocket
+> `ws://<香橙派IP>:8000/ws/video` 直连取处理后视频 + 读数/告警，**无独立/云端服务器**，与导航链路解耦。见
+> [`contracts/server-api.md`](contracts/server-api.md)(v1.0) 与 [`contracts/vision-stream-api.md`](contracts/vision-stream-api.md)(v1.0)。
 
 ## 分工
 
@@ -41,7 +42,8 @@
 |---|---|
 | [`contracts/`](contracts/) | ⭐ **接口契约**——三人共同维护的"神圣区域"。改它=发 PR 并 @ 全员。 |
 | [`docs/`](docs/) | 网络规划、测试计划、协作规范、设计文档。 |
-| [`app-harmony/`](app-harmony/) | 鸿蒙 App（ArkTS）。 |
+| [`app-harmony/`](app-harmony/) | 鸿蒙 App（ArkTS，平板）。 |
+| [`car-agent/`](car-agent/) | 车载无界面轻 agent（ArkTS，常驻紫派；软总线黑板↔本机 UDP）。owner。 |
 | [`purplepi-control/`](purplepi-control/) | 紫派主控（系统/通信/轮控/导航）。 |
 | [`orangepi-vision/`](orangepi-vision/) | 香橙派视觉推理。 |
 | [`tools/`](tools/) | 联调用的 Mock / 回放工具。 |

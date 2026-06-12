@@ -1,6 +1,6 @@
 # 接口优雅性复审 R1 · App ↔ 紫派
 
-> **任务 R1（`docs/ui-progress.md`）**：在"**接口是两边共同设计、不一味迁就 A 现有代码**"的标准下（见 `CLAUDE.md`「接口是两边共同设计的」），
+> **任务 R1（`docs/archive/ui-progress.md`）**：在"**接口是两边共同设计、不一味迁就 A 现有代码**"的标准下（见 `CLAUDE.md`「接口是两边共同设计的」），
 > 逐项审 App 侧已写的协议/地图/命令处理是否为迁就紫派现状做了**不优雅妥协**，能否两边一起改干净。
 > **日期 2026-06-08。** 依据：`udp-protocol.md` / `map-format.md` / `udp-protocol-crosscheck.md`
 > + A 的《接口功能与对接问题说明.md》(`origin/purplepi-control` `59fc335`) + App 源码（`model/protocol.ets`、`service/MapService.ets`、`constants/`）。
@@ -50,7 +50,7 @@ map-format 旧写"行数 列数"不够准确，**建议 App 兼容"首行末两�
 ### 4b. 地图就绪靠"字节数 ≥ 324e4"（结论：脆，**已在 Q8**，并入跟踪不另立）
 `MAP_READY_MIN_BYTES = 324e4` ≈ 预期 1800×1800 满图字节数（`constants/ui.ets`）。真图更小则**永远判不就绪**。
 - **判定**：典型"无就绪信号"下的脆启发式。**已立 Q8**（请 A 在存图完成给明确信号取代大小阈值）+ App 短期已用
-  "`cmd2 结束建图`后主动拉一次图"绕开（见 `docs/feature-parity-review.md`）。R1 **不另开问题**。
+  "`cmd2 结束建图`后主动拉一次图"绕开（见 `docs/archive/feature-parity-review.md`）。R1 **不另开问题**。
 
 ## 同理已在跟踪、R1 不重复立项的妥协
 
