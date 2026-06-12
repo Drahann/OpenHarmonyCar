@@ -379,3 +379,24 @@ grid_y = (world_y - y0) / metersPerPixel
 - **请 B**：让 `frame_meta.detections[]` 每个对象**带 `score`**（YOLO 检测置信度，float），与 `vision-stream-api.md` 对齐；**若你那边字段名不是 `score`**（如 `conf`/`confidence`），**告诉我们真实字段名**，App 按你的改。
 - 顺带核对 `gauge_angles` / `keypoints[].conf` / `fps` / `inference_time_ms` 等是否都按契约字段名输出（App 现已容错，但字段对齐了读数/置信度才显示正确）。
 > ⚠️ 本条落 `app-harmony-core`，应 cherry-pick 同步 `main`。
+
+---
+
+## 2026-06-12 · 🔴 本机端口互斥：请 A 改 udp2lcm 心跳「回发到客户端源端口」→ A
+
+> 真机现象：car-agent 与 udp2lcm **同机**。两个互锁问题：
+> ① agent 绑 `0.0.0.0:5001`，与 udp2lcm **抢端口**（SO_REUSE 共绑）→ 平板直连该车建图/直控的指令被内核分流丢包、**建不了图**；
+> ② udp2lcm 把心跳**写死回 `clientIP:5001`** → agent 当客户端(`127.0.0.1`)时心跳**回环到 udp2lcm 自身**（把自己回的 `0x03` 当 cmd3 误设目标），且 agent 收不到位姿。
+
+### App/agent 侧已改（本轮，`app-harmony-core`，commit `b0117fc`）
+- agent 绑**独立端口 `AGENT_LOCAL_PORT=5002`**（不再抢 udp2lcm 的 5001）；**发送目标仍是 udp2lcm 的 5001**。
+- agent **仅任务期(覆盖/导航)才作 udp2lcm 客户端**（中性保活），空闲/建图期 **UDP 静默** → 平板可干净直连该车建图/直控。
+
+### 🔴 请 A 改 `udp2lcm`（关键；否则覆盖时 agent 收不到位姿 + 心跳回环）
+把心跳回发目标从写死的 `clientIP:5001` 改成 **「客户端源地址(IP + 源端口)」**，`NewWheelCtrl/udp2lcm/udp.c` 两处：
+1. **`udpRecvHandler` 首包**：存**完整 `struct sockaddr_in clientAddr`（含源端口）**，别只 `strcpy(clientIP, inet_ntoa(addr))`（丢了源端口）。
+2. **`udpSendHandler`**：心跳 `sendto` 的目标用存下的 `clientAddr`（含源端口），别 `serverAddr.sin_port = htons(PORT)`(5001)。
+
+**效果**：平板(从 5001 发)→心跳回 5001(平板收)；agent(从 5002 发)→心跳回 5002(agent 收)，**两者都不回环**。
+> 建议顺带把 **C4「clientIP 不刷新」** 一起做：命令循环里收到**有效控制包**时刷新 `clientAddr`（换平板/重连不丢心跳）。详见 `contracts/app-purplepi-alignment-audit.md`（C4 / 端口互斥）。
+> ⚠️ 另一前置：分布式覆盖还需先**建立软总线互信**（一次性 `bindTarget`+紫派 HDMI 系统 PIN 确认）——真机 `ObjectStore Collaboration deivces size:0` 即未建。属配置步骤，非本协议。
