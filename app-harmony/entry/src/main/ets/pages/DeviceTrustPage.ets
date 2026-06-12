@@ -18,6 +18,7 @@ import { router } from '@kit.ArkUI';
 import { distributedDeviceManager } from '@kit.DistributedServiceKit';
 import { FleetMissionService } from '../service/FleetMissionService';
 import { AppColor, FontSize, FontFamily, Space, Radius, Elevation, TOUCH_MIN } from '../constants/theme';
+import { Log, Logger } from '../utils/log';
 
 type DeviceInfo = distributedDeviceManager.DeviceBasicInfo;
 
@@ -33,6 +34,7 @@ struct DeviceTrustPage {
   @State private statusMsg: string = '';
 
   private fleet: FleetMissionService = FleetMissionService.getInstance();
+  private log: Logger = Log.scoped('DeviceTrust');
   /** 发现去重（deviceId → info），重建 @State discovered。 */
   private discoveredMap: Map<string, DeviceInfo> = new Map<string, DeviceInfo>();
 
@@ -208,24 +210,37 @@ struct DeviceTrustPage {
             .onClick(() => this.unbind(item))
         }
       } else {
-        Button() {
-          Row() {
-            if (this.bindingId === item.deviceId) {
-              LoadingProgress().width(16).height(16).color(AppColor.primary)
+        Row({ space: Space.sm }) {
+          Button() {
+            Row() {
+              if (this.bindingId === item.deviceId) {
+                LoadingProgress().width(16).height(16).color(AppColor.primary)
+              }
+              Text(this.bindingId === item.deviceId ? '认证中' : '配对')
+                .fontSize(FontSize.bodySm)
+                .fontColor(AppColor.primary)
+                .margin({ left: this.bindingId === item.deviceId ? Space.xs : 0 })
             }
-            Text(this.bindingId === item.deviceId ? '认证中' : '配对')
-              .fontSize(FontSize.bodySm)
-              .fontColor(AppColor.primary)
-              .margin({ left: this.bindingId === item.deviceId ? Space.xs : 0 })
           }
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(36)
+          .padding({ left: Space.md, right: Space.md })
+          .enabled(this.bindingId.length === 0)
+          .onClick(() => this.bind(item))
+          // 解绑重置：用于"之前绑过但卡住"（不在已信任列表、再配对不弹 PIN）的设备——强制解绑清残留互信，再配对即重新弹 PIN。
+          Button('解绑重置')
+            .fontSize(FontSize.caption)
+            .fontColor(AppColor.textCaption)
+            .backgroundColor(AppColor.surface)
+            .border({ width: 1, color: AppColor.textCaption })
+            .borderRadius(Radius.pill)
+            .height(36)
+            .padding({ left: Space.sm, right: Space.sm })
+            .enabled(this.bindingId.length === 0)
+            .onClick(() => this.unbind(item))
         }
-        .backgroundColor(AppColor.surface)
-        .border({ width: 1, color: AppColor.primary })
-        .borderRadius(Radius.pill)
-        .height(36)
-        .padding({ left: Space.md, right: Space.md })
-        .enabled(this.bindingId.length === 0)
-        .onClick(() => this.bind(item))
       }
     }
     .width('100%')
@@ -237,6 +252,7 @@ struct DeviceTrustPage {
   // ── 发现 / 信任 ───────────────────────────────────────────────────────────────
   private refreshTrusted(): void {
     this.trusted = this.fleet.listDevices();
+    this.log.i(`refreshTrusted → 已信任列表 = ${this.trusted.length} 台`);
   }
 
   private startDiscover(): void {
@@ -246,7 +262,9 @@ struct DeviceTrustPage {
     this.discovering = true;
     this.fleet.startDiscovering((device: DeviceInfo) => {
       // 去重 + 排除已信任，整体重建 @State（不在回调里 push @State 数组）。
-      if (device.deviceId.length === 0 || this.isTrusted(device.deviceId)) {
+      const trusted: boolean = this.isTrusted(device.deviceId);
+      this.log.i(`发现回调: id=${device.deviceId} 已信任=${trusted}${trusted ? '（已信任→不入"新设备"列表）' : ''}`);
+      if (device.deviceId.length === 0 || trusted) {
         return;
       }
       this.discoveredMap.set(device.deviceId, device);
@@ -268,6 +286,7 @@ struct DeviceTrustPage {
     this.statusMsg = '认证中：车屏会弹出 PIN 码，请按平板系统提示输入…';
     this.fleet.bindDevice(item.deviceId, (ok: boolean, msg: string) => {
       this.bindingId = '';
+      this.log.i(`bind 回调: ok=${ok} msg=${msg} device=${item.deviceId}`);
       if (ok) {
         this.statusMsg = '配对成功，已建立互信。';
         // 从发现列表移到已信任。

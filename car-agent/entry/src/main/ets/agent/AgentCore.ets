@@ -61,12 +61,15 @@ export class AgentCore {
       // ⚠️ 不在此起保活：仅本车**有任务**时才作 udp2lcm 客户端（见 onBlackboard 引擎门控）。
       //   空闲/建图期保持 **UDP 静默** → 平板可直连该车建图/直控，不被 agent 抢端口/抢轮控。
       const fleet: FleetMissionService = FleetMissionService.getInstance();
-      fleet.init(context);                       // distributedDataObject 需 Context（权限须预授权）
-      fleet.subscribeMission(this.blackboardListener);
-      fleet.joinSession(FLEET_SESSION_ID)
-        .then(() => this.log.i(`已入软总线会话 ${FLEET_SESSION_ID}（等待平板/它车写黑板）`))
-        .catch((e: Object) => this.log.e(`joinSession 失败: ${JSON.stringify(e)}`));
-      this.log.i(`agent up: car=${this.carId} → bind 本机 :${AGENT_LOCAL_PORT}（UDP 静默待命，仅任务期接 udp2lcm ${LOCAL_STACK_IP}:${UDP_PORT}）`);
+      // init 内**先申请 DATASYNC 权限、再建 DDO**（顺序关键）；故 subscribe/join 必须等 init 完成再做，
+      // 否则 joinSession 时 dataObject 还没建好会被静默跳过（真机表现：入会假成功、实际没连上）。
+      fleet.init(context).then(() => {
+        fleet.subscribeMission(this.blackboardListener);
+        fleet.joinSession(FLEET_SESSION_ID)
+          .then(() => this.log.i(`已入软总线会话 ${FLEET_SESSION_ID}（等待平板/它车写黑板）`))
+          .catch((e: Object) => this.log.e(`joinSession 失败: ${JSON.stringify(e)}`));
+        this.log.i(`agent up: car=${this.carId} → bind 本机 :${AGENT_LOCAL_PORT}（UDP 静默待命，仅任务期接 udp2lcm ${LOCAL_STACK_IP}:${UDP_PORT}）`);
+      }).catch((e: Object) => this.log.e(`fleet init 失败: ${JSON.stringify(e)}`));
     }).catch((e: Object) => this.log.e(`start failed: ${JSON.stringify(e)}`));
   }
 

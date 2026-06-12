@@ -14,7 +14,7 @@
  *    同步采用单一 JSON 字段（missionJson）承载 MissionSnapshot，规避嵌套字段同步的边界问题。
  */
 
-import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
+import { abilityAccessCtrl, common, Permissions, PermissionRequestResult } from '@kit.AbilityKit';
 import { distributedDeviceManager } from '@kit.DistributedServiceKit';
 import { distributedDataObject } from '@kit.ArkData';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -71,9 +71,16 @@ export class FleetMissionService {
     return new Promise<void>((resolve: () => void) => {
       const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
       atManager.requestPermissionsFromUser(context, COLLAB_PERMISSIONS)
-        .then(() => resolve())
+        .then((res: PermissionRequestResult) => {
+          // authResults[i]: 0=已授权 / -1=拒绝。DISTRIBUTED_DATASYNC 未授 → DDO 协同失败(29360174 / ObjectStore permission:-1)。
+          const allGranted: boolean = res.authResults.length > 0 &&
+            res.authResults.every((r: number): boolean => r === 0);
+          log.i(`权限请求结果: [${res.permissions.join(', ')}] authResults=[${res.authResults.join(', ')}] → ` +
+            (allGranted ? '✅ 全部已授权' : '❌ 有未授权！DDO 协同会失败——请在本机设置授予「多设备协同/DISTRIBUTED_DATASYNC」'));
+          resolve();
+        })
         .catch((err: BusinessError) => {
-          log.e(`request permissions failed: ${err.code} ${err.message}`);
+          log.e(`requestPermissionsFromUser 失败: ${err.code} ${err.message}`);
           resolve(); // 不阻塞启动
         });
     });
@@ -90,10 +97,15 @@ export class FleetMissionService {
   /** 可信设备列表（移植自旧 getRemoteDeviceInfo）。 */
   listDevices(): distributedDeviceManager.DeviceBasicInfo[] {
     if (this.deviceManager === null) {
+      log.e('listDevices: deviceManager 为 null（init 未成功？）');
       return [];
     }
     try {
-      return this.deviceManager.getAvailableDeviceListSync();
+      const list: distributedDeviceManager.DeviceBasicInfo[] = this.deviceManager.getAvailableDeviceListSync();
+      log.i(`listDevices(可用/已信任) = ${list.length} 台：` +
+        list.map((d: distributedDeviceManager.DeviceBasicInfo): string =>
+          `[${d.deviceName !== undefined && d.deviceName.length > 0 ? d.deviceName : '?'} / ${d.deviceId}]`).join(' '));
+      return list;
     } catch (err) {
       log.e(`getAvailableDeviceListSync err: ${JSON.stringify(err)}`);
       return [];
@@ -108,9 +120,13 @@ export class FleetMissionService {
       return;
     }
     try {
-      this.deviceManager.on('discoverSuccess', (data: DiscoverSuccessData) => onFound(data.device));
+      this.deviceManager.on('discoverSuccess', (data: DiscoverSuccessData) => {
+        log.i(`discoverSuccess: [${data.device.deviceName !== undefined && data.device.deviceName.length > 0 ? data.device.deviceName : '?'} / ${data.device.deviceId}]`);
+        onFound(data.device);
+      });
       this.deviceManager.on('discoverFailure', (data: object) =>
         log.e(`discoverFailure: ${JSON.stringify(data)}`));
+      log.i('startDiscovering(discoverTargetType=1)…');
       this.deviceManager.startDiscovering({ 'discoverTargetType': 1 });
     } catch (err) {
       log.e(`startDiscovering err: ${JSON.stringify(err)}`);
@@ -147,16 +163,20 @@ export class FleetMissionService {
       'appOperation': '认证巡检车',
       'customDescription': '与巡检车建立分布式互信（软总线）'
     };
+    log.i(`bindTarget 发起：target=${deviceId} targetPkgName=${BUNDLE_NAME} bindType=1(PIN)`);
     try {
       this.deviceManager.bindTarget(deviceId, bindParam, (err: BusinessError) => {
         if (err) {
+          log.e(`bindTarget 回调失败：code=${err.code} msg=${err.message}`);
           onResult(false, `${err.code} ${err.message}`);
         } else {
+          log.i(`bindTarget 回调成功：${deviceId}（接下来 listDevices 应能看到它）`);
           onResult(true, 'bound');
         }
       });
     } catch (err) {
       const e: BusinessError = err as BusinessError;
+      log.e(`bindTarget 抛异常：code=${e.code} msg=${e.message}`);
       onResult(false, `${e.code} ${e.message}`);
     }
   }
@@ -171,11 +191,14 @@ export class FleetMissionService {
       onResult(false, 'no deviceManager');
       return;
     }
+    log.i(`unbindTarget 发起：${deviceId}`);
     try {
       this.deviceManager.unbindTarget(deviceId);   // 同步 API：成功无返回、失败抛异常（无回调）
+      log.i(`unbindTarget 成功：${deviceId}`);
       onResult(true, 'unbound');
     } catch (err) {
       const e: BusinessError = err as BusinessError;
+      log.e(`unbindTarget 失败：code=${e.code} msg=${e.message}`);
       onResult(false, `${e.code} ${e.message}`);
     }
   }
