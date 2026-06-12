@@ -88,12 +88,11 @@ function gridToWorld(g: Point, t: MapTransform): Point {
  * @param halfViewport 画布半宽（旧 screenWidth_vpDiv2），运行时由 display 动态取得
  */
 export function canvasToMap(c: Point, t: MapTransform, halfViewport: number): Point {
-  const halfTxt: number = t.txtAverSize / 2;
   // 先按既有几何还原**栅格索引**，再经 gridToWorld 转回紫派世界坐标（含 x0/y0 偏移、取整给 UDP）。
   const g: Point = {
-    x: (c.x + halfViewport) / t.gridSize + t.startX - halfTxt,
+    x: (c.x + halfViewport) / t.gridSize + t.startX,
     // y 取负：屏幕向下为正，栅格/世界向上为正
-    y: -((c.y + halfViewport) / t.gridSize + halfTxt - t.endY)
+    y: -((c.y + halfViewport) / t.gridSize) + t.endY
   };
   return gridToWorld(g, t);
 }
@@ -102,11 +101,10 @@ export function canvasToMap(c: Point, t: MapTransform, halfViewport: number): Po
  * 真实世界坐标 → 屏幕地图坐标（canvasToMap 的逆变换）。
  */
 export function mapToCanvas(m: Point, t: MapTransform, halfViewport: number): Point {
-  const halfTxt: number = t.txtAverSize / 2;
   // 紫派世界坐标 → **栅格索引**（含 x0/y0 偏移）→ 既有画布换算。
   const g: Point = worldToGrid(m, t);
   return {
-    x: Math.round((g.x - t.startX + halfTxt) * t.gridSize - halfViewport),
-    y: Math.round((t.endY - halfTxt - g.y) * t.gridSize - halfViewport)
+    x: Math.round((g.x - t.startX) * t.gridSize - halfViewport),
+    y: Math.round((t.endY - g.y) * t.gridSize - halfViewport)
   };
 }
