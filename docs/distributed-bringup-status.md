@@ -270,6 +270,85 @@ DDO 根因分析（§3）确认：DDO 依赖蓝牙 + 超级终端 + DSched + 华
 - `distributedDeviceManager` / `distributedDataObject` / `abilityAccessCtrl` 相关代码
 - `DISTRIBUTED_DATASYNC` 权限
 
+## 9. 官方示例研究（2026-06-13 补充发现）
+
+### 9.1 关键发现：缺少 ACCESS_SERVICE_DM 权限
+
+**研究官方 DistributedNote 示例后发现的重大遗漏**：
+
+官方示例 `module.json5` 声明了**两个权限**：
+
+```json5
+{
+  "requestPermissions": [
+    { "name": "ohos.permission.DISTRIBUTED_DATASYNC" },
+    { "name": "ohos.permission.ACCESS_SERVICE_DM" }  // ← 我们完全没声明！
+  ]
+}
+```
+
+**权限说明**：
+- `DISTRIBUTED_DATASYNC`：分布式数据同步权限（我们声明了 ✅）
+- `ACCESS_SERVICE_DM`：访问设备管理服务权限（我们**完全没声明** ❌）
+  - 用途：设备发现、设备认证、在线状态查询
+  - 对应 API：`distributedDeviceManager`
+
+**这可能是 DDO 失败的另一个关键因素**：即使权限全部授予，缺少 `ACCESS_SERVICE_DM` 也会导致设备管理服务无法正常工作，进而影响 `onlineDev` 计数。
+
+详细分析见 [`docs/research/openharmony-distributed-examples-analysis.md`](research/openharmony-distributed-examples-analysis.md)。
+
+### 9.2 官方推荐模式：startAbility + DDO 混合方案
+
+**官方 DistributedNote 示例的完整流程**：
+
+```
+1. distributedDeviceManager.discoverDevices()  → 发现设备
+2. distributedDeviceManager.authenticateDevice() → 认证设备（需要 ACCESS_SERVICE_DM）
+3. startAbility(deviceId, parameters: {sessionId}) → 启动远端 Ability，传递 sessionId
+4. 远端 Ability 接收 sessionId → 调用 distributedObject.setSessionId(sessionId)
+5. 两端建立 DDO 同步 → 监听变更 → 自动同步
+```
+
+**关键差异**：
+- 官方使用 **startAbility 先建立连接**，再用 DDO 做数据同步
+- 我们试图**直接使用 DDO**，跳过了设备发现→认证→startAbility 的前置步骤
+- 旧 App 使用 startAbility + UDP（不用 DDO），所以能成功
+
+### 9.3 如果未来要回到 DDO
+
+必须满足以下条件：
+
+1. **添加 `ACCESS_SERVICE_DM` 权限**到 `module.json5`
+2. **使用 startAbility + DDO 混合方案**：
+   - 设备发现（distributedDeviceManager）
+   - 设备认证（authenticateDevice）
+   - startAbility 启动远端 Ability，传递 sessionId
+   - 两端调用 `setSessionId(sessionId)` 建立 DDO 同步
+3. **确保前置条件**：
+   - 两端登录同一华为账号
+   - 两端开启蓝牙
+   - 两端在超级终端中互相吸附
+   - DSched 服务正常
+
+**当前不推荐**：前置条件在消费级平板 + 工业紫派组合上无法满足。LAN Socket 方案更简单可靠。
+
+### 9.4 结论：LAN Socket 是正确选择
+
+| 维度 | 官方 DDO 方案 | 我们的 LAN Socket 方案 |
+|------|-------------|----------------------|
+| **权限** | `DISTRIBUTED_DATASYNC` + `ACCESS_SERVICE_DM` | `INTERNET` (normal) |
+| **前置条件** | 同华为账号 + 蓝牙 + 超级终端 + DSched | 仅同一 WiFi |
+| **流程复杂度** | 设备发现→认证→startAbility→DDO | 直接 TCP 连接 |
+| **可靠性** | 依赖多个系统服务 | 仅依赖网络连通性 |
+| **跨平台** | 仅鸿蒙设备 | 任何支持 TCP 的平台 |
+
+**LAN Socket 方案的优势**：
+- 零系统权限依赖
+- 零系统服务依赖
+- 流程简单直接
+- 完全可控可调试
+- 旧 App UDP 方案已验证可行性
+
 ---
 
 > 调试期所有 App/agent 改动落 `app-harmony-core`；本文（docs）按约定同步 `main`。
