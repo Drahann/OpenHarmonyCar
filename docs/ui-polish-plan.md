@@ -80,7 +80,7 @@ MapTheme.robotCovering/Error 同 info/danger；floor/ring/label/targetInner 恒�
 
 - [x] **已选方案：A · 暖纸墨绿**（用户 2026-06-11 拍板，看过 palette-preview.html）。
 - 连带同步：`docs/demo-video-plan.md` §2.1 色表、`tools/demo-film/shared/film.css`（建好后）。
-  `docs/map-ui-redesign.md` 内的旧色值视为历史记录，不回改。
+  `docs/archive/map-ui-redesign.md` 内的旧色值视为历史记录，不回改。
 
 ## 2. 图标系统（SymbolGlyph，API 12 已确认可用）
 
@@ -199,4 +199,4 @@ SPRING_SNAP = curves.springMotion(0.3, 0.65)        // 摇杆回中（快、略�
 - [ ] 录屏检查：按演示视频 R7–R9 流程过一遍，看有无露怯处（占位文字/瞬切/裸 IP 等）。
 
 *关联：评审背景见会话记录；视频计划 `docs/demo-video-plan.md`（P0 完成后才拍 R7–R9）；
-地图视觉权威 `docs/map-ui-redesign.md`（本轮只动其色值 token，管线/几何不动）。*
+地图视觉权威 `docs/archive/map-ui-redesign.md`（本轮只动其色值 token，管线/几何不动）。*

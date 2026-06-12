@@ -123,11 +123,11 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 
 **现状**：App 用 `pollMapUntilReady` 靠"`defultMap.txt` 字节数 ≥ 阈值(当前 324e4)"判断地图就绪——**脆**：真图若比阈值小则永远判不就绪；建图中途的半成品也可能误判。
 **想法/需 A**：紫派 `SERVICE_COMMAND` 既然有"建图/保存"状态，能否在**存图完成**时给 App 一个明确信号（如心跳里留 1 个状态字节，或一条专门回包），App 收到即拉图？这样取代脆弱的大小阈值。
-**短期**：App 侧已先做"`cmd2 结束建图`后主动拉一次图"绕开阈值脆性（见 `docs/feature-parity-review.md` R1/N2）。
+**短期**：App 侧已先做"`cmd2 结束建图`后主动拉一次图"绕开阈值脆性（见 `docs/archive/feature-parity-review.md` R1/N2）。
 
 ### Q9【关键·待 A 确认】无界面紫派如何与平板建立软总线互信（distributedDataObject 同步前提）
 
-多机协同走软总线黑板（`distributedDataObject`），**前提是平板与紫派在同一"可信网络"里**（官方）。建立可信两条路：① 同分布式账号（自动互信）；② 账号无关 `distributedDeviceManager.bindTarget`（**安全认证：PIN/碰一碰/扫码**）。详见 `docs/distributed-trust.md`。
+多机协同走软总线黑板（`distributedDataObject`），**前提是平板与紫派在同一"可信网络"里**（官方）。建立可信两条路：① 同分布式账号（自动互信）；② 账号无关 `distributedDeviceManager.bindTarget`（**安全认证：PIN/碰一碰/扫码**）。详见 `docs/archive/distributed-trust.md`。
 
 **🔴 难点**：紫派上跑的是**无界面 agent**，`bindTarget` 的交互确认（PIN）在车上没法点 → **agent 自己绑不了**。互信必须**预先一次性建立**（建立后是持久"信任标签"，agent 常驻直接用）。需 A（紫派侧）确认/配合：
 
@@ -138,7 +138,7 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 
 **在此之前**：平板 App 会补"设备互信 UI"（发现+发起 `bindTarget`），但**能否真把无界面紫派绑成功取决于上面**；端到端联调前，多机用平板「直发兜底」先测覆盖本身。
 
-**↳ App 侧补记（2026-06-08，用户定）**：互信方向与车端确认手段**已定**——**平板=发起方**（`bindTarget`）、**紫派=接受方**；紫派**配网期接 HDMI 显示器**在系统配对弹窗确认 PIN（**团队既有成熟流程，此前设备认证一直这么做**）。故上面 🔴"无界面没法确认 PIN"**消解**：配对一次性、用显示器完成，之后 headless agent 凭持久信任标签直接 `distributedDataObject` 同步、运行时无需界面。传输层**保留 DDO 软总线**（评估过纯 LAN socket 退路、`FleetMissionService` 接口传输无关可随时切，留作软总线反复受阻时再用）。详见 `docs/distributed-trust.md`「决策」。
+**↳ App 侧补记（2026-06-08，用户定）**：互信方向与车端确认手段**已定**——**平板=发起方**（`bindTarget`）、**紫派=接受方**；紫派**配网期接 HDMI 显示器**在系统配对弹窗确认 PIN（**团队既有成熟流程，此前设备认证一直这么做**）。故上面 🔴"无界面没法确认 PIN"**消解**：配对一次性、用显示器完成，之后 headless agent 凭持久信任标签直接 `distributedDataObject` 同步、运行时无需界面。传输层**保留 DDO 软总线**（评估过纯 LAN socket 退路、`FleetMissionService` 接口传输无关可随时切，留作软总线反复受阻时再用）。详见 `docs/archive/distributed-trust.md`「决策」。
 
 **A/用户答（2026-06-08，依老 App 经验）**：① 走**账号无关 PIN 认证**（`bindType=1`）、同一 **WiFi 局域网**；② 绑定时紫派**接显示器+鼠标**，**系统 PIN 弹窗**在车屏确认（查老 App 代码证实：本 App 不自渲染 PIN、无 `uiStateChange`，系统弹窗代劳）；③ **🔑 关键：`distributedDataObject` 同步要两端同 `bundleName`** → **车载 agent 须打包为 `com.example.carapp`**（与平板同），平板 `bindTarget` 的 `targetPkgName='com.example.carapp'`。**残留待真机/A**：紫派 DM 是否确有可点系统弹窗、接受方是否要"目标包(agent)在运行"才弹 PIN（已用"agent hap 内置**一次性配对 UIAbility**"兜底）、被发现+接受绑定的权限配置。**App 侧已落地**：发现+配对面板 `pages/DeviceTrustPage.ets`（HomePage「设备互信」入口）+ `FleetMissionService.bindDevice` 补 `targetPkgName/appOperation/customDescription`。
 
@@ -160,14 +160,14 @@ App 侧新立项**车载轻 agent**（无界面 ArkTS 节点，常驻紫派，�
 
 ### Q11【接口不一致·建议】多车覆盖（LCM122）能否像单车全路径（LCM127）那样选覆盖算法？
 
-来自 App 流程复审（`docs/safety-flow-review.md` §3）。**现状不一致**：单车全路径 `cmd102` 带 `byte1=algNum`（牛耕 0 / 最小生成树 1 → LCM **127**）、App 已有算法选择 UI；但多车分布式覆盖 `cmd107/108` → LCM **122**（按两对角点生成矩形覆盖路径）**协议里没有算法参数**（A 文档 §三 122 无 algNum），App 多车界面因此**没有算法选项**。
+来自 App 流程复审（`docs/archive/safety-flow-review.md` §3）。**现状不一致**：单车全路径 `cmd102` 带 `byte1=algNum`（牛耕 0 / 最小生成树 1 → LCM **127**）、App 已有算法选择 UI；但多车分布式覆盖 `cmd107/108` → LCM **122**（按两对角点生成矩形覆盖路径）**协议里没有算法参数**（A 文档 §三 122 无 algNum），App 多车界面因此**没有算法选项**。
 - **问**：LCM122 是否支持选覆盖算法（牛耕/最小生成树/…）？
 - 若支持 → App 想在 `cmd107`（byte1/2 当前空）或 `cmd108`（byte2 当前空）带一个 `algNum`，让**单/多车算法选择一致**（DistributedOps 复用 fullpath 的算法 chip）。这是**协议变更/接口建议，需两端同步**。
 - 若 122 固定算法 → App 多车就不显示算法选项（接受不一致）。请 A 定。
 
 ### Q6.2 复核【distributed 本机 localhost 互斥】
 
-`docs/safety-flow-review.md` §2 发现：ControlPage 在 distributed 模式仍直连保活 master（`connectTo(this.ip)`），而 master 也有自己的 agent（其 udp2lcm 的唯一 localhost 客户端）→ 平板 + master-agent 两个客户端抢 master 的单 client 记录 + 3s 急停。
+`docs/archive/safety-flow-review.md` §2 发现：ControlPage 在 distributed 模式仍直连保活 master（`connectTo(this.ip)`），而 master 也有自己的 agent（其 udp2lcm 的唯一 localhost 客户端）→ 平板 + master-agent 两个客户端抢 master 的单 client 记录 + 3s 急停。
 - **请 A 确认**（呼应 Q6.2）：distributed 模式下 master 是否应**仅由其 agent 独占** localhost、**平板不直连任何车**（含 master）、全经黑板？若是，App 将在 distributed 模式去掉对 master 的直连保活（改纯黑板）。
 
 ### Q12【关键·真机建图渲染】地图文件格式确认（已据源码自查，请 A 复核）

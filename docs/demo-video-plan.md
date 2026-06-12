@@ -20,7 +20,7 @@
 | 总时长 | **2:05 标准版**；赶时间砍 S6 段 → 1:45 精简版（见 §1 表注） |
 | 画幅/帧率 | 16:9 横屏、成片 1080p60（HTML 段按 4K 渲染、剪辑时可推近裁切） |
 | 三种素材 | ① **实拍**（真机+真 App 录屏，证明力）② **HTML 概念段**（讲原理，全片视觉锚点）③ **Seedance 2**（实拍质感的转场/氛围，HTML 做不了的部分） |
-| 配色立场 | **浅色品牌系**（米白 + 墨绿 `#485c11`）。⚠️ 此前地图 UI 深色霓虹方案已被否决（见 `docs/map-ui-redesign.md` §0），**全片同样禁止深色底/霓虹辉光**。 |
+| 配色立场 | **浅色品牌系**（米白 + 墨绿 `#485c11`）。⚠️ 此前地图 UI 深色霓虹方案已被否决（见 `docs/archive/map-ui-redesign.md` §0），**全片同样禁止深色底/霓虹辉光**。 |
 | 名称 | 文案中用占位符 **{NAME}**。候选：① 直接用「OpenHarmony 工业巡检机器人」（默认，诚实学术风）② 代号「青巡」（贴墨绿品牌）③「巡迹」。**开工前由用户定一个**，Sonnet 全局替换。 |
 | 主口号 | **「让巡检自己跑起来。」**（S1/S8 用）备选：「看见每一处，读懂每一块表。」 |
 
@@ -749,5 +749,5 @@ Seedance 只做 **HTML 做不了的"实拍质感"**：照片级氛围、图纸�
 
 *数字与术语已核对来源：`contracts/udp-protocol.md`（9 字节布局、'f'=0x66、500ms 心跳、3s 急停、
 IP 藏 byte 1/2/4/6、5cm 单位）、`contracts/vision-stream-api.md` 摘要（WS 双消息、15fps、关键点
-name、`/api/summary`）、`docs/map-ui-redesign.md`（MS+Chaikin 管线、MapTheme 色值）、
+name、`/api/summary`）、`docs/archive/map-ui-redesign.md`（MS+Chaikin 管线、MapTheme 色值）、
 `docs/map-pipeline.md`（真机 1800×1800）、`theme.ets`（全部色值）。改这些事实前先改对应契约/文档。*

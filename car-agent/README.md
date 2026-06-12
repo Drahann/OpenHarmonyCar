@@ -54,7 +54,7 @@ car-agent 现在是**独立 DevEco 工程**（与 app-harmony 同级），单独
 3. **编译**：Build → Build Hap(s)/APP(s)。产物 ≈ `entry/build/default/outputs/default/entry-default-signed.hap`。
    - 首次大概率有 ArkTS/装饰器/API 报错要修（同 app-harmony 首编）。
 4. **装机（紫派 RK3566）**：`hdc -t <紫派connectKey> install -r <上述 .hap>`；或 DevEco 直接 Run（目标选紫派）。
-5. **起服务**：`AgentAbility`（UIAbility 外壳，托管 AgentCore）需开机自起/被拉起；首配网走 `PairingAbility`（见 `../docs/distributed-trust.md`）。
+5. **起服务**：`AgentAbility`（UIAbility 外壳，托管 AgentCore）需开机自起/被拉起；首配网走 `PairingAbility`（见 `../docs/archive/distributed-trust.md`）。
    - ⚠️ headless 形态(ServiceExtensionAbility)是系统 API、第三方公共 SDK 编不过 → 当前用 UIAbility 外壳过渡；上紫派**系统应用**(Full SDK+系统签名)时再换回 ServiceExtension 壳托管同一 AgentCore。见 `../contracts/integration-qa.md` Q6.1。
 
 > 平板 App 与本 agent **同 bundle、不同设备**：平板装 app-harmony 工程的 hap、紫派装 car-agent 工程的 hap（两者模块均名 `entry`、但来自不同工程、装不同设备），靠同 bundleName + 软总线信任环同步黑板。**不要**把平板那套 hap 装到紫派。

@@ -6,7 +6,7 @@ DevEco Studio + ArkTS + hvigor 构建。
 > **状态（2026-06）**：按 [`../docs/app-refactor-plan.md`](../docs/app-refactor-plan.md) 完成**功能内核**重构
 > （分层 + 去全局态 + 地道分布式）+ **UI 层 U1–U11 全量实现**（统一主题 token、动态屏幕、
 > `MapCanvas/Joystick/DeviceList` 组件、单一参数化 `ControlPage`、`HomePage/SetIPPage`、路由入口）。
-> ⚠️ **全部 ArkUI 代码未经 DevEco 真编译**——以 DevEco 构建 + 真机校验为准（进度见 `../docs/ui-progress.md`）。
+> ⚠️ **全部 ArkUI 代码未经 DevEco 真编译**——以 DevEco 构建 + 真机校验为准（进度见 `../docs/archive/ui-progress.md`）。
 > 旧原型 `W:\CarApp\CarApp` 原封保留作行为参照，不在本仓库内。
 
 ## 架构（`entry/src/main/ets/`）
@@ -21,7 +21,7 @@ service/     RobotTransport.ets   唯一 UDP socket：收发 + 单点 on('messag
              MapService.ets       HTTP 拉图 + 解析 + 坐标变换参数（去全局 context/Txt2Canvas）
              FleetMissionService.ets 设备发现(networkId) + distributedDataObject 同步 FleetMission 黑板（**共享黑板，不再 startAbility 跨端拉起**）
              storage.ets          持久化（英文 key、getter 无副作用）
-             theme.ets      统一主题 token（AppColor/FontSize/FontFamily/Space/Radius/Elevation/TOUCH_MIN；融合见 ../docs/ui-design.md）
+             theme.ets      统一主题 token（AppColor/FontSize/FontFamily/Space/Radius/Elevation/TOUCH_MIN；融合见 ../docs/archive/ui-design.md）
 entryability/        EntryAbility        入口：初始化 Storage / RobotTransport / FleetMissionService；loadContent→HomePage
 entrybackupability/  EntryBackupAbility  备份扩展（标准模板）
 component/   MapCanvas.ets  地图渲染 + 缩放/平移 + 选点 + 多车位姿叠加（复用 MapService/geometry 纯函数）
