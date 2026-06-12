@@ -95,13 +95,17 @@ export class RobotTransport {
   private constructor() {
   }
 
-  /** 绑定本机端口并注册唯一消息分发。重复调用安全。 */
-  async bind(): Promise<void> {
+  /**
+   * 绑定本机端口并注册唯一消息分发。重复调用安全。
+   * @param localPort 本机收口端口，默认 `UDP_PORT`(5001，平板用)；**车载 agent 须传 `AGENT_LOCAL_PORT`(5002)**，
+   *   避免与同机 udp2lcm 抢 5001（见 constants/protocol AGENT_LOCAL_PORT）。发送目标端口不受此影响（恒 UDP_PORT）。
+   */
+  async bind(localPort: number = UDP_PORT): Promise<void> {
     if (this.bound) {
       return;
     }
     await new Promise<void>((resolve: () => void, reject: (e: BusinessError) => void) => {
-      this.udp.bind({ address: '0.0.0.0', port: UDP_PORT, family: 1 }, (err: BusinessError) => {
+      this.udp.bind({ address: '0.0.0.0', port: localPort, family: 1 }, (err: BusinessError) => {
         if (err) {
           reject(err);
           return;

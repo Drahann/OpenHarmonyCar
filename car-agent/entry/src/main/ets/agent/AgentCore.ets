@@ -21,18 +21,16 @@ import { RobotTransport, MessageListener } from '../service/RobotTransport';
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
 import { Mission, MissionSnapshot, RobotRuntime, RobotStatus, AssignmentDTO, EndPointDTO } from '../model/mission';
 import { UdpSendData, UdpReceiveData, RobotCommand, MoveDirection } from '../model/protocol';
-import { FLEET_SESSION_ID, MAP_HTTP_PORT, MAP_FILE_NAME } from '../constants/protocol';
-import { http } from '@kit.NetworkKit';
-import { BusinessError } from '@kit.BasicServicesKit';
+import { FLEET_SESSION_ID, AGENT_LOCAL_PORT, UDP_PORT } from '../constants/protocol';
 import { Log, Logger } from '../utils/log';
 
 const LOCAL_STACK_IP: string = '127.0.0.1';   // 本机 udp2lcm
 const WRITEBACK_MIN_MS: number = 300;          // 黑板写回最小间隔（心跳 500ms，避免刷爆软总线）
 const CMD_DISPATCH_GAP_MS: number = 300;       // 本机命令对(cmd5→107→108)间隔，避免紫派"先暂存后使用"乱序
-// X4（方案B）：子车 cmd105 触发紫派 cmd124 wget 拉主机图是**异步、无完成回执**；不能盲等固定时长（大图/慢 server 可达数十秒）。
-// 改为**轮询本机 :8000**（子车 udp2lcm 服 /data/test）确认图落地后再发 cmd5/107/108；超时则兜底继续。
-const MAP_PULL_POLL_MS: number = 1500;         // 轮询本机地图落地间隔
-const MAP_PULL_TIMEOUT_MS: number = 120000;    // 等 wget 落地最长时长（兜底，避免永久卡住）
+// X4（方案B）：子车 cmd105 触发紫派 cmd124 wget 拉主机图是**异步、无完成回执**。本应轮询本机 :8000 确认落地，
+// 但**本紫派 OH 缺 @ohos.net.http 模块**（真机日志 http.abc not existed）→ agent 无法 HTTP 轮询；沙箱亦可能无 /data/test 读权限。
+// 故退化为**固定延时**（可调）。更稳的做法需 A 给 cmd124 一个完成信号（LCM/心跳位），见 contracts/app-purplepi-alignment-audit.md X4。
+const MAP_PULL_WAIT_MS: number = 15000;         // 子车 cmd105→cmd5 间隔：留足 wget 时间（保守值，按真机地图大小/网速调）
 
 export class AgentCore {
   private readonly log: Logger = Log.scoped('AgentCore');
@@ -42,6 +40,7 @@ export class AgentCore {
   private carId: number = 1;                            // 本车号（可由 Want 覆盖）
   private lastWriteback: number = 0;
   private started: boolean = false;
+  private engaged: boolean = false;   // 本车是否已作 udp2lcm 客户端(中性保活中)；仅任务期 true，空闲期回 UDP 静默
 
   private readonly blackboardListener: MissionSyncListener = (s: MissionSnapshot) => this.onBlackboard(s);
   private readonly localListener: MessageListener = (d: UdpReceiveData, from: string) => this.onLocalHeartbeat(d, from);
@@ -57,16 +56,17 @@ export class AgentCore {
       return;
     }
     this.started = true;
-    this.transport.bind().then(() => {
+    this.transport.bind(AGENT_LOCAL_PORT).then(() => {   // 绑本机独立端口(5002)，不抢同机 udp2lcm 的 5001
       this.transport.subscribe(this.localListener);
-      this.transport.startHeartbeat(LOCAL_STACK_IP, AgentCore.neutral());  // 中性保活
+      // ⚠️ 不在此起保活：仅本车**有任务**时才作 udp2lcm 客户端（见 onBlackboard 引擎门控）。
+      //   空闲/建图期保持 **UDP 静默** → 平板可直连该车建图/直控，不被 agent 抢端口/抢轮控。
       const fleet: FleetMissionService = FleetMissionService.getInstance();
       fleet.init(context);                       // distributedDataObject 需 Context（权限须预授权）
       fleet.subscribeMission(this.blackboardListener);
       fleet.joinSession(FLEET_SESSION_ID)
         .then(() => this.log.i(`已入软总线会话 ${FLEET_SESSION_ID}（等待平板/它车写黑板）`))
         .catch((e: Object) => this.log.e(`joinSession 失败: ${JSON.stringify(e)}`));
-      this.log.i(`agent up: car=${this.carId} → 本机 ${LOCAL_STACK_IP}:5001（已 bind + 中性保活，等黑板）`);
+      this.log.i(`agent up: car=${this.carId} → bind 本机 :${AGENT_LOCAL_PORT}（UDP 静默待命，仅任务期接 udp2lcm ${LOCAL_STACK_IP}:${UDP_PORT}）`);
     }).catch((e: Object) => this.log.e(`start failed: ${JSON.stringify(e)}`));
   }
 
@@ -76,6 +76,7 @@ export class AgentCore {
       return;
     }
     this.started = false;
+    this.engaged = false;
     this.transport.unsubscribe(this.localListener);
     this.transport.stopHeartbeat();
     const fleet: FleetMissionService = FleetMissionService.getInstance();
@@ -100,71 +101,29 @@ export class AgentCore {
         this.log.i(`本车状态 → ${next}（写回黑板供平板提示）`);
       }
     }
-    this.dispatchCmds(cmds);
-  }
-
-  /**
-   * 把命令序列下发本机 udp2lcm。普通序列：逐条 CMD_DISPATCH_GAP_MS 间隔（紫派"先暂存后使用"，避免乱序）。
-   * 子车拉图序列（首条 cmd105）：先发 cmd105 触发 cmd124 wget，**轮询本机 :8000 确认图落地**后再发其余
-   * cmd5/107/108（X4：wget 异步无回执；超时兜底）。
-   */
-  private dispatchCmds(cmds: AgentCmd[]): void {
-    if (cmds.length > 0 && cmds[0].cmd === RobotCommand.distributed && cmds[0].masterIp !== undefined) {
-      this.transport.send(LOCAL_STACK_IP, AgentCore.toPayload(cmds[0]));  // cmd105：触发紫派 cmd124 wget 主机图
-      this.log.i(`子车已发 cmd105 拉主机图(${cmds[0].masterIp}) → 轮询本机 :${MAP_HTTP_PORT} 等落地`);
-      this.pollLocalMapThenDispatch(cmds.slice(1), Date.now());
-      return;
+    // UDP 引擎门控：仅本车**有任务**(覆盖/导航)时才作 udp2lcm 客户端 + 中性保活；空闲/建图期 UDP 静默，
+    // 避免与平板直连抢同机 udp2lcm（端口/单客户端/轮控冲突 —— 真机"建不了图"根因之一）。
+    const engaged: boolean = (view.phase === 'covering' && view.assignment !== null) || view.endPoint !== null;
+    if (engaged && !this.engaged) {
+      this.engaged = true;
+      this.transport.startHeartbeat(LOCAL_STACK_IP, AgentCore.neutral());  // 任务期才起中性保活（成为 udp2lcm 客户端）
+      this.log.i('本车进入任务 → 起本机中性保活（成为 udp2lcm 客户端）');
     }
-    this.timedDispatch(cmds, 0);
-  }
-
-  /** 逐条按 CMD_DISPATCH_GAP_MS 间隔下发（startDelay 起）。 */
-  private timedDispatch(cmds: AgentCmd[], startDelay: number): void {
-    let delay: number = startDelay;
+    // 命令对(cmd105→cmd5→107→108)间留间隔：紫派"先暂存后使用"，避免乱序/未处理完。
+    // cmd105(拉主机图)后给紫派 cmd124 的 wget 留足时间(MAP_PULL_WAIT_MS)再发 cmd5（X4：本机无法 HTTP 轮询，见上注）。
+    let delay: number = 0;
     for (const c of cmds) {
       const payload: UdpSendData = AgentCore.toPayload(c);
       setTimeout(() => {
         this.transport.send(LOCAL_STACK_IP, payload);
       }, delay);
-      delay += CMD_DISPATCH_GAP_MS;
+      delay += (c.cmd === RobotCommand.distributed) ? MAP_PULL_WAIT_MS : CMD_DISPATCH_GAP_MS;
     }
-  }
-
-  /** 轮询本机 :8000 的 defultMap.txt：落地（≥2 数据行）即发 rest；超 MAP_PULL_TIMEOUT_MS 兜底也发。 */
-  private pollLocalMapThenDispatch(rest: AgentCmd[], startedAt: number): void {
-    const url: string = `http://${LOCAL_STACK_IP}:${MAP_HTTP_PORT}/${MAP_FILE_NAME}`;
-    const req: http.HttpRequest = http.createHttp();
-    const opt: http.HttpRequestOptions = {
-      method: http.RequestMethod.GET, expectDataType: http.HttpDataType.STRING,
-      connectTimeout: 5000, readTimeout: 20000, usingCache: false
-    };
-    req.request(url, opt, (err: BusinessError, data: http.HttpResponse) => {
-      req.destroy();
-      if (err || data.responseCode !== 200 || typeof data.result !== 'string' ||
-          !AgentCore.mapLanded(data.result as string)) {
-        if (Date.now() - startedAt > MAP_PULL_TIMEOUT_MS) {
-          this.log.e('等本机地图落地超时 → 仍发 cmd5/107/108（可能无图，留真机排查）');
-          this.timedDispatch(rest, 0);
-        } else {
-          setTimeout(() => this.pollLocalMapThenDispatch(rest, startedAt), MAP_PULL_POLL_MS);
-        }
-        return;
-      }
-      this.log.i('子车本机地图已落地 → 发 cmd5/107/108');
-      this.timedDispatch(rest, 0);
-    });
-  }
-
-  /** 本机地图是否已落地（简化：非空 + ≥2 数据行，避免拉到半截/空）。 */
-  private static mapLanded(text: string): boolean {
-    const lines: string[] = text.split('\n');
-    let dataRows: number = 0;
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim().length > 0) {
-        dataRows++;
-      }
+    if (!engaged && this.engaged) {
+      this.engaged = false;
+      this.transport.stopHeartbeat(LOCAL_STACK_IP);  // 任务结束 → 停保活回 UDP 静默（让平板可直连建图/直控该车）
+      this.log.i('本车任务结束 → 停本机保活（回 UDP 静默）');
     }
-    return dataRows >= 2;
   }
 
   /** 本机心跳 → 更新本车位姿 → 节流写回黑板。 */

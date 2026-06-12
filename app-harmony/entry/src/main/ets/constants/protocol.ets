@@ -8,8 +8,18 @@
  */
 
 // ── 传输层（contracts/udp-protocol.md §传输层）──────────────────────────────
-/** App 收发同端口 */
+/** udp2lcm 的监听/命令端口 = 所有客户端的**发送目标**（平板与 agent 都发往此口）。 */
 export const UDP_PORT: number = 5001;
+/**
+ * 车载 agent 的**本机收口端口**（≠ UDP_PORT）。agent 与 udp2lcm **同机**：udp2lcm 占 `0.0.0.0:5001`，
+ * agent 若也绑 5001 会与之**抢端口**（SO_REUSE 共绑 → 平板发给该车 5001 的指令被内核随机分流、建图/直控丢包）。
+ * 故 agent 绑此独立端口；**发送目标仍是 udp2lcm 的 `UDP_PORT`(5001)**。
+ * ⚠️ 仅平板端用 UDP_PORT 收发；agent 用本端口绑定（见 RobotTransport.bind(localPort)）。
+ * ⚠️ **配套需紫派(A)改**：udp2lcm 当前把心跳**写死回 `clientIP:5001`** → agent 在本端口收不到心跳，且本机回环到
+ *    udp2lcm 自身（自发自收 0x03 当 cmd3）。需 A 把心跳改为**回发到客户端源端口**，agent 才能收位姿、且不回环。
+ *    见 contracts/app-purplepi-alignment-audit.md（本机端口互斥 / C4）。
+ */
+export const AGENT_LOCAL_PORT: number = 5002;
 /** 固定包长 9 字节 */
 export const UDP_PACKET_BYTES: number = 9;
 /** 默认目标 IP（可在界面修改） */

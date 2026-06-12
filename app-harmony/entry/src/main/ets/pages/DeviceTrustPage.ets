@@ -187,13 +187,26 @@ struct DeviceTrustPage {
       .alignItems(HorizontalAlign.Start)
       Blank()
       if (isTrusted) {
-        Text('已信任')
-          .fontSize(FontSize.bodySm)
-          .fontColor(AppColor.onPrimary)
-          .backgroundColor(AppColor.primary)
-          .borderRadius(Radius.pill)
-          .height(36)
-          .padding({ left: Space.md, right: Space.md })
+        Row({ space: Space.sm }) {
+          Text('已信任')
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.onPrimary)
+            .backgroundColor(AppColor.primary)
+            .borderRadius(Radius.pill)
+            .height(36)
+            .padding({ left: Space.md, right: Space.md })
+          // 解绑：互信坏掉/想重配时重置。解绑后该设备重新出现在「发现的新设备」可再次配对。
+          Button('解绑')
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.textSecondary)
+            .backgroundColor(AppColor.surface)
+            .border({ width: 1, color: AppColor.textCaption })
+            .borderRadius(Radius.pill)
+            .height(36)
+            .padding({ left: Space.md, right: Space.md })
+            .enabled(this.bindingId.length === 0)
+            .onClick(() => this.unbind(item))
+        }
       } else {
         Button() {
           Row() {
@@ -263,6 +276,20 @@ struct DeviceTrustPage {
         this.refreshTrusted();
       } else {
         this.statusMsg = `配对失败：${msg}`;
+      }
+    });
+  }
+
+  /** 解绑已信任设备：解除互信 → 刷新列表 + 重新发现（该设备会重新出现在「发现的新设备」可再配）。 */
+  private unbind(item: DeviceInfo): void {
+    this.statusMsg = `解绑 ${this.shortId(item.deviceId)}…`;
+    this.fleet.unbindDevice(item.deviceId, (ok: boolean, msg: string) => {
+      if (ok) {
+        this.statusMsg = '已解绑。点「重新搜索」即可重新发现并配对。';
+        this.refreshTrusted();
+        this.startDiscover();
+      } else {
+        this.statusMsg = `解绑失败：${msg}`;
       }
     });
   }

@@ -161,6 +161,25 @@ export class FleetMissionService {
     }
   }
 
+  /**
+   * 解绑（解除互信）目标设备。用于"绑过一次但协同不通 / 想重配"时**重置**：解绑后该设备
+   * 重新可被 `startDiscovering` 发现、可再次 `bindTarget`。⚠️ 解绑只解本端关系；两端最好都解绑再重配。
+   * ⚠️ 形参/回调以真机 SDK 为准；未经 DevEco 校验。
+   */
+  unbindDevice(deviceId: string, onResult: (ok: boolean, msg: string) => void): void {
+    if (this.deviceManager === null) {
+      onResult(false, 'no deviceManager');
+      return;
+    }
+    try {
+      this.deviceManager.unbindTarget(deviceId);   // 同步 API：成功无返回、失败抛异常（无回调）
+      onResult(true, 'unbound');
+    } catch (err) {
+      const e: BusinessError = err as BusinessError;
+      onResult(false, `${e.code} ${e.message}`);
+    }
+  }
+
   private initDataObject(context: common.UIAbilityContext): void {
     this.dataObject = distributedDataObject.create(context, new CollabData());
     this.dataObject.on('change', (sessionId: string, fields: string[]) => {
