@@ -1,24 +1,27 @@
-# 分布式软总线真机点火现状（调试中）
+# 分布式黑板：从 DDO 到 LAN Socket 的演进记录
 
-> **日期 2026-06-13** · 状态：**分布式覆盖的"代码对齐"已完成**（见 [`contracts/app-purplepi-alignment-audit.md`](../contracts/app-purplepi-alignment-audit.md) + A 的 `docs/plan6-app-purplepi-interface-change-plan.md` + 紫派 cmd108 修复 `eef8afe`），
-> 现在卡在**真机把软总线 DDO 黑板真正联通**这一步。本文专记这条线的调试进展、已修项、当前阻塞与判据，供接续。
-> 真机调试总入口仍是 [`docs/debug-checklist.md`](debug-checklist.md)。
+> **日期 2026-06-13** · 状态：**✅ LAN Socket 黑板已实施完成**，替代 distributedDataObject (DDO)。
+> DDO 因系统先决条件（蓝牙/超级终端/DSched/华为账号）在消费级平板+紫派组合上无法满足，
+> 已切换为纯 LAN TCP Socket 方案（[`docs/lan-blackboard-plan.md`](lan-blackboard-plan.md)），**零系统权限、零互信依赖**。
+> 本文记录 DDO 调试历程（§3 根因分析）与 LAN 黑板实施清单（§8）。
 
-## 0. 一句话现状
+## 0. 当前状态
 
-平板 ↔ 紫派 agent 的 **`distributedDataObject` 黑板同步建不起来**：双方已可**发现**、可**绑定(PIN)**、**`DISTRIBUTED_DATASYNC` 权限也已授**，
-但 DSoftBus 报 **`onlineDev count = 0`（彼此不在线）** → 黑板不同步 → 平板下指令 agent 收不到、车不动、地图无车图标。
-**当前首要怀疑 = WiFi/热点的「AP 隔离 / 客户端隔离」挡了设备间 P2P 连接。**
+**✅ LAN Socket 黑板已上线**：平板 ↔ 紫派 agent 的 FleetMission 黑板传输从 DDO 切换为 **TCP Socket**（平板=客户端，agent=服务端 `:5003`）。
+**不再需要**：distributedDeviceManager 互信 / distributedDataObject / 蓝牙 / 超级终端 / 华为账号 / DISTRIBUTED_DATASYNC 权限。
+**只需**：同一 WiFi + `ohos.permission.INTERNET`（normal，安装即授）。机器人 UDP 5001 一直通就是铁证。
+LAN Socket 只需设备间 TCP 可达（与 UDP 5001 同条件），不受 AP 隔离影响（TCP 走 AP 转发，不需要 P2P 直连）。
 
-## 1. 完整链路 & 卡点
+## 1. 完整链路 & 当前状态
 
 ```
-平板 App ──(软总线 DDO: FleetMission 黑板)── 紫派 agent ──(本机 UDP 5002→5001)── udp2lcm ── Navi/轮控
-            ↑ 🔴 卡在这：DDO 联不通(onlineDev=0)      ↑ ✅ 已修(端口/权限/门控)   ↑ ✅ 已对齐(cmd108 等)
+平板 App ──(LAN TCP :5003 FleetMission 黑板)── 紫派 agent ──(本机 UDP 5002→5001)── udp2lcm ── Navi/轮控
+            ↑ ✅ 已切 LAN Socket（替代 DDO）         ↑ ✅ 已修(端口/权限/门控)   ↑ ✅ 已对齐(cmd108 等)
 ```
 
 - **导航 / UDP 链路**：已逐字段对齐（详见 audit）；A 已改 `cmd108`（master/sub 都 build 122）。
-- **软总线链路**：代码对齐 + 多处真机修复后，**仍卡在 DDO 的"设备在线连接"**。
+- **LAN 黑板链路**：✅ 已实施。平板 TCP 客户端连紫派 agent :5003，收发 mission/robot JSON。
+- ~~**软总线 DDO 链路**~~：**已废弃**。根因分析见 §3。DDO 依赖蓝牙/超级终端/DSched/华为账号等系统先决条件，在此真机组合上无法满足。
 
 ## 2. 已查明 & 已修（真机逐个排掉的坑）
 
@@ -43,12 +46,131 @@
 
 含义：DATASYNC 有了、能发现、能绑定，但**两台机器建不起在线 P2P 连接** → DDO 没有对端可同步。
 
-**首要怀疑 = WiFi/热点「AP 隔离 / 客户端隔离」**：它**只挡设备间 P2P、不挡广播** → 完美解释"能发现 + 能绑定、但 `onlineDev=0`"。手机热点 / 企业 / 公共 WiFi 默认常开此项。
+### ~~首要怀疑 = AP 隔离~~ → 已排除（2026-06-13 日志分析）
 
-**待验证 / 排查（按优先级）**：
-1. **换一个无隔离的普通家用路由器**（关掉 AP isolation / 客户端隔离），平板 + 紫派都连它再试。
-2. 确认当前**确实处于已绑定态**（别在「解绑重置」后忘了重新「配对」→ 那样 `onlineDev=0` 是因为没信任，不是网络）。
-3. 若换网 + 确认绑定后 `onlineDev` 仍为 0 → 再深挖 DSoftBus / 账号层（账号无关 PIN 信任在**同一无隔离 LAN** 上本应能在线）。
+日志深入分析后确认：**根因不是 AP 隔离，而是 DDO 的先决条件未满足**。
+
+**平板 (MatePad) 失败链**：
+```
+GetAnonyLocalUdid Failed with ret 96929750  ← 蓝牙未开，无法获取匿名设备ID
+CheckApiPermission: PermissionLevel: 2 → Check permission failed with ret: 96929750
+RegisterDevStateCallback: System SA not have permission, ret: 96929750  ← 每~120ms重试
+（ObjectStore 无法注册设备状态回调 → onlineDev=0 → DDO 不同步）
+```
+
+**紫派 (Purple Pi OH) 失败链**：
+```
+【早期会话 22:41】DSched 成功 → AbilityManagerService → Collaboration deivces size:0 ✅
+【后期会话 00:42+】SAMGR proxy fail (accessToken error:7) → DSched fail ret 2097167 ❌
+GetDeviceList Get collaboration events failed, error code = 29360174
+onlineDev count = 0
+```
+
+**关键发现**：紫派 DSched **不是不存在，而是 IPC accessToken 失效**。早期会话 DSched 完全正常工作（只是返回 0 台协作设备）。后期 `IPCObjectProxy::SendRequest failed, error:7 desc:*.accessToken` 导致 SAMGR 代理查找失败。**重启紫派可能恢复**。
+
+**两台设备共同结论**：当 DSched/DHDM 链路正常时，都返回 `Collaboration deivces size:0`。
+**根因 = 没有通过蓝牙/超级终端建立分布式组网关系 → 系统不知道哪些设备可以协作**。
+
+### DDO 先决条件（官方文档明确要求）
+
+| 条件 | DDO 要求 | startAbility（旧App） | 当前状态 |
+|---|---|---|---|
+| **蓝牙** | ✅ **必须开启** | ❌ 不需要 | 🔴 未开 |
+| **超级终端连接** | ✅ 控制中心"吸附"设备 | ❌ 不需要 | 🔴 未操作 |
+| Wi-Fi 同局域网 | ✅ | ✅ | ✅ |
+| 同华为账号 | 通常需要 | ❌ | ⚠️ 未确认 |
+| DISTRIBUTED_DATASYNC 权限 | ✅ system_grant | ✅ | ✅ 已声明 |
+| DSched 系统服务 | ✅ 需要 | ❌ 不需要 | 🔴 紫派缺失 |
+
+> **核心差异**：旧 App 用 `startAbility` 走 AMS 路径，只需要同局域网 + `bindTarget`。
+> 新 App 用 DDO 走 ObjectStore → DistributedDB → DSched → DHDM 长链路，每个环节都必须正常。
+> **这就是旧 App 不开蓝牙、不登华为账号也能跑通的原因**。
+
+### 下一步操作（按优先级）
+
+1. **🔴 两台设备都开启蓝牙** → 这是 `Collaboration deivces size:0` 的最可能原因
+2. **重启紫派** → 修复后期会话的 `accessToken error:7`（IPC 令牌失效）
+3. **平板：控制中心 → 超级终端 → 吸附紫派设备**（建立分布式组网关系，让系统识别协作设备）
+4. 确认两端**登录同一华为账号**（如果 MatePad 要求的话）
+5. 以上全部满足后，启动 App → 观察日志是否出现 `Collaboration deivces size:≥1` 和 `onlineDev count > 0`
+6. 若以上全做了仍不通 → 排查 AP 隔离（§3.2）或考虑回退到 startAbility 方案
+
+## 3.1 旧 App 对比发现（2026-06-13）
+
+> **关键事实**：旧 App（`W:\CarApp\CarApp`）**从未使用 DDO（distributedDataObject）**。
+> 它的分布式 = `distributedDeviceManager`（发现+互信）+ **`startAbility` 远端拉起** + UDP 传参。
+> `startAbility` 对 DSoftBus "在线" 的要求比 DDO 更低，因此旧 App 在同一网络下能跑通而新架构 DDO 卡住。
+
+| 对比项 | 旧 App | 新 App |
+|---|---|---|
+| 跨设备通信 | `startAbility(want)` 远端拉起 + UDP | DDO 共享黑板 + 本地 UDP |
+| bindTarget 格式 | `(deviceId, {bindType:1, targetPkgName, ...}, cb)` | **完全一致** ✅ |
+| startDiscovering | `{discoverTargetType:1}, **{availableStatus:0}**` | 原缺第二参数 → **已补** ✅ |
+| **蓝牙** | ❌ **不需要**（AMS 路径不走蓝牙） | ✅ **必须**（DDO 依赖蓝牙设备发现） |
+| **华为账号** | ❌ **不需要** | ⚠️ 通常需要（DDO 依赖分布式组网） |
+| **超级终端** | ❌ **不需要** | ✅ **需要**（控制中心吸附设备） |
+| **DSched 服务** | ❌ **不需要** | ✅ **需要**（紫派可能缺失） |
+| DDO / setSessionId | **未使用** | 核心机制 |
+
+**结论**：`bindTarget` API 格式正确（与旧 App 逐字段一致）。`startDiscovering` 缺少第二参数已修复。
+DDO 是**新的架构选择**（更优雅的黑板模式），但**依赖蓝牙 + 超级终端 + DSched 系统服务**——这些是旧 App 用 `startAbility` 时完全不需要的。
+**当前首要任务：开蓝牙 + 超级终端吸附 + 确认紫派 DSched**。
+
+## 3.2 网络排查手册（AP 隔离 / 客户端隔离）—— 降级为次要怀疑
+
+> ⚠️ 日志分析后，AP 隔离已**降级为次要怀疑**。首要问题是 DDO 先决条件（蓝牙/超级终端/DSched），见 §3 顶部。
+> 但如果满足所有先决条件后 `onlineDev` 仍为 0，再回来看这里。
+
+AP 隔离只挡设备间 P2P、不挡广播 → 能发现+能绑定、但 `onlineDev=0`。
+
+### 排查步骤
+
+**Step 1：确认网络类型**
+- [ ] 当前连的是什么网络？（手机热点 / 企业 WiFi / 家用路由器 / 便携路由器）
+- [ ] 手机热点和企业 WiFi **默认开 AP 隔离** → 需换成普通家用路由器
+
+**Step 2：路由器设置检查**（如使用路由器）
+- [ ] 登录路由器管理页面（通常 192.168.1.1 或 192.168.0.1）
+- [ ] 找到「AP 隔离」/「客户端隔离」/「Station Isolation」/「Wireless Isolation」→ **关闭**
+- [ ] 确认「WMM」/「QoS」未限制设备间通信
+
+**Step 3：设备连通性验证**
+```bash
+# 在平板上（或通过 hdc shell 进入紫派）：
+ping <对方IP>
+# 能 ping通 ≠ P2P 通（ICMP 可能走 AP 转发，但 mDNS/P2P 被隔离）
+# 进一步验证：
+# 平板和紫派各开 HiLog，看 deviceStateChange 事件是否出现对端
+```
+
+**Step 4：确认设备状态**
+- [ ] 两端**同 WiFi SSID**（不是 2.4G 和 5G 两个 SSID 各连一个——部分路由器隔离频段）
+- [ ] 平板和紫派的**分布式开关已开启**（设置 → 超级终端 / 多设备协同 → 开启）
+- [ ] 紫派 agent 正在运行（`hdc shell ps -ef | grep carapp`）
+- [ ] 两端**互信已绑定**（DeviceTrustPage 显示「已信任」，非"解绑重置"后忘重新配对）
+
+**Step 5：HiLog 诊断（关键日志）**
+```bash
+# 平板端：
+hdc shell hilog | grep -E "FleetMission|deviceStateChange|DDO|onlineDev"
+
+# 紫派端：
+hdc shell hilog | grep -E "FleetMission\(agent\)|deviceStateChange|DDO|onlineDev"
+```
+
+**期望看到**（按出现顺序）：
+1. `✅ 全部已授权` — DATASYNC 权限 OK
+2. `deviceStateChange: ...` — DM 层感知到对端
+3. `已信任在线设备: ≥1 台` — 互信 + 在线
+4. `[DDO] peer status: ... status=online ✅` — DDO 层对端在线
+
+**若只看到 1、2，没有 3、4** → AP 隔离（设备间 P2P 不通）。
+**若连 2 都没有** → 网络不在同一子网 / 分布式开关未开 / agent 未运行。
+
+**Step 6：换网验证**（最直接的方法）
+- [ ] 用一个**普通家用路由器**（确认无 AP 隔离），平板 + 紫派都连它
+- [ ] 重新走一遍 Step 4 + Step 5
+- [ ] 若此时通了 → 确认原网络的 AP 隔离是根因
 
 ## 4. 判据速查（怎么算"通了"）
 
@@ -57,12 +179,96 @@
 - 平板划覆盖区域 → 紫派出现 **`黑板更新: phase=covering … → 产 N 条命令`** + `TX→ 127.0.0.1 …`；
 - 平板出现第二个 toast「**车N：agent 已下发覆盖/执行命令**」+ 地图上车变色 / 移动。
 
-## 5. 待办
+## 5. 已修（2026-06-13 代码修正）
 
-- **网络**（当前首要）：排掉 AP/客户端隔离。
-- **A**：`udp2lcm` 心跳回**客户端源端口**（否则覆盖时 agent 收不到位姿 + 回环；spec 见 `integration-qa.md`）。
-- **长期**：agent 从 UIAbility 壳换**常驻 ServiceExtension / 系统应用**（Q6.1，需紫派系统侧）；届时 headless 弹不出框，`DATASYNC` 走**预授权**。
-- 真机互信页 UX：绑成功后记本地"已配对"、显示 DDO 在线状态（待做）。
+### DDO 调试期修正（已随 LAN 方案上线而废弃，保留作为历史记录）
+
+| 项 | 改动 |
+|---|---|
+| `startDiscovering` 补第二参数 | `{availableStatus: 0}` 与旧 App 对齐 |
+| `deviceStateChange` 事件监听 | DM 层设备上下线跟踪 |
+| DDO `status` 回调增强 | 明确记录 `online`/`offline` + 中文诊断 |
+| `diagnoseConnectivity()` 诊断方法 | 两端 FleetMissionService 均增加 |
+
+### LAN Socket 黑板实施（当前生效）
+
+| 项 | 改动 |
+|---|---|
+| **FleetMissionService 整体重写** | DDO → TCP Socket（平板=客户端，agent=服务端 :5003） |
+| **constants/protocol.ets** | 新增 `FLEET_LAN_PORT = 5003`（两端同步） |
+| **module.json5** | 移除 `DISTRIBUTED_DATASYNC` 权限 |
+| **DeviceTrustPage / PairingAbility** | 停用（LAN 方案不再需要互信） |
+| **verify.mjs** | 64/64 通过（含 10 项新增 LAN framing 测试） |
+
+## 6. 已查明（2026-06-13 日志分析 · 8 份 HiLog）
+
+### 根因链路
+
+**平板 (MatePad 11.5"S)**：蓝牙未开 → `GetAnonyLocalUdid` 失败 (ret `96929750`) → ObjectStore 无法注册 DevStateCallback → onlineDev=0 → DDO 不同步
+
+**紫派 (Purple Pi OH)**：DSched 系统服务不存在 → `GetDSchedEventInfo` 失败 (ret `2097167`) → `GetDeviceList` 协作事件失败 (`29360174`) → onlineDev=0 → DDO 不同步
+
+### 关键发现
+
+1. **`DISTRIBUTED_DATASYNC` 是 system_grant 权限**（APL=normal，三方可用）——权限声明本身没问题
+2. **`96929750` = DHDM 权限拒绝**——不是应用层权限问题，是底层 DHDM 依赖蓝牙/设备组网状态
+3. **旧 App 不用 DDO**——用 `startAbility` + UDP，不走 ObjectStore/DSched/DHDM 长链路，所以不需要蓝牙/超级终端/DSched
+4. **DDO 官方要求**：蓝牙开启 + 超级终端吸附 + 同华为账号 + DSched 服务——这些全部是新架构额外的依赖
+5. **AP 隔离已排除为首要原因**（降级为次要怀疑）
+
+## 7. 待办
+
+> DDO 路径的排查项（蓝牙/超级终端/华为账号等）已因 LAN Socket 方案上线而**不再需要**。保留作为历史记录。
+
+1. **真机验证 LAN 黑板** → 装 App 到平板+紫派，同一 WiFi，验证 TCP :5003 连通 + mission 下发 + robot 回写
+2. **A**：`udp2lcm` 心跳回**客户端源端口**（否则覆盖时 agent 收不到位姿 + 回环；spec 见 `integration-qa.md`）
+3. **长期**：agent 从 UIAbility 壳换**常驻 ServiceExtension / 系统应用**（Q6.1，需紫派系统侧）
+
+## 8. LAN Socket 黑板实施完成（2026-06-13）
+
+### 方案选择理由
+
+DDO 根因分析（§3）确认：DDO 依赖蓝牙 + 超级终端 + DSched + 华为账号等一长串系统先决条件，
+在消费级平板 + 紫派 OpenHarmony 组合上**凑不齐**。旧 App 用 `startAbility` 走 AMS 路径，
+**完全不需要这些**，所以能通。LAN TCP Socket 走和旧 App 同样的思路——纯网络层，不依赖系统分布式框架。
+
+### 已实施的改动清单
+
+| 文件 | 改动 |
+|---|---|
+| `app-harmony/.../constants/protocol.ets` + car-agent 副本 | 新增 `FLEET_LAN_PORT = 5003` |
+| `app-harmony/.../service/FleetMissionService.ets` | **整体重写**：DDO → TCP 客户端（连车 :5003，发 mission，收 robot 合并） |
+| `car-agent/.../service/FleetMissionService.ets` | **整体重写**：DDO → TCP 服务端（监听 5003，收 mission 派发，发本车 robot） |
+| `car-agent/.../agent/AgentCore.ets` | 加 `fleet.setSelfCarId(carId)` + `setLocalMission()`；init 不再需 context |
+| `app-harmony/.../entryability/EntryAbility.ets` | `init()` 不再传 context |
+| 两端 `module.json5` | 移除 `ohos.permission.DISTRIBUTED_DATASYNC` 权限声明 |
+| `app-harmony/.../pages/HomePage.ets` | 停用设备互信按钮（DeviceTrustPage） |
+| `car-agent/.../pages/AgentStatusPage.ets` | 重写为纯状态页，移除配对入口 |
+| `tools/verify/verify.mjs` | BUNDLE_NAME 检查改为 FLEET_LAN_PORT + FLEET_SESSION_ID；新增 §⑥ LAN framing 测试（10 项） |
+
+### 线协议
+
+4 字节大端长度前缀 + UTF-8 JSON。消息类型：
+- `{t:"hello", session, role, carId}` — 连接建立时双向发送
+- `{t:"mission", snapshot}` — 平板 → 车，整块任务黑板
+- `{t:"robot", robot}` — 车 → 平板，本车运行态
+
+### 合并规则
+
+平板对规划字段权威（phase/assignments/area/map）；每辆车对自己的 robot 权威。
+收到 `{t:"robot"}` → 只更新 `robots[index]`，保留平板本地规划字段。**天然修掉 DDO 的"最后写者胜"缺陷**。
+
+### 验证状态
+
+- `verify.mjs`：**64/64 通过**（含 10 项新增 LAN framing 测试：encode/decode + 粘包 + 半包）
+- 真机验证：待装 App + 同一 WiFi 后测试
+
+### 不再需要的代码/功能（已停用，文件保留备查）
+
+- `DeviceTrustPage.ets` — 设备互信（bindTarget/unbindTarget）
+- `PairingAbility.ets` + `PairingPage.ets` — 车载配对界面
+- `distributedDeviceManager` / `distributedDataObject` / `abilityAccessCtrl` 相关代码
+- `DISTRIBUTED_DATASYNC` 权限
 
 ---
 
