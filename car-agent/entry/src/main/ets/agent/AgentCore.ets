@@ -21,12 +21,18 @@ import { RobotTransport, MessageListener } from '../service/RobotTransport';
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
 import { Mission, MissionSnapshot, RobotRuntime, RobotStatus, AssignmentDTO, EndPointDTO } from '../model/mission';
 import { UdpSendData, UdpReceiveData, RobotCommand, MoveDirection } from '../model/protocol';
-import { FLEET_SESSION_ID } from '../constants/protocol';
+import { FLEET_SESSION_ID, MAP_HTTP_PORT, MAP_FILE_NAME } from '../constants/protocol';
+import { http } from '@kit.NetworkKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { Log, Logger } from '../utils/log';
 
 const LOCAL_STACK_IP: string = '127.0.0.1';   // 本机 udp2lcm
 const WRITEBACK_MIN_MS: number = 300;          // 黑板写回最小间隔（心跳 500ms，避免刷爆软总线）
 const CMD_DISPATCH_GAP_MS: number = 300;       // 本机命令对(cmd5→107→108)间隔，避免紫派"先暂存后使用"乱序
+// X4（方案B）：子车 cmd105 触发紫派 cmd124 wget 拉主机图是**异步、无完成回执**；不能盲等固定时长（大图/慢 server 可达数十秒）。
+// 改为**轮询本机 :8000**（子车 udp2lcm 服 /data/test）确认图落地后再发 cmd5/107/108；超时则兜底继续。
+const MAP_PULL_POLL_MS: number = 1500;         // 轮询本机地图落地间隔
+const MAP_PULL_TIMEOUT_MS: number = 120000;    // 等 wget 落地最长时长（兜底，避免永久卡住）
 
 export class AgentCore {
   private readonly log: Logger = Log.scoped('AgentCore');
@@ -94,8 +100,27 @@ export class AgentCore {
         this.log.i(`本车状态 → ${next}（写回黑板供平板提示）`);
       }
     }
-    // 命令对(cmd5→107→108)间留间隔：紫派"先暂存后使用"，避免乱序/未处理完（对照 ControlPage 同款延时）
-    let delay: number = 0;
+    this.dispatchCmds(cmds);
+  }
+
+  /**
+   * 把命令序列下发本机 udp2lcm。普通序列：逐条 CMD_DISPATCH_GAP_MS 间隔（紫派"先暂存后使用"，避免乱序）。
+   * 子车拉图序列（首条 cmd105）：先发 cmd105 触发 cmd124 wget，**轮询本机 :8000 确认图落地**后再发其余
+   * cmd5/107/108（X4：wget 异步无回执；超时兜底）。
+   */
+  private dispatchCmds(cmds: AgentCmd[]): void {
+    if (cmds.length > 0 && cmds[0].cmd === RobotCommand.distributed && cmds[0].masterIp !== undefined) {
+      this.transport.send(LOCAL_STACK_IP, AgentCore.toPayload(cmds[0]));  // cmd105：触发紫派 cmd124 wget 主机图
+      this.log.i(`子车已发 cmd105 拉主机图(${cmds[0].masterIp}) → 轮询本机 :${MAP_HTTP_PORT} 等落地`);
+      this.pollLocalMapThenDispatch(cmds.slice(1), Date.now());
+      return;
+    }
+    this.timedDispatch(cmds, 0);
+  }
+
+  /** 逐条按 CMD_DISPATCH_GAP_MS 间隔下发（startDelay 起）。 */
+  private timedDispatch(cmds: AgentCmd[], startDelay: number): void {
+    let delay: number = startDelay;
     for (const c of cmds) {
       const payload: UdpSendData = AgentCore.toPayload(c);
       setTimeout(() => {
@@ -103,6 +128,43 @@ export class AgentCore {
       }, delay);
       delay += CMD_DISPATCH_GAP_MS;
     }
+  }
+
+  /** 轮询本机 :8000 的 defultMap.txt：落地（≥2 数据行）即发 rest；超 MAP_PULL_TIMEOUT_MS 兜底也发。 */
+  private pollLocalMapThenDispatch(rest: AgentCmd[], startedAt: number): void {
+    const url: string = `http://${LOCAL_STACK_IP}:${MAP_HTTP_PORT}/${MAP_FILE_NAME}`;
+    const req: http.HttpRequest = http.createHttp();
+    const opt: http.HttpRequestOptions = {
+      method: http.RequestMethod.GET, expectDataType: http.HttpDataType.STRING,
+      connectTimeout: 5000, readTimeout: 20000, usingCache: false
+    };
+    req.request(url, opt, (err: BusinessError, data: http.HttpResponse) => {
+      req.destroy();
+      if (err || data.responseCode !== 200 || typeof data.result !== 'string' ||
+          !AgentCore.mapLanded(data.result as string)) {
+        if (Date.now() - startedAt > MAP_PULL_TIMEOUT_MS) {
+          this.log.e('等本机地图落地超时 → 仍发 cmd5/107/108（可能无图，留真机排查）');
+          this.timedDispatch(rest, 0);
+        } else {
+          setTimeout(() => this.pollLocalMapThenDispatch(rest, startedAt), MAP_PULL_POLL_MS);
+        }
+        return;
+      }
+      this.log.i('子车本机地图已落地 → 发 cmd5/107/108');
+      this.timedDispatch(rest, 0);
+    });
+  }
+
+  /** 本机地图是否已落地（简化：非空 + ≥2 数据行，避免拉到半截/空）。 */
+  private static mapLanded(text: string): boolean {
+    const lines: string[] = text.split('\n');
+    let dataRows: number = 0;
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim().length > 0) {
+        dataRows++;
+      }
+    }
+    return dataRows >= 2;
   }
 
   /** 本机心跳 → 更新本车位姿 → 节流写回黑板。 */
@@ -142,7 +204,12 @@ export class AgentCore {
     if (ep !== undefined && ep.x !== null && ep.y !== null) {
       endPoint = { x: ep.x, y: ep.y };
     }
-    const view: CarView = { phase: s.phase, carId: this.carId, assignment: assignment, endPoint: endPoint };
+    // master 地址：黑板 map.ref（平板写本机 IP）。子车 reconcile 据此发 cmd105 拉图（方案B）。
+    const masterIp: string | null =
+      (s.map !== undefined && s.map.ref !== undefined && s.map.ref.length > 0) ? s.map.ref : null;
+    const view: CarView = {
+      phase: s.phase, carId: this.carId, assignment: assignment, endPoint: endPoint, masterIp: masterIp
+    };
     return view;
   }
 
@@ -152,14 +219,33 @@ export class AgentCore {
     }
   }
 
-  /** AgentCmd → 9 字节发送帧。cmd108 的 byte1 = robotId（借 runState 位写入，encodeSend 原样落 byte1）。 */
+  /**
+   * AgentCmd → 9 字节发送帧。cmd108 的 byte1 = robotId（借 runState 位写入，encodeSend 原样落 byte1）。
+   * cmd105 特例：master IP 四段 → byte[1,2,4,6]（runState/speed=IP[0]/[1]；endX/endY=IP[2]/[3]，encodeSend
+   * 大端写 int16、高字节恒 0 → 低字节恰落 byte[4]/[6]，与紫派 'i' iparams[0..3]=byte[1,2,4,6] 逐字节吻合）。
+   */
   private static toPayload(c: AgentCmd): UdpSendData {
+    if (c.cmd === RobotCommand.distributed && c.masterIp !== undefined) {
+      const oct: number[] = AgentCore.ipOctets(c.masterIp);
+      return new UdpSendData(RobotCommand.distributed, oct[0] as MoveDirection, oct[1], oct[2], oct[3]);
+    }
     const b1: number | undefined = c.robotId ?? c.runState;
     return new UdpSendData(
       c.cmd as RobotCommand,
       b1 === undefined ? undefined : (b1 as MoveDirection),
       c.speed, c.x, c.y
     );
+  }
+
+  /** "a.b.c.d" → [a,b,c,d]（每段 0..255；非法段 0）。供 cmd105 主机 IP 打包进 byte[1,2,4,6]。 */
+  private static ipOctets(ip: string): number[] {
+    const parts: string[] = ip.split('.');
+    const oct: number[] = [0, 0, 0, 0];
+    for (let i = 0; i < 4 && i < parts.length; i++) {
+      const n: number = parseInt(parts[i], 10);
+      oct[i] = Number.isNaN(n) ? 0 : (n & 0xff);
+    }
+    return oct;
   }
 
   private static neutral(): UdpSendData {

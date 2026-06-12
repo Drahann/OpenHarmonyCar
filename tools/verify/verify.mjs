@@ -38,20 +38,25 @@ function decodeReceive(buffer) {
   return { state: bytes[0], x: view.getInt16(3, false), y: view.getInt16(5, false), r: view.getInt16(7, false) };
 }
 
-// ── 镜像：model/geometry.ets ────────────────────────────────────────────────
+// ── 镜像：model/geometry.ets（含 x0/y0 世界偏移，M1）──────────────────────────
+const COORD_UNITS_PER_METER = 20; // 1 米 = 20 个 5cm 单位（= constants/protocol）
+function worldToGrid(m, t) {
+  const mpp = t.metersPerPixel > 0 ? t.metersPerPixel : 0.05;
+  return { x: (m.x / COORD_UNITS_PER_METER - t.x0) / mpp, y: (m.y / COORD_UNITS_PER_METER - t.y0) / mpp };
+}
+function gridToWorld(g, t) {
+  const mpp = t.metersPerPixel > 0 ? t.metersPerPixel : 0.05;
+  return { x: Math.round((g.x * mpp + t.x0) * COORD_UNITS_PER_METER), y: Math.round((g.y * mpp + t.y0) * COORD_UNITS_PER_METER) };
+}
 function canvasToMap(c, t, half) {
   const halfTxt = t.txtAverSize / 2;
-  return {
-    x: Math.round((c.x + half) / t.gridSize + t.startX - halfTxt),
-    y: -Math.round((c.y + half) / t.gridSize + halfTxt - t.endY),
-  };
+  const g = { x: (c.x + half) / t.gridSize + t.startX - halfTxt, y: -((c.y + half) / t.gridSize + halfTxt - t.endY) };
+  return gridToWorld(g, t);
 }
 function mapToCanvas(m, t, half) {
   const halfTxt = t.txtAverSize / 2;
-  return {
-    x: Math.round((m.x - t.startX + halfTxt) * t.gridSize - half),
-    y: Math.round((t.endY - halfTxt - m.y) * t.gridSize - half),
-  };
+  const g = worldToGrid(m, t);
+  return { x: Math.round((g.x - t.startX + halfTxt) * t.gridSize - half), y: Math.round((t.endY - halfTxt - g.y) * t.gridSize - half) };
 }
 
 // ── 镜像：service/MapService.ets parseMap（首行按位置 parts[2]/[3]；数据行归一化 空格(-1/0) 或 密排(1/0)）──
@@ -99,8 +104,10 @@ function parseMap(text, canvasW, canvasH) {
   const ziped = rawLines.length > 0 && rawLines[0].trim() === 'ZMAP1';  // 压缩图：首行 ZMAP1，头在第 2 行
   const headerIdx = ziped ? 1 : 0;
   const headerParts = (rawLines[headerIdx] ?? '').trim().split(/\s+/);
-  let height = parseInt(headerParts[2], 10);  // 位置：range resolution height width ...
+  let height = parseInt(headerParts[2], 10);  // 位置：range resolution height width metersPerPixel x0 y0
   let width = parseInt(headerParts[3], 10);
+  let mpp = parseFloat(headerParts[4]), x0 = parseFloat(headerParts[5]), y0 = parseFloat(headerParts[6]);
+  if (!(mpp > 0)) mpp = 0.05; if (Number.isNaN(x0)) x0 = 0; if (Number.isNaN(y0)) y0 = 0;
   const grid = [new Uint8Array(0)];           // grid[0]=头占位；grid[y>=1]=数据行
   for (let y = headerIdx + 1; y < rawLines.length; y++) {
     if (ziped) { const t = rawLines[y].trim(); grid.push(t.length === 0 ? new Uint8Array(0) : decodeZipedRow(t, width)); }
@@ -128,6 +135,7 @@ function parseMap(text, canvasW, canvasH) {
   return {
     rows: height, cols: width, startX: xMin, startY: yMin, endX: xMax, endY: yMax,
     squareSize, gridWidth, gridHeight, gridSize: (gridWidth + gridHeight) / 2, txtAverSize: (width + height) / 2,
+    metersPerPixel: mpp, x0, y0,
   };
 }
 
@@ -296,6 +304,32 @@ console.log('坐标换算（map -> canvas -> map 互逆）：');
     maxErr = Math.max(maxErr, Math.abs(back.x - p.x), Math.abs(back.y - p.y));
   }
   check('map->canvas->map 误差 ≤ 1', maxErr <= 1, `maxErr=${maxErr}`);
+}
+
+// ── ②b x0/y0 世界偏移（M1）：非零偏移下互逆 + 偏移量正确 ─────────────────────
+console.log('坐标换算 x0/y0 偏移（M1：非零偏移互逆 + 常量偏移）：');
+{
+  // 7 值首行带 x0=-45, y0=-44（米），mpp=0.05；全障碍 40×40 → 包围盒满幅、gridSize=25
+  const realMap = ['0.05 0.05 40 40 0.05 -45 -44']
+    .concat(Array.from({ length: 40 }, () => Array(40).fill('-1').join(' '))).join('\n');
+  const t = parseMap(realMap, 1000, 1000);
+  check('②b parseMap 解析 x0=-45/y0=-44/mpp=0.05', t.x0 === -45 && t.y0 === -44 && t.metersPerPixel === 0.05,
+    JSON.stringify({ x0: t.x0, y0: t.y0, mpp: t.metersPerPixel }));
+  // worldToGrid 正确：world(0,0) 5cm 单位 → grid = (0/20 − (−45))/0.05 = 900；y 同理 880
+  const g0 = worldToGrid({ x: 0, y: 0 }, t);
+  check('②b world(0,0) → grid(900,880)（= −x0/mpp, −y0/mpp）', Math.round(g0.x) === 900 && Math.round(g0.y) === 880, JSON.stringify(g0));
+  // 非零偏移下互逆（含偏移往返）
+  let maxErr = 0;
+  for (const p of [{ x: 100, y: 200 }, { x: -50, y: 30 }, { x: 0, y: 0 }]) {
+    const back = canvasToMap(mapToCanvas(p, t, 500), t, 500);
+    maxErr = Math.max(maxErr, Math.abs(back.x - p.x), Math.abs(back.y - p.y));
+  }
+  check('②b 非零偏移 map->canvas->map 互逆 ≤ 1', maxErr <= 1, `maxErr=${maxErr}`);
+  // 退化：旧 2 值首行 → x0=y0=0、mpp=0.05，world==grid（与旧版一致）
+  const t0 = parseMap(['40 40'].concat(Array.from({ length: 40 }, () => Array(40).fill('-1').join(' '))).join('\n'), 1000, 1000);
+  check('②b 旧 2 值首行退化 x0=y0=0/mpp=0.05', t0.x0 === 0 && t0.y0 === 0 && t0.metersPerPixel === 0.05, JSON.stringify({ x0: t0.x0, y0: t0.y0 }));
+  const g1 = worldToGrid({ x: 20, y: 40 }, t0); // 20/20/0.05=20；40/20/0.05=40
+  check('②b 退化 world(20,40)→grid(20,40)', Math.round(g1.x) === 20 && Math.round(g1.y) === 40, JSON.stringify(g1));
 }
 
 // ── ③ 地图解析 ──────────────────────────────────────────────────────────────

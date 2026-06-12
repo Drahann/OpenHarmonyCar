@@ -57,6 +57,9 @@ export class ParsedMap {
   readonly gridHeight: number; // 每格像素高
   readonly gridSize: number;   // 平均格尺寸，供坐标换算
   readonly txtAverSize: number;
+  readonly metersPerPixel: number;  // 每格米（首行 parts[4]，缺省 0.05）
+  readonly x0: number;              // 栅格最小角世界 X（米，可负；首行 parts[5]）——pin/选点偏移修复(M1)
+  readonly y0: number;              // 栅格最小角世界 Y（米，可负；首行 parts[6]）
   private readonly grid: Uint8Array[];  // 归一化栅格，grid[行][列]：1=障碍 0=空旷
   // 墙体「水平行程」缓存（打包三元组 [croppedY, croppedXStart, len, ...]，cell 坐标，与画布尺寸/缩放无关）。
   // 惰性构建：首次 forEachWallSpan 时扫一遍 grid，之后每次重绘（缩放/平移）直接回放，避免反复全图扫描。
@@ -64,6 +67,7 @@ export class ParsedMap {
 
   constructor(rows: number, cols: number, startX: number, startY: number, endX: number, endY: number,
     squareSize: number, gridWidth: number, gridHeight: number, gridSize: number, txtAverSize: number,
+    metersPerPixel: number, x0: number, y0: number,
     grid: Uint8Array[]) {
     this.rows = rows;
     this.cols = cols;
@@ -76,13 +80,16 @@ export class ParsedMap {
     this.gridHeight = gridHeight;
     this.gridSize = gridSize;
     this.txtAverSize = txtAverSize;
+    this.metersPerPixel = metersPerPixel;
+    this.x0 = x0;
+    this.y0 = y0;
     this.grid = grid;
   }
 
   /** 供坐标换算（geometry.canvasToMap / mapToCanvas）使用。 */
   toTransform(): MapTransform {
     return new MapTransform(this.startX, this.startY, this.endX, this.endY,
-      this.gridSize, this.squareSize, this.txtAverSize);
+      this.gridSize, this.squareSize, this.txtAverSize, this.metersPerPixel, this.x0, this.y0);
   }
 
   /**
@@ -311,6 +318,14 @@ export class MapService {
     const headerParts: string[] = (rawLines.length > headerIdx ? rawLines[headerIdx] : '').trim().split(/\s+/);
     let height: number = MapService.toInt(headerParts[2]);
     let width: number = MapService.toInt(headerParts[3]);
+    // 首行 7 值 `range resolution height width metersPerPixel x0 y0`：解析 mpp/x0/y0 供 world↔grid 偏移(M1)。
+    // 首行非 7 值/缺失（如 fixture `40 40`）→ 默认 mpp=0.05、x0=y0=0（退化无偏移，与旧版一致）。
+    let mpp: number = MapService.toFloat(headerParts[4]);
+    let x0: number = MapService.toFloat(headerParts[5]);
+    let y0: number = MapService.toFloat(headerParts[6]);
+    if (!(mpp > 0)) { mpp = 0.05; }
+    if (Number.isNaN(x0)) { x0 = 0; }
+    if (Number.isNaN(y0)) { y0 = 0; }
 
     // 归一化为 grid：grid[0]=头占位空行、grid[y>=1]=数据行（与包围盒/startY 同索引系，两格式同坐标系）。
     const grid: Uint8Array[] = [];
@@ -406,7 +421,7 @@ export class MapService {
     log.i(`[parseMap] 障碍包围盒 raw x[${rawXMin}..${rawXMax}] y[${rawYMin}..${rawYMax}] → 方形化 x[${xMin}..${xMax}] y[${yMin}..${yMax}] squareSize=${squareSize}`);
 
     return new ParsedMap(height, width, xMin, yMin, xMax, yMax, squareSize,
-      gridWidth, gridHeight, gridSize, txtAverSize, grid);
+      gridWidth, gridHeight, gridSize, txtAverSize, mpp, x0, y0, grid);
   }
 
   /**
@@ -440,6 +455,14 @@ export class MapService {
       return NaN;
     }
     return parseInt(s, 10);
+  }
+
+  /** 安全 parseFloat（NaN 透传）。供地图首行 metersPerPixel/x0/y0 解析(M1)。 */
+  private static toFloat(s: string | undefined): number {
+    if (s === undefined) {
+      return NaN;
+    }
+    return parseFloat(s);
   }
 
   private static arrayBufferToString(buf: ArrayBuffer): string {

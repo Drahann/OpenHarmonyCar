@@ -158,7 +158,12 @@ struct ControlPage {
       });
     }
     if (this.ip.length > 0) {
-      this.connectTo(this.ip);
+      // distributed：平板**不直连任何车 UDP**（含 master）——master 由其本机 agent 独占 5001 单客户端
+      // （A6.2/plan6 P4：避免平板与 master-agent 抢 udp2lcm 的单一 clientIP）。位姿/进度经黑板取，
+      // 地图仍可经 HTTP 拉显示（与 UDP 解耦，不受影响）。
+      if (this.mode !== ControlMode.distributed) {
+        this.connectTo(this.ip);
+      }
       this.loadMap(this.ip, 1, 0, false);  // 进页查既有图（A 开机保留上次地图：有则直接用；点「开始建图」会清并重建）；非阻塞、不轮询
     }
   }
@@ -456,6 +461,9 @@ struct ControlPage {
     if (this.distUseAgent) {
       // 写黑板：phase=covering 让各车 agent 的 reconcile 进入覆盖；agent 读到自己 carId 的 assignment 后本机发 cmd107/108
       this.mission.phase = MissionPhase.covering;
+      // 方案B：把 master(=本页 this.ip，car1) IP 放进 map.ref，供子车 agent 用 cmd105 从主机 HTTP 拉图（紫派 cmd124 wget）。
+      // 软总线只载协调态 + 这个"地图来源引用"，地图文件本身不上总线（见 contracts/app-purplepi-alignment-audit.md 裁决记录）。
+      this.mission.map = { ref: this.ip };
       this.fleet.publishMission(this.mission);
     } else {
       // 平板直发兜底（无 agent / 软总线不通时）：发到该车自己的 IP（找不到则回退当前直连车 this.ip）。

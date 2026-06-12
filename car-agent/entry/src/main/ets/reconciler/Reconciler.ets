@@ -6,6 +6,11 @@
  * Node 镜像测试见 tools/verify/verify-reconciler.mjs。
  * ⚠️ 未经 DevEco 验证。类型与命令码暂在本文件本地定义（与 app-harmony model/protocol、model/mission 同源），
  *    待 shared-core HAR 抽取后改为 import 去重（car-agent-plan §6.1）。
+ *
+ * 分布式覆盖时序（**方案B**，2026-06-12 对齐裁决，见 contracts/app-purplepi-alignment-audit.md 裁决记录）：
+ *   - **master(robotId=0)**：自有建图+定位，直接 `107 → 108`（**不发 cmd5**，避免把自身位姿归零）。
+ *   - **sub(robotId=1)**：`105`(从 master HTTP 拉图，紫派转 cmd124 wget) → `5`(加载拉到的图+归零 0,0,0) → `107 → 108`。
+ *     master 地址来自黑板 `map.ref`（→ CarView.masterIp）；未知则本轮不发、等地址到达（签名含 masterIp，到达即重评）。
  */
 
 export interface AgentPoint {
@@ -25,6 +30,7 @@ export interface CarView {
   carId: number;
   assignment: AgentAssignment | null;  // 覆盖子区域（对角矩形）
   endPoint: AgentPoint | null;         // 单点目标（nav）
+  masterIp: string | null;             // master 地址（黑板 map.ref）：子车 cmd105 拉图用；master/无关时可 null
 }
 
 /** 一条待下发命令（AgentServiceAbility 翻成 UdpSendData → RobotTransport.send(127.0.0.1)）。 */
@@ -35,9 +41,11 @@ export interface AgentCmd {
   x?: number;
   y?: number;
   robotId?: number;       // → encodeSend 的 byte1（cmd108 覆盖）
+  masterIp?: string;      // cmd105 拉主机图：master IP（toPayload 打进 byte[1,2,4,6]）
 }
 
 // 命令码（与 model/protocol.RobotCommand 同源；shared-core 后改 import）
+const CMD_PULL_MAP: number = 105;     // 'i' 子车从 master 拉图（方案B；紫派转 cmd124 wget）
 const CMD_LOAD_MAP: number = 5;       // 加载图 + 位姿归零(0,0,0)
 const CMD_START_ROUTE: number = 3;    // 设目标点
 const CMD_END_ROUTE: number = 4;      // 取消导航
@@ -46,12 +54,13 @@ const CMD_AREA_CORNER2: number = 108; // 对角点2 + robot_id(byte1) → 开始
 
 export class Reconciler {
   private lastSig: string = '';
-  private loaded: boolean = false;  // 是否已对本机发过 cmd5 归零
-  private active: boolean = false;  // 本车是否处于"已下发任务"态（用于只在 active→inactive 时取消）
+  private mapPulled: boolean = false;  // 子车是否已发过 cmd105 拉主机图（每覆盖会话一次）
+  private loaded: boolean = false;     // 子车是否已发过 cmd5 归零
+  private active: boolean = false;     // 本车是否处于"已下发任务"态（用于只在 active→inactive 时取消）
 
   /**
    * 黑板视图 → 待发命令序列。幂等：本车相关切片签名未变返回 []。
-   * 覆盖：(未归零则 cmd5) → cmd107(对角点1) → cmd108(对角点2,robotId)。
+   * 覆盖：master → `107,108`；sub → `(105 拉图)(5 加载归零) → 107,108`。
    * 导航：cmd3(目标点)。任务撤销/done 且之前在跑：cmd4。
    */
   reconcile(v: CarView): AgentCmd[] {
@@ -63,10 +72,22 @@ export class Reconciler {
     const out: AgentCmd[] = [];
 
     if (v.phase === 'covering' && v.assignment !== null) {
-      if (!this.loaded) {
-        out.push({ cmd: CMD_LOAD_MAP });   // 子机从 master 起点出发，加载图并归零
-        this.loaded = true;
+      const isSub: boolean = v.assignment.robotId === 1;
+      if (isSub) {
+        // 子车需先从 master 拉图。master 地址未到（黑板 map.ref 空）→ 本轮先不发，等地址到达再重评。
+        if (v.masterIp === null || v.masterIp.length === 0) {
+          return out;  // []：不置 active、不发覆盖，避免无图覆盖
+        }
+        if (!this.mapPulled) {
+          out.push({ cmd: CMD_PULL_MAP, masterIp: v.masterIp });  // cmd105：master IP → byte[1,2,4,6]，紫派 cmd124 wget
+          this.mapPulled = true;
+        }
+        if (!this.loaded) {
+          out.push({ cmd: CMD_LOAD_MAP });   // cmd5：加载拉到的图 + 位姿归零 (0,0,0)
+          this.loaded = true;
+        }
       }
+      // master(robotId=0)：自有建图+定位，直接覆盖（不发 cmd5/cmd105，避免归零自身位姿）。
       out.push({ cmd: CMD_AREA_CORNER1, x: v.assignment.corner1.x, y: v.assignment.corner1.y });
       out.push({
         cmd: CMD_AREA_CORNER2, x: v.assignment.corner2.x, y: v.assignment.corner2.y,
@@ -93,11 +114,12 @@ export class Reconciler {
   /** 断线重连 / 换车 / 重新建图时重置（下次按新黑板全量重发）。 */
   reset(): void {
     this.lastSig = '';
+    this.mapPulled = false;
     this.loaded = false;
     this.active = false;
   }
 
   private static signature(v: CarView): string {
-    return JSON.stringify({ p: v.phase, a: v.assignment, e: v.endPoint });
+    return JSON.stringify({ p: v.phase, a: v.assignment, e: v.endPoint, m: v.masterIp });
   }
 }
