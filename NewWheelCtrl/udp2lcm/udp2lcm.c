@@ -13,6 +13,8 @@ pid_t httpServerPid = -1;
 
 static int16_t diag_pt1_x = -1, diag_pt1_y = -1;
 static int16_t diag_pt2_x = -1, diag_pt2_y = -1;
+static bool diag_pt1_valid = false;
+static bool diag_pt2_valid = false;
 static int mapCreateRequestedFromHeartbeat = 0;
 
 static bool defaultMapExists(void) {
@@ -346,79 +348,58 @@ void parseCmd(const char *buffer, int bytesReceived) {
     } else if (buffer[0] == 'k') {
         diag_pt1_x = swapEndian(*(int16_t *)&buffer[3]);
         diag_pt1_y = swapEndian(*(int16_t *)&buffer[5]);
+        diag_pt1_valid = true;
         printf("Received diagonal point 1: (%d, %d)\n", diag_pt1_x, diag_pt1_y);fflush(stdout);
     } else if (buffer[0] == 'l') {
-        int robot_id = buffer[1];  // 0：主机，1：从机
+        int robot_id = (unsigned char)buffer[1];  // 0：主机，1：从机
         diag_pt2_x = swapEndian(*(int16_t *)&buffer[3]);
         diag_pt2_y = swapEndian(*(int16_t *)&buffer[5]);
+        diag_pt2_valid = true;
         printf("Received diagonal point 2: (%d, %d)\n", diag_pt2_x, diag_pt2_y);fflush(stdout); 
-        
-        if (diag_pt1_x != -1 && diag_pt2_x != -1 && robot_id == 1) {
-            printf("build FullRoad file for robot %d\n", robot_id);
-            pthread_mutex_lock(&heartBeatMutex);
-            robotCtrlInit(&robotCtrlData, 0, 10, 0, 7, 0, 0, 0);
-            // 通过 heartBeat 数据获取实时坐标，并设置控制命令的参数
-            int16_t x, y, sita;
-            // 提取实时坐标信息并转换字节序
-            x = swapEndian(*(int16_t *)&heartBeat[3]);
-            y = swapEndian(*(int16_t *)&heartBeat[5]);
-            sita = swapEndian(*(int16_t *)&heartBeat[7]);
-            // 打印当前位置
-            printf("NOW point: x: %d, y: %d, sita: %d\n", x, y, sita);fflush(stdout);
-            // 将坐标数据转换为浮点类型并存储到命令参数中
-            pthread_mutex_unlock(&heartBeatMutex);
-            robotCtrlData.dparams[4] = x / 20.0;
-            robotCtrlData.dparams[5] = y / 20.0;
-            robotCtrlData.dparams[6] = sita * M_PI / 180.0;
-            // 发布加载地图命令
-            robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
-            // 释放资源
-            freeRobotCtrl(&robotCtrlData);
-            robot_control_t robotCtrlData;
-            robotCtrlInit(&robotCtrlData, 0, 122, 0, 7, 0, 0, 0);  // 调用FullRoad路径规划命令
-            robotCtrlData.dparams[0] = (double)x / 20;
-            robotCtrlData.dparams[1] = (double)y / 20;
-            robotCtrlData.dparams[2] = (double)sita * M_PI / 180;
-            robotCtrlData.dparams[3] = (double)diag_pt1_x / 20;
-            robotCtrlData.dparams[4] = (double)diag_pt1_y / 20;
-            robotCtrlData.dparams[5] = (double)diag_pt2_x / 20;
-            robotCtrlData.dparams[6] = (double)diag_pt2_y / 20;
 
-            printf("Publishing FullRoad path planning command (122)...\n");fflush(stdout);
-            robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
-            freeRobotCtrl(&robotCtrlData);
+        if (!diag_pt1_valid || !diag_pt2_valid) {
+            printf("Reject distributed coverage start: incomplete diagonal points, pt1_valid=%d, pt2_valid=%d\n",
+                   diag_pt1_valid ? 1 : 0, diag_pt2_valid ? 1 : 0);
+            fflush(stdout);
+            return;
         }
-        
+        if (robot_id != 0 && robot_id != 1) {
+            printf("Reject distributed coverage start: invalid robot_id=%d\n", robot_id);
+            fflush(stdout);
+            return;
+        }
+
+        pthread_mutex_lock(&heartBeatMutex);
+        int16_t x = swapEndian(*(int16_t *)&heartBeat[3]);
+        int16_t y = swapEndian(*(int16_t *)&heartBeat[5]);
+        int16_t sita = swapEndian(*(int16_t *)&heartBeat[7]);
+        pthread_mutex_unlock(&heartBeatMutex);
+
+        printf("build FullRoad file for robot %d\n", robot_id);
+        printf("NOW point: x: %d, y: %d, sita: %d\n", x, y, sita);fflush(stdout);
+        robotCtrlInit(&robotCtrlData, 0, 122, 0, 7, 0, 0, 0);  // 调用FullRoad路径规划命令
+        robotCtrlData.dparams[0] = (double)x / 20;
+        robotCtrlData.dparams[1] = (double)y / 20;
+        robotCtrlData.dparams[2] = (double)sita * M_PI / 180;
+        robotCtrlData.dparams[3] = (double)diag_pt1_x / 20;
+        robotCtrlData.dparams[4] = (double)diag_pt1_y / 20;
+        robotCtrlData.dparams[5] = (double)diag_pt2_x / 20;
+        robotCtrlData.dparams[6] = (double)diag_pt2_y / 20;
+
+        printf("Publishing FullRoad path planning command (122)...\n");fflush(stdout);
+        robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
+        freeRobotCtrl(&robotCtrlData);
+
         printf("Robot %d start distributed path following\n", robot_id);fflush(stdout);
-
-        // 主机器人(非建图机器人)加载地图
-        if (robot_id == 0) {
-            path.cmd = 0;
-            path.speed = 0;
-            path_ctrl_t_publish(lcm, "wheel_ctrl", &path);
-
-            robot_control_t robotCtrlData;
-            robotCtrlInit(&robotCtrlData, 0, 10, 0, 7, 0, 0, 0);  // 加载地图命令
-            pthread_mutex_lock(&heartBeatMutex);
-            int16_t x = swapEndian(*(int16_t *)&heartBeat[3]);
-            int16_t y = swapEndian(*(int16_t *)&heartBeat[5]);
-            int16_t sita = swapEndian(*(int16_t *)&heartBeat[7]);
-            printf("NOW point: x: %d, y: %d, sita: %d\n", x, y, sita);fflush(stdout);
-            pthread_mutex_unlock(&heartBeatMutex);
-
-            robotCtrlData.dparams[4] = x / 20.0;
-            robotCtrlData.dparams[5] = y / 20.0;
-            robotCtrlData.dparams[6] = sita * M_PI / 180.0;
-            robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
-            freeRobotCtrl(&robotCtrlData);
-        }
-
-        // 调用分布式路径执行逻辑
-        robot_control_t robotCtrlData;
         robotCtrlInit(&robotCtrlData, 0, 123, 0, 1, 1, 0, 0);  // 分布式路径跟踪执行命令
         robotCtrlData.iparams[0] = robot_id;  // 标记机器人编号
         robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
         freeRobotCtrl(&robotCtrlData);
+
+        diag_pt1_x = diag_pt1_y = -1;
+        diag_pt2_x = diag_pt2_y = -1;
+        diag_pt1_valid = false;
+        diag_pt2_valid = false;
     } else {
         // 未知的消息类型，输出错误信息
         fprintf(stderr, "Error: Invalid command: ");
