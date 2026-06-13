@@ -1,11 +1,26 @@
 {
   "app": {
-    // 签名配置留空：请在 DevEco Studio 中用「自动签名」生成（沿用 bundle com.example.carapp 的调试证书）。
-    // 不在仓库提交签名密钥/口令。
-    "signingConfigs": [],
+    // 签名配置：DevEco 自动签名生成的本机调试证书（沿用 bundle com.example.carapp）。回退 LAN 时曾误删
+    // （6425f0b），导致 HAP "no signature file" 装机失败，故恢复。路径/口令为本机调试材料，仅本机可用。
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\draha\\.ohos\\config\\default_app-harmony_24NLQE5BfD15MlLIQLuBmFq-W-oIxwOqgPYZJOoX7Ho=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BCF812DA6A155860D42E7AD39B0C9A405E675CE4EDFDAF7D5184FE0B240FF6C8C8CB3E7F336671D",
+          "profile": "C:\\Users\\draha\\.ohos\\config\\default_app-harmony_24NLQE5BfD15MlLIQLuBmFq-W-oIxwOqgPYZJOoX7Ho=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\draha\\.ohos\\config\\default_app-harmony_24NLQE5BfD15MlLIQLuBmFq-W-oIxwOqgPYZJOoX7Ho=.p12",
+          "storePassword": "0000001BAEA1851EA7C630F625B3E89B708754317F67DEF718010B93D7F2E3D363A88A7E9680A997052297"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",
+        "signingConfig": "default",
         "compatibleSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -13,7 +28,8 @@
             "caseSensitiveCheck": true,
             "useNormalizedOHMUrl": true
           }
-        }
+        },
+        "targetSdkVersion": "5.0.0(12)"
       }
     ],
     "buildModeSet": [
