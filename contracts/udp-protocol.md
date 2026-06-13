@@ -59,7 +59,7 @@ App 的 `robotState` 枚举值**刻意对齐 ASCII**，所以 byte0 既是 App �
 | 102 | fullpathStartRoute | 'f' | 启动全息路径规划(**127**)，iparams[0]=byte1 |
 | 103 | fullpathStartover | 'g' | 取消全息路径规划(**126**) |
 | 104 | fullpathSelect | 'h' | **单机**全路径选房间顶点(**125**)，byte1=房间号，坐标 byte3-6 |
-| 105 | distributed | 'i' | 子机拉主机地图(**124**)；主机 IP 四段在 byte[1],[2],[4],[6] |
+| 105 | distributed | 'i' | 子机拉主机地图(**124**)；主机 IP 四段在 byte[1],[2],[4],[6]。车端执行时优先拉 `zipedMap.txt` 并解压到 `defultMap.txt`，失败回退 `defultMap.txt` |
 | 106 | distributedEnd | 'j' | 加载地图(**10**)+接收主机目标点(byte3-6) → **20** |
 | 107 | distAreaCorner1 | 'k' | **分布式覆盖矩形·对角点1**(byte3-6)，仅暂存 |
 | 108 | distAreaCorner2 | 'l' | **对角点2(byte3-6)+robot_id(byte1：0主/1从)**：两对角点完整且 `robot_id` 为 0/1 时，master/sub 都规划 FullRoad 覆盖(**122**)后执行分布式跟踪(**123**)；`108` 不加载图、不重置定位 |
