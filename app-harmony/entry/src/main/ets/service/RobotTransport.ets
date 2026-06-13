@@ -150,6 +150,17 @@ export class RobotTransport {
   }
 
   /**
+   * 发送一个**已构造好的 9 字节缓冲**（如 cmd105 把主机 IP 打进 byte[1,2,4,6] 的拉图帧，
+   * 通用 `UdpSendData` 字段表达不了该布局）。始终打印一行 TX 日志（label + hex）。
+   */
+  sendBuffer(ip: string, buffer: ArrayBuffer, label: string): void {
+    const hex: string = this.hexOf(buffer);
+    this.log.i(`TX→ ${ip} ${label} [${hex}]`);
+    this.lastTxHexByIp.set(ip, hex);
+    this.rawSend(ip, buffer);
+  }
+
+  /**
    * 保活 / 周期重发（心跳循环、广播发现 ping）：默认**不打印**（避免每 500ms/1s 刷屏）；
    * 仅 `DEBUG_WIRE` 开且**帧内容相对上一帧变化**时打印一行（带"(保活)"）。照常发送。
    */

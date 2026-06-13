@@ -99,6 +99,28 @@ export function encodeSend(d: UdpSendData): ArrayBuffer {
   return buffer;
 }
 
+/**
+ * 构造 cmd105（distributed/'i'）9 字节：**主机 IP 四段打进 byte[1],[2],[4],[6]**（其余 0），
+ * 见 contracts/udp-protocol.md。子车收到后紫派 `cmd124` 用 `wget` 从 `http://<主机IP>:8000` 拉
+ * `defultMap.txt`+`roadFile.txt`。通用 `UdpSendData` 字段表达不了这个布局（byte2 被 speed 占、
+ * byte1 语义是 runState），故单独构造。方案A 平板直发用（见 docs/dual-car-plan.md §5 P3）。
+ */
+export function encodePullMap(masterIp: string): ArrayBuffer {
+  const seg: string[] = masterIp.split('.');
+  const oct = (i: number): number => {
+    const v: number = parseInt(seg[i], 10);
+    return Number.isNaN(v) ? 0 : (v & 0xff);
+  };
+  const buffer = new ArrayBuffer(UDP_PACKET_BYTES);
+  const bytes = new Uint8Array(buffer);
+  bytes[OFFSET_STATE] = RobotCommand.distributed;  // byte0 = 105
+  bytes[1] = oct(0);   // byte1 = IP 第1段
+  bytes[2] = oct(1);   // byte2 = IP 第2段
+  bytes[4] = oct(2);   // byte4 = IP 第3段（byte3 留 0）
+  bytes[6] = oct(3);   // byte6 = IP 第4段（byte5 留 0）
+  return buffer;
+}
+
 /** 命令码 → 简短可读名（调试日志用；未知码回退 `cmd<code>`）。与上面 RobotCommand 枚举对齐。 */
 export function commandName(code: number): string {
   switch (code) {

@@ -15,7 +15,7 @@ import { router, promptAction } from '@kit.ArkUI';
 import { Mission, ControlMode, MissionPhase, RobotRuntime, RobotRuntimeDTO, MissionSnapshot,
   EndPoint, Assignment, RobotStatus } from '../model/mission';
 import { Point } from '../model/geometry';
-import { RobotCommand, MoveDirection, UdpSendData, UdpReceiveData } from '../model/protocol';
+import { RobotCommand, MoveDirection, UdpSendData, UdpReceiveData, encodePullMap } from '../model/protocol';
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
 import { RobotTransport, DiscoveredRobot, MessageListener, ConnState } from '../service/RobotTransport';
 import { MapService } from '../service/MapService';
@@ -43,6 +43,9 @@ interface ControlRouteParams {
 // 命令时序：紫派对"先暂存后使用"的命令对需要处理间隔，避免 UDP 乱序/未处理完（对照旧 App 的命令间延时）。
 const CMD_SEQ_GAP_MS: number = 300;            // 107→108 之间
 const FULLPATH_START_DELAY_MS: number = 1000;  // 选完 4 顶点(104)到启动全路径(102)，对照旧 App 1s
+// 方案A 从车拉图：cmd105(拉主机图)→cmd5(加载+归零) 之间的等待。无 ack，给紫派 wget 留时间（真机可调；
+// 压缩图 zipedMap.txt 秒级，回退普通图在 SLAM 负载下可能十几秒，见 docs/dual-car-plan.md §6）。
+const SLAVE_PULL_DELAY_MS: number = 8000;
 // A* 到达判定：机器人位姿与终点的**栅格距离平方** ≤ 此值即判定到达（对照旧 App distributedsecondPage 的 calcArriveDistance）。
 // 旧 App：arriveDistance=4 → (4²)<<1 = 32（cell²），即半径 √32≈5.66 格 ≈ 28cm（1 格 = 5cm）。
 const ASTAR_ARRIVE_DIST2_CELLS: number = 32;
@@ -81,7 +84,9 @@ struct ControlPage {
   // 分布式：FleetMission 软总线黑板（平板写 assignments → 各车 agent 读自己的）
   private fleet: FleetMissionService = FleetMissionService.getInstance();
   private remoteListener: MissionSyncListener | null = null;
-  @State private distUseAgent: boolean = true;  // true=经 agent(黑板)；false=平板直发兜底(cmd107/108)
+  // 分布式下发方式：false=**平板直连双车（方案A·默认）**——平板直发 105/5/107/108，不经软总线；
+  // true=经车载 agent / 软总线黑板（DDO 路，因硬件限制暂搁置，**代码保留供未来启用**，见 docs/dual-car-plan.md）。
+  @State private distUseAgent: boolean = false;
   @State private distActiveCarId: number = 1;    // 当前正在为哪辆车划分子区域（车选择器选中项；= carId）
   // 仪表识别 PiP 小窗（形态B）：独立 WS 连香橙派，与导航链路解耦；引用计数 acquire/release。
   private vision: VisionService = VisionService.getInstance();
@@ -149,8 +154,9 @@ struct ControlPage {
     }
     this.msgListener = (data: UdpReceiveData, from: string) => this.onMessage(data, from);
     this.transport.subscribe(this.msgListener);
-    // 分布式：入软总线会话 + 订阅黑板（各车 agent 回写的位姿/进度）
-    if (this.mode === ControlMode.distributed) {
+    // 分布式 + DDO 软总线路（distUseAgent，因硬件限制暂搁置、代码保留）：入会话 + 订阅黑板（各车 agent 回写位姿/进度）。
+    // 方案A（distUseAgent=false，默认）= 平板直连双车 UDP，不入软总线（见 docs/dual-car-plan.md）。
+    if (this.mode === ControlMode.distributed && this.distUseAgent) {
       this.remoteListener = (s: MissionSnapshot) => this.onRemoteMission(s);
       this.fleet.subscribeMission(this.remoteListener);
       this.fleet.joinSession(FLEET_SESSION_ID).catch((e: Object) => {
@@ -158,10 +164,9 @@ struct ControlPage {
       });
     }
     if (this.ip.length > 0) {
-      // distributed：平板**不直连任何车 UDP**（含 master）——master 由其本机 agent 独占 5001 单客户端
-      // （A6.2/plan6 P4：避免平板与 master-agent 抢 udp2lcm 的单一 clientIP）。位姿/进度经黑板取，
-      // 地图仍可经 HTTP 拉显示（与 UDP 解耦，不受影响）。
-      if (this.mode !== ControlMode.distributed) {
+      // 仅 DDO 模式下平板**不直连任何车**（master 由其本机 agent 独占 5001 单客户端，A6.2/plan6 P4）。
+      // 方案A / 单机：平板直连主车起中性保活（位姿经心跳、地图经 HTTP；从车另在设备面板连接并拉图）。
+      if (!(this.mode === ControlMode.distributed && this.distUseAgent)) {
         this.connectTo(this.ip);
       }
       this.loadMap(this.ip, 1, 0, false);  // 进页查既有图（A 开机保留上次地图：有则直接用；点「开始建图」会清并重建）；非阻塞、不轮询
@@ -484,6 +489,40 @@ struct ControlPage {
     }
     this.toast(`已清除车${carId} 区域`);
     this.bump();
+  }
+
+  /**
+   * 方案A · 让从车加入：发 `cmd105`（主车 IP 打进 byte[1,2,4,6]）令从车 wget 拉主机图，延时
+   * `SLAVE_PULL_DELAY_MS`（无 ack）后发 `cmd5` 加载导航图并把初始位姿**归零 (0,0,0)** 到主车原点。
+   * 见 docs/dual-car-plan.md §5 P3 / contracts/udp-protocol.md（105/'i'、5/loadMap 归零）。
+   */
+  private joinSlave(slaveIp: string, carId: number): void {
+    this.transport.sendBuffer(slaveIp, encodePullMap(this.ip), `distributed(105) 拉主机图 master=${this.ip}`);
+    this.toast(`车${carId}：已发拉图(cmd105)，约 ${Math.round(SLAVE_PULL_DELAY_MS / 1000)}s 后自动加载…`);
+    setTimeout(() => {
+      this.sendTo(slaveIp, RobotCommand.loadMap);  // cmd5：加载导航图 + 位姿归零到主车原点
+      this.toast(`车${carId}：已发加载图(cmd5)，从车位姿应归零到主车原点（看它是否出现在地图原点）`);
+    }, SLAVE_PULL_DELAY_MS);
+  }
+
+  /** 方案A · 为当前选中的从车（distActiveCarId>1）拉主机图。主车需先建好图；可重复点（无 ack，靠重试兜底）。 */
+  private pullMapForActiveSlave(): void {
+    const carId: number = this.distActiveCarId;
+    if (carId <= 1) {
+      this.toast('车1 是主车（建图车），无需拉图');
+      return;
+    }
+    const slave: RobotRuntime | undefined =
+      this.mission.robots.find((rr: RobotRuntime): boolean => rr.index === carId);
+    if (slave === undefined || slave.ip.length === 0) {
+      this.toast(`车${carId} 还没连接/无 IP，先在设备面板连接从车`);
+      return;
+    }
+    if (!this.mission.mapReady) {
+      this.toast('请先用主车建好图（地图就绪后再让从车拉图）');
+      return;
+    }
+    this.joinSlave(slave.ip, carId);
   }
 
   /** 黑板远端变更（各车 agent 回写位姿/进度/状态）：取 robots 更新显示 + 状态变化弹提示；assignments 由平板掌权、不被覆盖。 */
@@ -1220,13 +1259,13 @@ struct ControlPage {
   @Builder
   DistributedOps() {
     Column({ space: Space.sm }) {
-      // ① 选下发方式：经车载 agent(写黑板·各车自主) 或 平板直发兜底(直接发本车)
+      // ① 选下发方式：平板直连双车（方案A·默认）或 经车载 agent/软总线（DDO·因硬件限制暂搁置，保留供未来启用）。
       Text('① 选下发方式')
         .fontSize(FontSize.caption)
         .fontColor(AppColor.textSecondary)
         .width('100%')
       Row() {
-        Text(this.distUseAgent ? '经车载 agent（黑板·各车自主覆盖）' : '平板直发（兜底·直接发本车）')
+        Text(this.distUseAgent ? '经车载 agent / 软总线（DDO·需互信）' : '平板直连双车（方案A·默认）')
           .fontSize(FontSize.bodySm)
           .fontColor(AppColor.textBody)
           .layoutWeight(1)
@@ -1248,6 +1287,17 @@ struct ControlPage {
         }, (r: RobotRuntime) => `${r.index}`)
       }
       .width('100%')
+      // 方案A：从车需先拉主机图（cmd105→cmd5）再划区域。仅选中从车(车号>1)时显示；主车不需要。
+      if (!this.distUseAgent && this.distActiveCarId > 1) {
+        Button(`让车${this.distActiveCarId}拉主机图（105→5）`)
+          .fontSize(FontSize.caption)
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .height(32)
+          .width('100%')
+          .onClick(() => this.pullMapForActiveSlave())
+      }
       Row() {
         Text(this.distAssignedText())
           .fontSize(FontSize.caption)
@@ -1305,8 +1355,17 @@ struct ControlPage {
           scanning: this.scanning,
           onScan: () => this.startScan(),
           onConnect: (ip: string) => {
-            this.connectTo(ip);
-            this.loadMap(ip, 1, 0, false);  // 切车查既有图（非阻塞、不轮询）
+            if (this.mode === ControlMode.distributed && !this.distUseAgent) {
+              // 方案A：把所连设备登记为车并保活（主车=车1 已在 → 新设备成为从车）；不拉它的图、不覆盖主车地图。
+              this.connectTo(ip);
+              const r: RobotRuntime | undefined = this.robotOf(ip);
+              this.toast(r !== undefined && r.index > 1
+                ? `车${r.index} 已连接（从车）— 在操作卡选中它并「让从车拉图」`
+                : `已连接 ${ip}`);
+            } else {
+              this.connectTo(ip);
+              this.loadMap(ip, 1, 0, false);  // 切车查既有图（非阻塞、不轮询）
+            }
             this.toggleDevicePanel();
           },
           onManualAdd: () => {
