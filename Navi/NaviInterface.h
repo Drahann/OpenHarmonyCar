@@ -28,12 +28,14 @@
 #define COOP_AVOID_CMD_STOP_ACK      -37
 #define COOP_AVOID_CMD_RESUME_REQUEST -36
 #define COOP_AVOID_CMD_RESUME_ACK    -35
+#define COOP_AVOID_CMD_ACK           -34
 
 enum CoopAvoidState
 {
 	COOP_AVOID_NORMAL = 0,
 	COOP_AVOID_WAIT_PEER_POSE,
 	COOP_AVOID_WAIT_STOP_ACK,
+	COOP_AVOID_WAIT_RESUME_ACK,
 	COOP_AVOID_PEER_PAUSED_BY_ME,
 	COOP_AVOID_STOPPED_FOR_PEER
 };
@@ -387,6 +389,13 @@ public:
 	bool m_coopPeerHasGoal;
 	Pose m_coopPeerPose;
 	Pose m_coopPeerGoal;
+	int m_coopLastTxCommand;
+	int m_coopLastTxTarget;
+	int m_coopLastTxSeq;
+	int m_coopLastTxReason;
+	long m_coopLastTxTimeMs;
+	int m_coopLastTxRetryCount;
+	bool m_coopLastTxAcked;
 
 	static void * PlanThreadProc(LPVOID pPara);
 	static void * CoverageThreadProc(LPVOID pPara);
@@ -505,7 +514,7 @@ public:
 	// AnXin：2025-6-26
 	void	subGetMapFromMain(int* ip);
 
-	void	CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
+	bool	CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
 
 	void	getsize_forFullRoad(int len, int safe,int mins, int* list);
 
@@ -528,6 +537,9 @@ public:
 	void	sendCoopStopAck(int targetRobotId, int seq);
 	void	sendCoopResumeRequest(int targetRobotId, int seq);
 	void	sendCoopResumeAck(int targetRobotId, int seq);
+	void	sendCoopAck(int targetRobotId, int seq, int ackedCommandId);
+	void	beginCoopReliableTxLocked(int commandId, int targetRobotId, int seq, int reason);
+	void	clearCoopReliableTxLocked(void);
 	bool	getCurrentGoal(Pose &goal);
 	bool	peerLikelyBlocksCurrentRoute(int reason);
 	bool	pauseForCoopPeer(int sourceRobotId, int seq);
@@ -603,7 +615,7 @@ void NAVI_SetSearchType(int searchType);
 // AnXin：2025-6-10
 void NAVI_SubGetMapFromMain(int* ip);
 
-void NAVI_CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
+bool NAVI_CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
 
 void NAVI_getsize_forFullRoad(int len, int safe,int mins, int* list);
 

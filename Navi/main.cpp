@@ -9,6 +9,8 @@
 #include "lcm/lcm.h"
 
 #include <dirent.h>
+#include <errno.h>
+#include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -40,6 +42,7 @@ using namespace std;
 #define LCM_CMD_BeginLocalization 103
 #define LCM_CMD_FullPathCoverage 127
 #define COOP_AVOID_LCM_URI "udpm://239.255.76.67:7668?ttl=1"
+#define COOP_AVOID_LCM_PORT 7668
 
 lcm_t *lcm;
 lcm_t *coop_lcm;
@@ -66,6 +69,35 @@ void *CoopLCMRecvTask(void *arg) {
             usleep(100000);
         }
     }
+}
+
+static void CheckCoopAvoidPortAvailable(void) {
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        printf("COOP_AVOID port check failed: cannot create udp socket errno=%d(%s)\n",
+               errno, strerror(errno));
+        fflush(stdout);
+        return;
+    }
+
+    int reuse = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(COOP_AVOID_LCM_PORT);
+
+    if (::bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        printf("COOP_AVOID port check failed: udp port %d unavailable errno=%d(%s)\n",
+               COOP_AVOID_LCM_PORT, errno, strerror(errno));
+    } else {
+        printf("COOP_AVOID port check ok: udp port %d available before LCM create\n",
+               COOP_AVOID_LCM_PORT);
+    }
+    fflush(stdout);
+    close(sockfd);
 }
 
 vector<Pose> ReadFullPathFromFile(const string& filepath) {
@@ -607,6 +639,8 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
         double metersPerPixel = 0.05;
         bool forceNewMap = false;
         bool createMapStarted = false;
+        ucLoadmapflag = 0;
+        memset(nowusestrfileName, 0, sizeof(nowusestrfileName));
         printf("create map \n");
         fflush(stdout);
 
@@ -917,7 +951,7 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
         NAVI_SetRoomVertex(0,A.x, A.y);
         NAVI_SetRoomVertex(1,B.x, B.y);
         NAVI_SetRoomVertex(2,robotctrldata->dparams[0], robotctrldata->dparams[1]);
-        /*IPoint tempPose;
+        IPoint tempPose;
         tempPose = NAVI_GlobalToGrid(A.x, A.y);
         int x1 = tempPose.x;
         int y1 = tempPose.y;
@@ -930,9 +964,15 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
         int rob[2] = { curPose.x, curPose.y };
         int safesize = 7; 
         int minsize = 5; 
-        NAVI_CreateFullPath(x1, y1, x2, y2, rob, safesize, minsize);
+        bool fullPathReady = NAVI_CreateFullPath(x1, y1, x2, y2, rob, safesize, minsize);
+        if (!fullPathReady) {
+            printf("Create full path from (%d, %d) to (%d, %d) with robot at (%d, %d), failed\n",
+                   x1, y1, x2, y2, rob[0], rob[1]);fflush(stdout);
+            break;
+        }
         printf("Create full path from (%d, %d) to (%d, %d) with robot at (%d, %d), successfully\n",
-               x1, y1, x2, y2, rob[0], rob[1]);fflush(stdout);*/
+               x1, y1, x2, y2, rob[0], rob[1]);fflush(stdout);
+        break;
     }
     default:
         break;
@@ -973,6 +1013,7 @@ void RevisePoseHandle(const lcm_recv_buf_t *rbuf, const char *channel,
 
 int LCMInit(void) {
     lcm = lcm_create( NULL );
+    CheckCoopAvoidPortAvailable();
     coop_lcm = lcm_create(COOP_AVOID_LCM_URI);
     // TODO 测试跨机
     // lcm = lcm_create("udpm://239.255.76.67:7667?ttl=1");
@@ -1139,7 +1180,8 @@ int main(void) {
         printf("Please run as root\n");fflush(stdout);
         return 1;
     }
-    printf("preserve existing map files on startup\n");fflush(stdout);
+    printf("clear generated map files on startup\n");fflush(stdout);
+    NAVI_ClearGeneratedMapFiles();
     
     printf("version Debug V1.2.1.9 system begin\n");fflush(stdout);
     /* lcm 数据接收线程 */

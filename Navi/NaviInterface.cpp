@@ -2,9 +2,231 @@
 #include "Astarplanner.h"
 #include <cerrno>
 #include <cstdio>
+#include <sys/time.h>
 
 extern lcm_t *lcm;
 extern lcm_t *coop_lcm;
+
+
+extern "C" void MapServerDebugAttach(FILE *file);
+extern "C" void MapServerDebugDetach(void);
+
+static FILE *g_mappingDebugFile = NULL;
+static unsigned long g_mappingDebugFrameSeq = 0;
+static const char *kMappingDebugPath = "/data/test/mapping_debug.log";
+
+static long mappingDebugNowMs()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+static void mappingDebugClose(void)
+{
+    if (g_mappingDebugFile != NULL) {
+        MapServerDebugDetach();
+        fprintf(g_mappingDebugFile, "SESSION_CLOSE %ld\n", mappingDebugNowMs());
+        fflush(g_mappingDebugFile);
+        fclose(g_mappingDebugFile);
+        g_mappingDebugFile = NULL;
+    }
+}
+
+static void mappingDebugOpen(double metersPerPixel, bool forceNewMap)
+{
+    mappingDebugClose();
+    g_mappingDebugFrameSeq = 0;
+    g_mappingDebugFile = fopen(kMappingDebugPath, "w");
+    if (g_mappingDebugFile == NULL) {
+        printf("WARN: open mapping debug log failed: %s\n", kMappingDebugPath);
+        fflush(stdout);
+        return;
+    }
+
+    fprintf(g_mappingDebugFile,
+            "SESSION_START %ld meters_per_pixel %.9f force_new_map %d\n",
+            mappingDebugNowMs(), metersPerPixel, forceNewMap ? 1 : 0);
+    fflush(g_mappingDebugFile);
+    MapServerDebugAttach(g_mappingDebugFile);
+}
+
+static unsigned long mappingDebugNextFrameId(void)
+{
+    ++g_mappingDebugFrameSeq;
+    return g_mappingDebugFrameSeq;
+}
+
+static void mappingDebugLogPointVector(const char *prefix, unsigned long frameId,
+                                       const vector<Pose> &points)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    fprintf(g_mappingDebugFile, "%s %lu %lu\n", prefix, frameId,
+            (unsigned long)points.size());
+    for (size_t i = 0; i < points.size(); ++i) {
+        fprintf(g_mappingDebugFile, "P %.9f %.9f %.9f\n",
+                points[i].x, points[i].y, points[i].theta);
+    }
+}
+
+static void mappingDebugLogFrameBegin(unsigned long frameId, Pose poseBefore,
+                                      int graphBefore,
+                                      const vector<Pose> &bodyPoints,
+                                      const vector<Pose> &forelaserPoints,
+                                      const vector<Pose> &limitlaserPoints)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    fprintf(g_mappingDebugFile,
+            "FRAME_BEGIN %lu %ld graph_before %d pose_before %.9f %.9f %.9f body %lu fore %lu limit %lu\n",
+            frameId, mappingDebugNowMs(), graphBefore,
+            poseBefore.x, poseBefore.y, poseBefore.theta,
+            (unsigned long)bodyPoints.size(),
+            (unsigned long)forelaserPoints.size(),
+            (unsigned long)limitlaserPoints.size());
+    mappingDebugLogPointVector("POINTS_BODY", frameId, bodyPoints);
+    mappingDebugLogPointVector("POINTS_FORE", frameId, forelaserPoints);
+    mappingDebugLogPointVector("POINTS_LIMIT", frameId, limitlaserPoints);
+    fflush(g_mappingDebugFile);
+}
+
+static void mappingDebugLogFrameMatch(unsigned long frameId, Pose poseAfter,
+                                      int graphBefore, int graphAfter,
+                                      const vector<double> &poseFlag)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    double flag0 = poseFlag.size() > 0 ? poseFlag[0] : 0.0;
+    double flag1 = poseFlag.size() > 1 ? poseFlag[1] : 0.0;
+    double flag2 = poseFlag.size() > 2 ? poseFlag[2] : 0.0;
+    fprintf(g_mappingDebugFile,
+            "FRAME_MATCH %lu %ld graph_before %d graph_after %d pose_after %.9f %.9f %.9f pose_flag %.9f %.9f %.9f\n",
+            frameId, mappingDebugNowMs(), graphBefore, graphAfter,
+            poseAfter.x, poseAfter.y, poseAfter.theta, flag0, flag1, flag2);
+}
+
+static void mappingDebugLogGraphNodes(unsigned long frameId, int graphBefore,
+                                      int graphAfter, Graph &graph)
+{
+    if (g_mappingDebugFile == NULL || graphAfter <= graphBefore) {
+        return;
+    }
+    for (int nodeIndex = graphBefore; nodeIndex < graphAfter; ++nodeIndex) {
+        if (nodeIndex < 0 || nodeIndex >= (int)graph.nodes.size()) {
+            continue;
+        }
+        GNode gn = graph.nodes.at(nodeIndex);
+        vector<Pose> nodePoints;
+        gn.getAttribute("points", nodePoints);
+        fprintf(g_mappingDebugFile,
+                "GRAPH_NODE %lu %d state %.9f %.9f %.9f points %lu\n",
+                frameId, nodeIndex, gn.state.x, gn.state.y, gn.state.theta,
+                (unsigned long)nodePoints.size());
+        fprintf(g_mappingDebugFile, "NODE_POINTS %lu %d %lu\n",
+                frameId, nodeIndex, (unsigned long)nodePoints.size());
+        for (size_t i = 0; i < nodePoints.size(); ++i) {
+            fprintf(g_mappingDebugFile, "P %.9f %.9f %.9f\n",
+                    nodePoints[i].x, nodePoints[i].y, nodePoints[i].theta);
+        }
+    }
+    fflush(g_mappingDebugFile);
+}
+
+static void mappingDebugLogSlamStep(unsigned long frameId, const char *stage,
+                                    const char *mode, int graphSize,
+                                    MapServer *mapServer)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    int width = 0;
+    int height = 0;
+    double x0 = 0.0;
+    double y0 = 0.0;
+    double resolution = 0.0;
+    int hasData = 0;
+    if (mapServer != NULL) {
+        width = mapServer->globalBinaryMap.width;
+        height = mapServer->globalBinaryMap.height;
+        x0 = mapServer->globalBinaryMap.x0;
+        y0 = mapServer->globalBinaryMap.y0;
+        resolution = mapServer->globalBinaryMap.metersPerPixel;
+        hasData = mapServer->globalBinaryMap.data != NULL ? 1 : 0;
+    }
+    fprintf(g_mappingDebugFile,
+            "SLAM_STEP %lu %ld %s %s graph_size %d map_has_data %d map %.9f %.9f %d %d %.9f\n",
+            frameId, mappingDebugNowMs(), stage, mode, graphSize, hasData,
+            x0, y0, width, height, resolution);
+    fflush(g_mappingDebugFile);
+}
+
+static void mappingDebugLogDrawBegin(int nodeCount, MapServer *mapServer)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    int width = 0;
+    int height = 0;
+    double x0 = 0.0;
+    double y0 = 0.0;
+    double resolution = 0.0;
+    if (mapServer != NULL) {
+        width = mapServer->globalBinaryMap.width;
+        height = mapServer->globalBinaryMap.height;
+        x0 = mapServer->globalBinaryMap.x0;
+        y0 = mapServer->globalBinaryMap.y0;
+        resolution = mapServer->globalBinaryMap.metersPerPixel;
+    }
+    fprintf(g_mappingDebugFile,
+            "DRAW_BEGIN %ld nodes %d map %.9f %.9f %d %d %.9f\n",
+            mappingDebugNowMs(), nodeCount, x0, y0, width, height, resolution);
+    fflush(g_mappingDebugFile);
+}
+
+static void mappingDebugLogDrawNode(int nodeIndex, Pose pose,
+                                    unsigned long rawPointCount,
+                                    unsigned long contourCount)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    fprintf(g_mappingDebugFile,
+            "DRAW_NODE %d pose %.9f %.9f %.9f raw_points %lu contours %lu\n",
+            nodeIndex, pose.x, pose.y, pose.theta,
+            rawPointCount, contourCount);
+}
+
+static void mappingDebugLogDrawContour(int nodeIndex, int contourIndex,
+                                       Pose pose,
+                                       const vector<Pose> &points)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    fprintf(g_mappingDebugFile,
+            "DRAW_CONTOUR %d %d pose %.9f %.9f %.9f points %lu\n",
+            nodeIndex, contourIndex, pose.x, pose.y, pose.theta,
+            (unsigned long)points.size());
+    for (size_t i = 0; i < points.size(); ++i) {
+        fprintf(g_mappingDebugFile, "P %.9f %.9f %.9f\n",
+                points[i].x, points[i].y, points[i].theta);
+    }
+    fflush(g_mappingDebugFile);
+}
+
+static void mappingDebugLogSessionEnd(const char *reason, bool saved)
+{
+    if (g_mappingDebugFile == NULL) {
+        return;
+    }
+    fprintf(g_mappingDebugFile, "SESSION_END %ld reason %s saved %d frames %lu\n",
+            mappingDebugNowMs(), reason, saved ? 1 : 0, g_mappingDebugFrameSeq);
+    fflush(g_mappingDebugFile);
+}
 
 int g_count = 0;
 int printnopathflag = 0;
@@ -18,7 +240,62 @@ int g_iSaveDateFlag = 0;
 static const double kCoopMinSafeRadius = 0.35;
 static const double kCoopRobotMargin = 0.20;
 static const double kCoopLaserEvidenceMargin = 0.30;
-static const long kCoopMessageTimeoutMs = 2500;
+static const long kCoopMessageTimeoutMs = 3500;
+static const long kCoopRetryIntervalMs = 450;
+static const int kCoopMaxRetries = 6;
+
+static const char *coopCommandName(int commandId)
+{
+    switch (commandId) {
+    case COOP_AVOID_CMD_POSE_REQUEST:
+        return "POSE_REQUEST";
+    case COOP_AVOID_CMD_POSE_RESPONSE:
+        return "POSE_RESPONSE";
+    case COOP_AVOID_CMD_STOP_REQUEST:
+        return "STOP_REQUEST";
+    case COOP_AVOID_CMD_STOP_ACK:
+        return "STOP_ACK";
+    case COOP_AVOID_CMD_RESUME_REQUEST:
+        return "RESUME_REQUEST";
+    case COOP_AVOID_CMD_RESUME_ACK:
+        return "RESUME_ACK";
+    case COOP_AVOID_CMD_ACK:
+        return "ACK";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static const char *coopStateName(CoopAvoidState state)
+{
+    switch (state) {
+    case COOP_AVOID_NORMAL:
+        return "NORMAL";
+    case COOP_AVOID_WAIT_PEER_POSE:
+        return "WAIT_PEER_POSE";
+    case COOP_AVOID_WAIT_STOP_ACK:
+        return "WAIT_STOP_ACK";
+    case COOP_AVOID_WAIT_RESUME_ACK:
+        return "WAIT_RESUME_ACK";
+    case COOP_AVOID_PEER_PAUSED_BY_ME:
+        return "PEER_PAUSED_BY_ME";
+    case COOP_AVOID_STOPPED_FOR_PEER:
+        return "STOPPED_FOR_PEER";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static void coopLogMessage(const char *event, int selfRobotId, int commandId,
+                           int sourceRobotId, int targetRobotId, int seq,
+                           CoopAvoidState state, int retryCount, int extra)
+{
+    printf("COOP_AVOID %s self=%d cmd=%s(%d) source=%d target=%d seq=%d state=%s(%d) retry=%d extra=%d\n",
+           event, selfRobotId, coopCommandName(commandId), commandId,
+           sourceRobotId, targetRobotId, seq, coopStateName(state), state,
+           retryCount, extra);
+    fflush(stdout);
+}
 
 static long coopNowMs()
 {
@@ -201,14 +478,26 @@ OptimizeMap::OptimizeMap(void) {
     OpMatcher = new MultiResolutionScanMatcher;
 }
 
-OptimizeMap::~OptimizeMap(void) {}
+OptimizeMap::~OptimizeMap(void) {
+    delete OpScanMatcher;
+    OpScanMatcher = NULL;
+    delete OpMapServer;
+    OpMapServer = NULL;
+    delete OpMatcher;
+    OpMatcher = NULL;
+}
 
 Scanlinkmatch::Scanlinkmatch(void) {
     linkScanMatcher = new ScanMatcher;
     linkMatcher = new MultiResolutionScanMatcher;
 }
 
-Scanlinkmatch::~Scanlinkmatch(void) {}
+Scanlinkmatch::~Scanlinkmatch(void) {
+    delete linkScanMatcher;
+    linkScanMatcher = NULL;
+    delete linkMatcher;
+    linkMatcher = NULL;
+}
 
 CNaviInterface::CNaviInterface(void) {
 
@@ -368,6 +657,13 @@ CNaviInterface::CNaviInterface(void) {
     m_coopPeerGoal.x = 0;
     m_coopPeerGoal.y = 0;
     m_coopPeerGoal.theta = 0;
+    m_coopLastTxCommand = 0;
+    m_coopLastTxTarget = -1;
+    m_coopLastTxSeq = 0;
+    m_coopLastTxReason = 0;
+    m_coopLastTxTimeMs = 0;
+    m_coopLastTxRetryCount = 0;
+    m_coopLastTxAcked = false;
 
     int status;
     /************************************************************************************/
@@ -887,6 +1183,10 @@ bool CNaviInterface::replayMappingScanFramesForSave(void) {
     return true;
 }
 void CNaviInterface::putEncoderData(Pose *pPos) {
+    if (pPos == NULL) {
+        return;
+    }
+
     if (m_encoderInitialized == 0) {
         m_lastxyt.x = pPos->x;
         m_lastxyt.y = pPos->y;
@@ -898,8 +1198,12 @@ void CNaviInterface::putEncoderData(Pose *pPos) {
     m_nowxyt.y = pPos->y;
     m_nowxyt.theta = pPos->theta;
 
-    //计算m_nowxyt相对于m_lastxyt的增量，增量表示在m_lastxyt坐标系下
+    // 计算 m_nowxyt 相对于 m_lastxyt 的增量。
+    // theta 必须归一化，否则角度从 +pi 跳到 -pi 时会被算成接近 2*pi 的大旋转，
+    // 建图时就会出现雷达帧围绕中心扇形旋转叠加的问题。
     globalOdoT = LinAlg::xytInvMul31(m_lastxyt, m_nowxyt);
+    globalOdoT.theta = Simu_normalize_theta(globalOdoT.theta);
+
     pthread_mutex_lock(&m_csPose_mutex);
 
     if (m_eNaviType == LOCALIZATION && m_bIsLoc) {
@@ -910,15 +1214,23 @@ void CNaviInterface::putEncoderData(Pose *pPos) {
 
                 m_pscanMatcher->getPosition(curPose);
                 curPose = LinAlg::xytMultiply(curPose, globalOdoT);
+                curPose.theta = Simu_normalize_theta(curPose.theta);
                 m_pscanMatcher->SetXyt(curPose);
             }
 
         } else {
 
             m_CurPos = LinAlg::xytMultiply(m_CurPos, globalOdoT);
+            m_CurPos.theta = Simu_normalize_theta(m_CurPos.theta);
+
             m_CurPosForPath = LinAlg::xytMultiply(m_CurPosForPath, globalOdoT);
+            m_CurPosForPath.theta = Simu_normalize_theta(m_CurPosForPath.theta);
+
             scanlinktest = LinAlg::xytMultiply(scanlinktest, globalOdoT);
+            scanlinktest.theta = Simu_normalize_theta(scanlinktest.theta);
+
             chargemappose = LinAlg::xytMultiply(chargemappose, globalOdoT);
+            chargemappose.theta = Simu_normalize_theta(chargemappose.theta);
         }
     }
 
@@ -930,6 +1242,7 @@ void CNaviInterface::putEncoderData(Pose *pPos) {
 
             m_pscanMatcher->getPosition(curPose);
             curPose = LinAlg::xytMultiply(curPose, globalOdoT);
+            curPose.theta = Simu_normalize_theta(curPose.theta);
             m_pscanMatcher->SetXyt(curPose);
         }
     }
@@ -1772,7 +2085,10 @@ void CNaviInterface::update(vector<Pose> &bodyPoints,
             }
 
             m_pscanMatcher = new ScanMatcher();
-            m_pmsSLAM = new MapServer(15, 0.05);
+            m_pmsSLAM = new MapServer();
+            if (m_pmsSLAM != NULL) {
+                m_pmsSLAM->SetConfig(15, 0.05);
+            }
             g_count = 0;
             pos.x = m_CurPos.x;
             pos.y = m_CurPos.y;
@@ -1792,11 +2108,37 @@ void CNaviInterface::update(vector<Pose> &bodyPoints,
     {
 
         Pose curPos;
-        if (m_pscanMatcher != NULL && m_mapState == MAP_STATE_MAPPING &&
-            !m_mappingReplayInProgress) {
-            cacheMappingScanFrame(bodyPoints, forelaserPoints, limitlaserPoints);
-            m_pscanMatcher->getPosition(curPos);
-        } else if (m_pscanMatcher != NULL) {
+        if (m_pscanMatcher != NULL) {
+            if (m_mapState == MAP_STATE_MAPPING) {
+                // 建图恢复为旧逻辑：收到每一帧激光后立即匹配并拼接到SLAM地图。
+                // 结束建图时只需要保存当前已经拼接好的地图，不再回放缓存帧。
+                unsigned long debugFrameId = mappingDebugNextFrameId();
+                Pose poseBefore;
+                m_pscanMatcher->getPosition(poseBefore);
+                int graphBefore = (int)m_pscanMatcher->g.nodes.size();
+                mappingDebugLogFrameBegin(debugFrameId, poseBefore, graphBefore,
+                                          bodyPoints, forelaserPoints,
+                                          limitlaserPoints);
+
+                m_pscanMatcher->processScan(bodyPoints, forelaserPoints,
+                                            pose_flag);
+
+                Pose poseAfter;
+                m_pscanMatcher->getPosition(poseAfter);
+                int graphAfter = (int)m_pscanMatcher->g.nodes.size();
+                mappingDebugLogFrameMatch(debugFrameId, poseAfter,
+                                          graphBefore, graphAfter, pose_flag);
+                mappingDebugLogGraphNodes(debugFrameId, graphBefore,
+                                          graphAfter, m_pscanMatcher->g);
+
+                const char *slamMode = (g_count == 0) ? "GLOBAL_UPDATE" : "LOCAL_UPDATE";
+                mappingDebugLogSlamStep(debugFrameId, "BEFORE", slamMode,
+                                        graphAfter, m_pmsSLAM);
+                doSLAM(bodyPoints);
+                mappingDebugLogSlamStep(debugFrameId, "AFTER", slamMode,
+                                        (int)m_pscanMatcher->g.nodes.size(),
+                                        m_pmsSLAM);
+            }
             m_pscanMatcher->getPosition(curPos);
         } else {
             curPos.x = 0;
@@ -4511,6 +4853,13 @@ void CNaviInterface::resetMappingRuntimeState(void) {
     m_coopPeerHasGoal = false;
     m_coopPeerPose = zeroPose;
     m_coopPeerGoal = zeroPose;
+    m_coopLastTxCommand = 0;
+    m_coopLastTxTarget = -1;
+    m_coopLastTxSeq = 0;
+    m_coopLastTxReason = 0;
+    m_coopLastTxTimeMs = 0;
+    m_coopLastTxRetryCount = 0;
+    m_coopLastTxAcked = false;
     m_coverageActive = false;
     m_coverageTurnIndex = -1;
     pthread_mutex_unlock(&m_coop_mutex);
@@ -4544,6 +4893,7 @@ bool CNaviInterface::createMap(double metersPerPixel, bool forceNewMap) {
     resetCoverageState();
 
     setMapLifecycleState(MAP_STATE_MAPPING);
+    mappingDebugOpen(metersPerPixel, forceNewMap);
 
     m_laser1only = true;
     Pose pos;
@@ -4580,11 +4930,16 @@ bool CNaviInterface::createMap(double metersPerPixel, bool forceNewMap) {
     // *m_pmsSLAM;metersPerPixel是输入的值，此处调用的是带参数列表的构造函数，不是使用默认的
     // 0.05,一直往上层找这个参数，在最上层，有个0.04-0.16的限制条件，此处如果pad输入0.02，越界使用默认的0.05
     //修改时要注意
-    m_pmsSLAM = new MapServer(
-        15, metersPerPixel); // 15：range；metersPerPixel：resolution分辨率
+    m_pmsSLAM = new MapServer();
+    if (m_pmsSLAM != NULL) {
+        m_pmsSLAM->SetConfig(15, metersPerPixel);
+    } // 15：range；metersPerPixel：resolution分辨率
 
     /*********/
-    m_pmsSLAMtest = new MapServer(15, metersPerPixel);
+    m_pmsSLAMtest = new MapServer();
+    if (m_pmsSLAMtest != NULL) {
+        m_pmsSLAMtest->SetConfig(15, metersPerPixel);
+    }
     /**************/
     g_count = 0;
     pos.x = 0.0;
@@ -4717,31 +5072,48 @@ void CNaviInterface::saveMap(const char *strMapName) {
     bool saved = false;
     setMapLifecycleState(MAP_STATE_SAVING);
     pthread_mutex_lock(&m_csLoc_mutex);
-    if (m_eNaviType == MANUAL) {
-        if (replayMappingScanFramesForSave()) {
-            drawMap();
-            saved = m_pmsSLAM->saveMap(strMapName);
-            resetScanMatcherRuntime(m_pscanMatcher);
-            pthread_mutex_lock(&m_csLaser_mutex);
-            m_stlaserdata.nranges = 0;
-            m_stlaserdata.ranges.clear();
-            m_stlaserdata.nintensities = 0;
-            m_stlaserdata.intensities.clear();
-            m_stlaserdata.rad0 = 0;
-            m_stlaserdata.radstep = 0;
-            pthread_mutex_unlock(&m_csLaser_mutex);
-        } else {
-            saved = false;
+    if (m_eNaviType == MANUAL && m_pscanMatcher != NULL && m_pmsSLAM != NULL) {
+        // 地图已经在每帧到达时实时拼接完成，这里只负责绘制并保存最终地图。
+        drawMap();
+        saved = m_pmsSLAM->saveMap(strMapName);
+
+        if (saved) {
+            // 保存完成后释放 saveMap/drawMap 产生的大块临时地图数据。
+            // 注意：这里不清空 m_pscanMatcher->g.nodes，因为 NAVI_OptimizeMap()
+            // / createProbMap() 仍可能需要这些节点生成概率地图。下一次 createMap()
+            // 会 delete m_pscanMatcher，从而释放全部建图节点。
+            if (m_pmsSLAM->globalBinaryMap.data != NULL) {
+                delete[] m_pmsSLAM->globalBinaryMap.data;
+                m_pmsSLAM->globalBinaryMap.data = NULL;
+            }
+            if (m_pmsSLAMtest != NULL) {
+                delete m_pmsSLAMtest;
+                m_pmsSLAMtest = NULL;
+            }
+            vector<MappingScanFrame>().swap(m_mappingScanFrames);
+            m_mappingReplayInProgress = false;
+            g_count = 0;
         }
     }
     pthread_mutex_unlock(&m_csLoc_mutex);
+
+    mappingDebugLogSessionEnd("saveMap", saved);
+    mappingDebugClose();
+
     if (saved) {
+        pthread_mutex_lock(&m_csLaser_mutex);
+        m_stlaserdata.nranges = 0;
+        m_stlaserdata.ranges.clear();
+        m_stlaserdata.nintensities = 0;
+        m_stlaserdata.intensities.clear();
+        m_stlaserdata.rad0 = 0;
+        m_stlaserdata.radstep = 0;
+        pthread_mutex_unlock(&m_csLaser_mutex);
         setMapLifecycleState(MAP_STATE_MAP_READY);
     } else {
         setMapLifecycleState(MAP_STATE_IDLE);
     }
 }
-
 void CNaviInterface::saveModifyMap(void) { m_pms->saveMap_Modify(); }
 bool CNaviInterface::saveMapCallBack(void) { return m_pms->saveMap_CallBack(); }
 void CNaviInterface::SetSaveMapDone(int status) {
@@ -4759,6 +5131,7 @@ void CNaviInterface::drawMap() {
     m_pmsSLAM->globalBinaryMap.fill(0);
 
     int N = m_pscanMatcher->g.nodes.size();
+    mappingDebugLogDrawBegin(N, m_pmsSLAM);
 
     for (int i = 0; i < N; i++) {
 
@@ -4775,12 +5148,17 @@ void CNaviInterface::drawMap() {
 
             vector<vector<Pose>> test_rpoints;
             m_pmsSLAM->contourExtractor.getContours_Pose(tmp_p, test_rpoints);
+            mappingDebugLogDrawNode(i, gn.state,
+                                    (unsigned long)tmp_p.size(),
+                                    (unsigned long)test_rpoints.size());
 
-            for (int i = 0; i < test_rpoints.size(); i++) {
-                vector<Pose> contour_points = test_rpoints.at(i);
+            for (int contourIndex = 0; contourIndex < (int)test_rpoints.size(); contourIndex++) {
+                vector<Pose> contour_points = test_rpoints.at(contourIndex);
                 if (contour_points.size() <= 1) {
                     continue;
                 }
+                mappingDebugLogDrawContour(i, contourIndex, gn.state,
+                                           contour_points);
 
                 m_pmsSLAM->addGridMap(
                     m_pmsSLAM->globalBinaryMap, gn.state,
@@ -4855,8 +5233,63 @@ bool CNaviInterface::getCurrentGoal(Pose &goal) {
     return hasGoal;
 }
 
+void CNaviInterface::beginCoopReliableTxLocked(int commandId, int targetRobotId,
+                                               int seq, int reason) {
+    m_coopLastTxCommand = commandId;
+    m_coopLastTxTarget = targetRobotId;
+    m_coopLastTxSeq = seq;
+    m_coopLastTxReason = reason;
+    m_coopLastTxTimeMs = 0;
+    m_coopLastTxRetryCount = 0;
+    m_coopLastTxAcked = false;
+}
+
+void CNaviInterface::clearCoopReliableTxLocked(void) {
+    m_coopLastTxCommand = 0;
+    m_coopLastTxTarget = -1;
+    m_coopLastTxSeq = 0;
+    m_coopLastTxReason = 0;
+    m_coopLastTxTimeMs = 0;
+    m_coopLastTxRetryCount = 0;
+    m_coopLastTxAcked = false;
+}
+
+void CNaviInterface::sendCoopAck(int targetRobotId, int seq, int ackedCommandId) {
+    if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_ACK,
+                       robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0,
+                       ackedCommandId);
+        return;
+    }
+
+    CoopAvoidState stateSnapshot;
+    pthread_mutex_lock(&m_coop_mutex);
+    stateSnapshot = m_coopState;
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    int8_t iparams[4] = {(int8_t)robotId, (int8_t)seq,
+                         (int8_t)ackedCommandId, (int8_t)stateSnapshot};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_ACK;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 4;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_ACK, robotId,
+                   targetRobotId, seq, stateSnapshot, 0, ackedCommandId);
+}
+
 void CNaviInterface::sendCoopPoseRequest(int seq, int reason) {
     if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_POSE_REQUEST,
+                       robotId, 1 - robotId, seq, COOP_AVOID_NORMAL, 0, reason);
         return;
     }
     Pose goal;
@@ -4882,10 +5315,21 @@ void CNaviInterface::sendCoopPoseRequest(int seq, int reason) {
     uint8_t bparams[1] = {(uint8_t)reason};
     cmd.bparams = bparams;
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    CoopAvoidState stateSnapshot;
+    int retryCount;
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coopLastTxTimeMs = cmd.utime;
+    stateSnapshot = m_coopState;
+    retryCount = m_coopLastTxRetryCount;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_POSE_REQUEST, robotId,
+                   1 - robotId, seq, stateSnapshot, retryCount, reason);
 }
 
 void CNaviInterface::sendCoopStopRequest(int targetRobotId, int seq, int reason) {
     if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_STOP_REQUEST,
+                       robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0, reason);
         return;
     }
     Pose goal;
@@ -4911,10 +5355,21 @@ void CNaviInterface::sendCoopStopRequest(int targetRobotId, int seq, int reason)
     cmd.nbparams = 1;
     cmd.bparams = bparams;
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    CoopAvoidState stateSnapshot;
+    int retryCount;
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coopLastTxTimeMs = cmd.utime;
+    stateSnapshot = m_coopState;
+    retryCount = m_coopLastTxRetryCount;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_STOP_REQUEST, robotId,
+                   targetRobotId, seq, stateSnapshot, retryCount, reason);
 }
 
 void CNaviInterface::sendCoopStopAck(int targetRobotId, int seq) {
     if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_STOP_ACK,
+                       robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0, 0);
         return;
     }
     int8_t iparams[2] = {(int8_t)robotId, (int8_t)seq};
@@ -4932,10 +5387,18 @@ void CNaviInterface::sendCoopStopAck(int targetRobotId, int seq) {
     cmd.nbparams = 1;
     cmd.bparams = bparams;
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    CoopAvoidState stateSnapshot;
+    pthread_mutex_lock(&m_coop_mutex);
+    stateSnapshot = m_coopState;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_STOP_ACK, robotId,
+                   targetRobotId, seq, stateSnapshot, 0, 0);
 }
 
 void CNaviInterface::sendCoopResumeRequest(int targetRobotId, int seq) {
     if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_RESUME_REQUEST,
+                       robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0, 0);
         return;
     }
     int8_t iparams[2] = {(int8_t)robotId, (int8_t)seq};
@@ -4952,10 +5415,21 @@ void CNaviInterface::sendCoopResumeRequest(int targetRobotId, int seq) {
     cmd.nbparams = 0;
     cmd.bparams = NULL;
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    CoopAvoidState stateSnapshot;
+    int retryCount;
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coopLastTxTimeMs = cmd.utime;
+    stateSnapshot = m_coopState;
+    retryCount = m_coopLastTxRetryCount;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_RESUME_REQUEST, robotId,
+                   targetRobotId, seq, stateSnapshot, retryCount, 0);
 }
 
 void CNaviInterface::sendCoopResumeAck(int targetRobotId, int seq) {
     if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_RESUME_ACK,
+                       robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0, 0);
         return;
     }
     int8_t iparams[2] = {(int8_t)robotId, (int8_t)seq};
@@ -4972,10 +5446,18 @@ void CNaviInterface::sendCoopResumeAck(int targetRobotId, int seq) {
     cmd.nbparams = 0;
     cmd.bparams = NULL;
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    CoopAvoidState stateSnapshot;
+    pthread_mutex_lock(&m_coop_mutex);
+    stateSnapshot = m_coopState;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_RESUME_ACK, robotId,
+                   targetRobotId, seq, stateSnapshot, 0, 0);
 }
 
 void CNaviInterface::respondCoopPoseRequest(int sourceRobotId, int seq) {
     if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_POSE_RESPONSE,
+                       robotId, sourceRobotId, seq, COOP_AVOID_NORMAL, 0, 0);
         return;
     }
     Pose goal;
@@ -5000,6 +5482,12 @@ void CNaviInterface::respondCoopPoseRequest(int sourceRobotId, int seq) {
     cmd.nbparams = 0;
     cmd.bparams = NULL;
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    CoopAvoidState stateSnapshot;
+    pthread_mutex_lock(&m_coop_mutex);
+    stateSnapshot = m_coopState;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_POSE_RESPONSE, robotId,
+                   sourceRobotId, seq, stateSnapshot, 0, hasGoal ? 1 : 0);
 }
 
 bool CNaviInterface::isStoppedForCoopPeer(void) {
@@ -5013,7 +5501,8 @@ bool CNaviInterface::isStoppedForCoopPeer(void) {
 bool CNaviInterface::isPeerPausedByMe(void) {
     bool ret;
     pthread_mutex_lock(&m_coop_mutex);
-    ret = (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME);
+    ret = (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME ||
+           m_coopState == COOP_AVOID_WAIT_RESUME_ACK);
     pthread_mutex_unlock(&m_coop_mutex);
     return ret;
 }
@@ -5053,9 +5542,13 @@ void CNaviInterface::triggerCoopAvoidance(int reason) {
     m_coopState = COOP_AVOID_WAIT_PEER_POSE;
     m_coopStateTimeMs = coopNowMs();
     m_coopPeerPoseValid = false;
+    beginCoopReliableTxLocked(COOP_AVOID_CMD_POSE_REQUEST, m_coopActivePeer,
+                              seq, reason);
     pthread_mutex_unlock(&m_coop_mutex);
 
     publishZeroVelocity();
+    coopLogMessage("TRIGGER", robotId, COOP_AVOID_CMD_POSE_REQUEST, robotId,
+                   1 - robotId, seq, COOP_AVOID_WAIT_PEER_POSE, 0, reason);
     sendCoopPoseRequest(seq, reason);
 }
 
@@ -5089,9 +5582,13 @@ bool CNaviInterface::pauseForCoopPeer(int sourceRobotId, int seq) {
     m_coopState = COOP_AVOID_STOPPED_FOR_PEER;
     m_coopStateTimeMs = coopNowMs();
     m_coopPendingStopRequest = false;
+    clearCoopReliableTxLocked();
     pthread_mutex_unlock(&m_coop_mutex);
 
     publishZeroVelocity();
+    coopLogMessage("PAUSE_FOR_PEER", robotId, COOP_AVOID_CMD_STOP_REQUEST,
+                   sourceRobotId, robotId, seq, COOP_AVOID_STOPPED_FOR_PEER,
+                   0, hasGoal ? 1 : 0);
     sendCoopStopAck(sourceRobotId, seq);
     return true;
 }
@@ -5099,18 +5596,26 @@ bool CNaviInterface::pauseForCoopPeer(int sourceRobotId, int seq) {
 void CNaviInterface::resumeAfterCoopPeer(void) {
     Pose savedGoal;
     bool hasGoal;
+    int activePeer;
+    int activeSeq;
     pthread_mutex_lock(&m_coop_mutex);
     hasGoal = m_coopSavedGoalValid;
     savedGoal = m_coopSavedGoal;
+    activePeer = m_coopActivePeer;
+    activeSeq = m_coopActiveSeq;
     m_coopSavedGoalValid = false;
     m_coopState = COOP_AVOID_NORMAL;
     m_coopActivePeer = -1;
     m_coopPendingStopRequest = false;
+    clearCoopReliableTxLocked();
     pthread_mutex_unlock(&m_coop_mutex);
 
     if (hasGoal) {
         setGoal(savedGoal);
     }
+    coopLogMessage("RESUME_AFTER_PEER", robotId, COOP_AVOID_CMD_RESUME_REQUEST,
+                   activePeer, robotId, activeSeq, COOP_AVOID_NORMAL, 0,
+                   hasGoal ? 1 : 0);
 }
 
 bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
@@ -5189,19 +5694,40 @@ bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
 
 void CNaviInterface::updateCoopAvoidance(void) {
     long now = coopNowMs();
+    int resendCommand = 0;
+    int resendTarget = -1;
+    int resendSeq = 0;
+    int resendReason = 0;
+    bool shouldCheckArrival = false;
     int resumeTarget = -1;
     int resumeSeq = 0;
-    bool shouldCheckArrival = false;
 
     pthread_mutex_lock(&m_coop_mutex);
-    if ((m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
-         m_coopState == COOP_AVOID_WAIT_STOP_ACK) &&
-        now - m_coopStateTimeMs > kCoopMessageTimeoutMs) {
-        printf("COOP_AVOID timeout in state %d\n", m_coopState);
-        fflush(stdout);
-        m_coopState = COOP_AVOID_NORMAL;
-        m_coopActivePeer = -1;
-        m_coopPendingStopRequest = false;
+    if (m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
+        m_coopState == COOP_AVOID_WAIT_STOP_ACK ||
+        m_coopState == COOP_AVOID_WAIT_RESUME_ACK) {
+        if (now - m_coopStateTimeMs > kCoopMessageTimeoutMs) {
+            coopLogMessage("TIMEOUT", robotId, m_coopLastTxCommand, robotId,
+                           m_coopLastTxTarget, m_coopLastTxSeq, m_coopState,
+                           m_coopLastTxRetryCount,
+                           m_coopLastTxAcked ? 1 : 0);
+            m_coopState = COOP_AVOID_NORMAL;
+            m_coopActivePeer = -1;
+            m_coopPendingStopRequest = false;
+            clearCoopReliableTxLocked();
+        } else if (m_coopLastTxCommand != 0 &&
+                   now - m_coopLastTxTimeMs >= kCoopRetryIntervalMs &&
+                   m_coopLastTxRetryCount < kCoopMaxRetries) {
+            m_coopLastTxRetryCount++;
+            resendCommand = m_coopLastTxCommand;
+            resendTarget = m_coopLastTxTarget;
+            resendSeq = m_coopLastTxSeq;
+            resendReason = m_coopLastTxReason;
+            coopLogMessage("RETRY", robotId, resendCommand, robotId,
+                           resendTarget, resendSeq, m_coopState,
+                           m_coopLastTxRetryCount,
+                           m_coopLastTxAcked ? 1 : 0);
+        }
     }
     if (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME) {
         shouldCheckArrival = true;
@@ -5210,17 +5736,31 @@ void CNaviInterface::updateCoopAvoidance(void) {
     }
     pthread_mutex_unlock(&m_coop_mutex);
 
+    if (resendCommand == COOP_AVOID_CMD_POSE_REQUEST) {
+        sendCoopPoseRequest(resendSeq, resendReason);
+    } else if (resendCommand == COOP_AVOID_CMD_STOP_REQUEST) {
+        sendCoopStopRequest(resendTarget, resendSeq, resendReason);
+    } else if (resendCommand == COOP_AVOID_CMD_RESUME_REQUEST) {
+        sendCoopResumeRequest(resendTarget, resendSeq);
+    }
+
     if (shouldCheckArrival) {
         Pose goal;
         if (!getCurrentGoal(goal)) {
-            sendCoopResumeRequest(resumeTarget, resumeSeq);
+            bool shouldSendResume = false;
             pthread_mutex_lock(&m_coop_mutex);
             if (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME &&
                 m_coopActivePeer == resumeTarget) {
-                m_coopState = COOP_AVOID_NORMAL;
-                m_coopActivePeer = -1;
+                m_coopState = COOP_AVOID_WAIT_RESUME_ACK;
+                m_coopStateTimeMs = coopNowMs();
+                beginCoopReliableTxLocked(COOP_AVOID_CMD_RESUME_REQUEST,
+                                          resumeTarget, resumeSeq, 0);
+                shouldSendResume = true;
             }
             pthread_mutex_unlock(&m_coop_mutex);
+            if (shouldSendResume) {
+                sendCoopResumeRequest(resumeTarget, resumeSeq);
+            }
         }
     }
 }
@@ -5233,6 +5773,43 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
     if (targetRobotId != robotId || sourceRobotId == robotId) {
         return;
     }
+    if (sourceRobotId < 0) {
+        coopLogMessage("RX_DROP_BAD_SOURCE", robotId, commandId, sourceRobotId,
+                       targetRobotId, seq, COOP_AVOID_NORMAL, 0, 0);
+        return;
+    }
+
+    CoopAvoidState stateSnapshot;
+    pthread_mutex_lock(&m_coop_mutex);
+    stateSnapshot = m_coopState;
+    pthread_mutex_unlock(&m_coop_mutex);
+    coopLogMessage("RX", robotId, commandId, sourceRobotId, targetRobotId,
+                   seq, stateSnapshot, 0,
+                   (nbparams > 0 && bparams != NULL) ? bparams[0] : 0);
+
+    if (commandId == COOP_AVOID_CMD_ACK) {
+        int ackedCommandId = (niparams >= 3 && iparams != NULL) ? iparams[2] : 0;
+        int peerState = (niparams >= 4 && iparams != NULL) ? iparams[3] : -1;
+        bool matched = false;
+        int retryCount = 0;
+        pthread_mutex_lock(&m_coop_mutex);
+        if (m_coopLastTxCommand == ackedCommandId &&
+            m_coopLastTxTarget == sourceRobotId &&
+            m_coopLastTxSeq == seq) {
+            m_coopLastTxAcked = true;
+            matched = true;
+        }
+        stateSnapshot = m_coopState;
+        retryCount = m_coopLastTxRetryCount;
+        pthread_mutex_unlock(&m_coop_mutex);
+        coopLogMessage(matched ? "ACK_MATCH" : "ACK_STALE", robotId,
+                       ackedCommandId, sourceRobotId, targetRobotId, seq,
+                       stateSnapshot, retryCount, peerState);
+        return;
+    }
+
+    sendCoopAck(sourceRobotId, seq, commandId);
+
     switch (commandId) {
     case COOP_AVOID_CMD_POSE_REQUEST:
         respondCoopPoseRequest(sourceRobotId, seq);
@@ -5265,6 +5842,7 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
             pendingStop = m_coopPendingStopRequest;
             pendingSource = m_coopPendingStopSource;
             pendingSeq = m_coopPendingStopSeq;
+            clearCoopReliableTxLocked();
             matched = true;
         }
         pthread_mutex_unlock(&m_coop_mutex);
@@ -5279,6 +5857,8 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
             pthread_mutex_lock(&m_coop_mutex);
             m_coopState = COOP_AVOID_WAIT_STOP_ACK;
             m_coopStateTimeMs = coopNowMs();
+            beginCoopReliableTxLocked(COOP_AVOID_CMD_STOP_REQUEST,
+                                      sourceRobotId, seq, reason);
             pthread_mutex_unlock(&m_coop_mutex);
             sendCoopStopRequest(sourceRobotId, seq, reason);
         } else {
@@ -5287,6 +5867,7 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
                 m_coopActiveSeq == seq) {
                 m_coopState = COOP_AVOID_NORMAL;
                 m_coopActivePeer = -1;
+                clearCoopReliableTxLocked();
             }
             pthread_mutex_unlock(&m_coop_mutex);
         }
@@ -5295,17 +5876,28 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
     case COOP_AVOID_CMD_STOP_REQUEST:
     {
         bool shouldPause = true;
+        bool shouldAckStopped = false;
         pthread_mutex_lock(&m_coop_mutex);
-        if ((m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
-             m_coopState == COOP_AVOID_WAIT_STOP_ACK) && robotId == 1) {
+        if (m_coopState == COOP_AVOID_STOPPED_FOR_PEER &&
+            m_coopActivePeer == sourceRobotId &&
+            m_coopActiveSeq == seq) {
+            shouldPause = false;
+            shouldAckStopped = true;
+        } else if ((m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
+                    m_coopState == COOP_AVOID_WAIT_STOP_ACK) && robotId == 1) {
             m_coopPendingStopRequest = true;
             m_coopPendingStopSource = sourceRobotId;
             m_coopPendingStopSeq = seq;
             shouldPause = false;
+            coopLogMessage("STOP_REQUEST_PENDING", robotId,
+                           COOP_AVOID_CMD_STOP_REQUEST, sourceRobotId,
+                           robotId, seq, m_coopState, 0, 0);
         }
         pthread_mutex_unlock(&m_coop_mutex);
         if (shouldPause) {
             pauseForCoopPeer(sourceRobotId, seq);
+        } else if (shouldAckStopped) {
+            sendCoopStopAck(sourceRobotId, seq);
         }
         break;
     }
@@ -5316,6 +5908,7 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
             m_coopActivePeer == sourceRobotId) {
             m_coopState = COOP_AVOID_PEER_PAUSED_BY_ME;
             m_coopStateTimeMs = coopNowMs();
+            clearCoopReliableTxLocked();
         }
         pthread_mutex_unlock(&m_coop_mutex);
         break;
@@ -5325,10 +5918,13 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
         break;
     case COOP_AVOID_CMD_RESUME_ACK:
         pthread_mutex_lock(&m_coop_mutex);
-        if (m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME &&
-            m_coopActivePeer == sourceRobotId) {
+        if ((m_coopState == COOP_AVOID_WAIT_RESUME_ACK ||
+             m_coopState == COOP_AVOID_PEER_PAUSED_BY_ME) &&
+            m_coopActivePeer == sourceRobotId &&
+            m_coopActiveSeq == seq) {
             m_coopState = COOP_AVOID_NORMAL;
             m_coopActivePeer = -1;
+            clearCoopReliableTxLocked();
         }
         pthread_mutex_unlock(&m_coop_mutex);
         break;
@@ -5930,27 +6526,81 @@ void CNaviInterface::subGetMapFromMain(int* ip) {
 
     printf("Sub-device is fetching map from main device, IP:%s\n", ipStr);fflush(stdout);
 
-    // 假设地图服务运行在主机 8000 端口
+    // 假设地图服务运行在主机 8000 端口。优先拉压缩图，失败再回退旧地图文件。
+    const char* remoteZipFile = "/zipedMap.txt";
+    const char* localZipFile = "/data/test/zipedMap.txt";
+    const char* localZipTmpFile = "/data/test/zipedMap.txt.tmp";
     const char* remoteFile = "/defultMap.txt";
     const char* localMapFile = "/data/test/defultMap.txt";
     const char* localMapTmpFile = "/data/test/defultMap.txt.tmp";
 
     // === 下载地图文件 ===
-    remove(localMapTmpFile);
-    char wgetCmd[256];
-    snprintf(wgetCmd, sizeof(wgetCmd),
-             "wget http://%s:8000%s -O %s --timeout=3 --tries=1",
-             ipStr, remoteFile, localMapTmpFile);fflush(stdout);
+    bool mapFetched = false;
+    const int mapMaxRetries = 3;
+    const int mapDelaySeconds = 2;
+    for (int attempt = 1; attempt <= mapMaxRetries; ++attempt) {
+        remove(localZipTmpFile);
+        remove(localMapTmpFile);
+        char zipCmd[256];
+        snprintf(zipCmd, sizeof(zipCmd),
+                 "wget http://%s:8000%s -O %s --timeout=60 --tries=1",
+                 ipStr, remoteZipFile, localZipTmpFile);fflush(stdout);
 
-    //printf("Executing command：%s\n", wgetCmd);
-    cout << "Executing command: " << wgetCmd << endl;
-    int ret = system(wgetCmd);
-    if (ret == 0 && fileHasContent(localMapTmpFile) &&
-        replaceFileAtomic(localMapTmpFile, localMapFile)) {
-        printf("Map fetched successfully.\n");fflush(stdout);
-    } else {
+        cout << "Zip map attempt " << attempt << ": Executing command: "
+             << zipCmd << endl;
+        int retZip = system(zipCmd);
+        MapServer zipLoader;
+        if (retZip == 0 && fileHasContent(localZipTmpFile) &&
+            zipLoader.loadZipedMap(localZipTmpFile, localMapFile)) {
+            if (replaceFileAtomic(localZipTmpFile, localZipFile)) {
+                printf("Compressed map fetched and decoded successfully.\n");
+            } else {
+                printf("WARN: compressed map decoded, but zipedMap replace failed.\n");
+            }
+            fflush(stdout);
+            mapFetched = true;
+            break;
+        }
+
+        fprintf(stderr, "Failed to fetch/decode compressed map. Error code: %d\n",
+                retZip);
+        remove(localZipTmpFile);
+        remove(localMapTmpFile);
+        if (attempt < mapMaxRetries) {
+            sleep(mapDelaySeconds);
+        }
+    }
+
+    if (!mapFetched) {
+        printf("Compressed map unavailable, fallback to defultMap.txt.\n");
+        fflush(stdout);
+    }
+
+    for (int attempt = 1; !mapFetched && attempt <= mapMaxRetries; ++attempt) {
+        remove(localMapTmpFile);
+        char wgetCmd[256];
+        snprintf(wgetCmd, sizeof(wgetCmd),
+                 "wget http://%s:8000%s -O %s --timeout=60 --tries=1",
+                 ipStr, remoteFile, localMapTmpFile);fflush(stdout);
+
+        cout << "Map attempt " << attempt << ": Executing command: " << wgetCmd << endl;
+        int ret = system(wgetCmd);
+        if (ret == 0 && fileHasContent(localMapTmpFile) &&
+            replaceFileAtomic(localMapTmpFile, localMapFile)) {
+            printf("Map fetched successfully.\n");fflush(stdout);
+            mapFetched = true;
+            break;
+        }
         fprintf(stderr, "Failed to fetch map. Error code: %d\n", ret);
         remove(localMapTmpFile);
+        if (attempt < mapMaxRetries) {
+            sleep(mapDelaySeconds);
+        }
+    }
+    if (!mapFetched) {
+        fprintf(stderr, "Abort fetching path file because map fetch failed.\n");
+        fflush(stderr);
+        return;
     }
     // === 下载路径文件 ===
     const char* remotePathFile = "/roadFile.txt";
@@ -5963,7 +6613,7 @@ void CNaviInterface::subGetMapFromMain(int* ip) {
         remove(localPathTmpFile);
         char pathCmd[256];
         snprintf(pathCmd, sizeof(pathCmd),
-                 "wget http://%s:8000%s -O %s --timeout=3 --tries=1",
+                 "wget http://%s:8000%s -O %s --timeout=10 --tries=1",
                  ipStr, remotePathFile, localPathTmpFile);
 
         cout << "Attempt " << attempt << ": Executing command: " << pathCmd << endl;
@@ -6475,34 +7125,39 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                 if (pObject->enableCoverage) {
                     printf("---------------------------2025.8.8---------------------------\n");fflush(stdout);
                     int robotId = pObject->robotId;
-                    if (robotId == 1){ 
-                        vector<IPoint> convexHull;
-                        bool initFlag = true;
-                        convexHull = pObject->fullCoverageAlg.manualGetRoomBoundary(pObject->astarPlanner,initFlag);
-                        int safesize = 7; 
-                        int minsize = 5; 
-                        int rob[2] = {convexHull[2].x, convexHull[2].y};  // 机器人坐标
-                        pObject->CreateFullPath(convexHull[0].x, convexHull[0].y, convexHull[1].x, convexHull[1].y, rob, safesize, minsize);
-                    }
-		    string filepath = "/data/test/roadFile.txt";
+                    string filepath = "/data/test/roadFile.txt";
                     vector<IPoint> fullPath = pObject->ReadFullPathFromFile(filepath);
                     if (fullPath.size() < 2) {
                         printf("Invalid path file!\n");fflush(stdout);
                         pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
-                        break;
+                        pObject->clearNavigationStateAndStop();
+                        pObject->resetCoverageState();
+                        pObject->enableCoverage = false;
+                        continue;
                     }
                     vector<IPoint> subPath;
                     int mid = fullPath.size() / 2;
-                    if (robotId == 1) {
+                    if (robotId == 0) {
                         subPath.assign(fullPath.begin(), fullPath.begin() + mid);  // 主机从前半段
+                    } else if (robotId == 1) {
+                        subPath.assign(fullPath.rbegin(), fullPath.rbegin() + (fullPath.size() - mid));  // 从机从后半段逆序走
                     } else {
-                        subPath.assign(fullPath.rbegin(), fullPath.rbegin() + (fullPath.size() - mid));  // 副机从后半段逆序走
+                        printf("Invalid robot_id=%d for distributed coverage.\n", robotId);fflush(stdout);
+                        pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
+                        pObject->clearNavigationStateAndStop();
+                        pObject->resetCoverageState();
+                        pObject->enableCoverage = false;
+                        continue;
                     }
                     printf("Robot %d will follow path with %zu points.\n", robotId, subPath.size());fflush(stdout);
                     vector<IPoint> gridPath = subPath;
                     if (gridPath.size() < 2) {
                         printf("Path too short.\n");fflush(stdout);
                         pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
+                        pObject->clearNavigationStateAndStop();
+                        pObject->resetCoverageState();
+                        pObject->enableCoverage = false;
+                        continue;
                     }
 
                     // 提取拐点
@@ -6590,14 +7245,22 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
     pObject->fullCoverageAlg.algNum = -1;
     return NULL;
 }
-void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize) {
+bool CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize) {
 	// 从平板中接收到两个点，这两个点代表矩形区域的对角线
 	// 矩形的边和坐标轴平行，因此对角线可以确定一个矩形
 	// 定义矩形的较小/大坐标xs,ys/xb,yb，用于判断路径起点的选点
 	if (x1 == x2 || y1 == y2) {
 		std::cout << "Select Point Error! " << std::endl;
-		return;
+		return false;
 	}
+    if (rob == NULL) {
+        std::cout << "Robot point is null, can not create path" << std::endl;
+        return false;
+    }
+    const char *generatedRoadFileName = "/data/test/roadFile.txt";
+    const char *generatedRoadTmpFileName = "/data/test/roadFile.txt.tmp";
+    remove(generatedRoadTmpFileName);
+    remove(generatedRoadFileName);
 	int xs = 0, ys = 0, xb = 0, yb = 0;
 	xs = (x1 < x2) ? (x1) : (x2);
 	ys = (y1 < y2) ? (y1) : (y2);
@@ -6629,7 +7292,7 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
             if (!roadfile.is_open()) {
                 std::cout << "Cannot open BCD path file for writing: "
                           << roadTmpFileName << std::endl;
-                return;
+                return false;
             }
             for (size_t i = 0; i < fullCoverageAlg.bcdCoverage.fullPath.size(); ++i) {
                 const IPoint &point = fullCoverageAlg.bcdCoverage.fullPath[i];
@@ -6639,13 +7302,13 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
                 printf("(CoverageThreadProc)Create BCD full path failed while replacing %s\n",
                        roadFileName);
                 fflush(stdout);
-                return;
+                return false;
             }
             printf("(CoverageThreadProc)Create BCD full path points=%lu rect=(%d,%d)-(%d,%d) robot=(%d,%d) stride=%d\n",
                    (unsigned long)fullCoverageAlg.bcdCoverage.fullPath.size(),
                    xs, ys, xb, yb, rob[0], rob[1], stride);
             fflush(stdout);
-            return;
+            return true;
         }
         printf("(CoverageThreadProc)BCD full path failed, fallback to rectangular zigzag.\n");
         fflush(stdout);
@@ -6663,11 +7326,11 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
 	// 优化，将数组传给变量
 	if (xnum[0] == -1 || ynum[0] == -1) {
 		std::cout << "matrix size is too small,can not create path for two robots" << std::endl;
-		return;
+		return false;
 	}
 	else if (xnum[0] == -2 || ynum[0] == -2) {
 		std::cout << "minsize is too big, can not create path for two robots" << std::endl;
-		return;
+		return false;
 	}
 	int xn = 0;
 	for (xn = 0; xnum[xn] != -1; xn++);
@@ -6681,7 +7344,7 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
 	roadfile.open(roadTmpFileName, ios::out);
     if (!roadfile.is_open()) {
         std::cout << "Cannot open path file for writing: " << roadTmpFileName << std::endl;
-        return;
+        return false;
     }
 	int xpoint = 0, ypoint = 0;
 	int robx = rob[0], roby = rob[1];
@@ -6760,10 +7423,11 @@ void CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
         printf("(CoverageThreadProc)Create full path failed while replacing %s\n",
                roadFileName);
         fflush(stdout);
-        return;
+        return false;
     }
     printf("(CoverageThreadProc)Create full path from (%d, %d) to (%d, %d) with robot at (%d, %d), successfully\n",
                x1, y1, x2, y2, rob[0], rob[1]);fflush(stdout);
+    return true;
 
 }
 // CreateFullRoad的附加函数，用于判断某一方向上网格点尺寸，并更改数组list值
@@ -6969,7 +7633,7 @@ void NAVI_SetRoomVertex(int order, double x, double y) { g_NaviInterface.setRoom
 void NAVI_CancelPlanFullPath(void) { g_NaviInterface.cancelPlanFullPath(); }
 void NAVI_SetSearchType(int searchType) { g_NaviInterface.setSearchType(searchType); };
 void NAVI_SubGetMapFromMain(int* ip) { g_NaviInterface.subGetMapFromMain(ip); };
-void NAVI_CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize){ g_NaviInterface.CreateFullPath(x1, y1, x2, y2, rob, safesize, minsize); };
+bool NAVI_CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize){ return g_NaviInterface.CreateFullPath(x1, y1, x2, y2, rob, safesize, minsize); };
 void NAVI_getsize_forFullRoad(int len, int safe,int mins, int* list) { g_NaviInterface.getsize_forFullRoad(len, safe, mins, list); };
 void NAVI_NavigatePathByGridPoints(const vector<Pose>& gridPath){ g_NaviInterface.NavigatePathByGridPoints(gridPath); };
 void NAVI_SetrobotId(int robotId){ g_NaviInterface.robotId = robotId;}
