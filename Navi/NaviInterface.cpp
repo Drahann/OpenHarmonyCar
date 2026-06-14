@@ -245,6 +245,10 @@ static const double kCoopPeerLookaheadDistance = 0.80;
 static const long kCoopMessageTimeoutMs = 3500;
 static const long kCoopRetryIntervalMs = 450;
 static const int kCoopMaxRetries = 4;
+static const double kLocalDynamicBlockSameGoalDistance = 0.12;
+static const long kLocalDynamicBlockCoopDelayMs = 2500;
+static const long kLocalDynamicBlockCoopCooldownMs = 5000;
+static const int kLocalDynamicBlockCoopThreshold = 6;
 
 static const char *coopCommandName(int commandId)
 {
@@ -682,6 +686,13 @@ CNaviInterface::CNaviInterface(void) {
     m_coopLastTxTimeMs = 0;
     m_coopLastTxRetryCount = 0;
     m_coopLastTxAcked = false;
+    m_localDynamicBlockGoalValid = false;
+    m_localDynamicBlockGoal.x = 0;
+    m_localDynamicBlockGoal.y = 0;
+    m_localDynamicBlockGoal.theta = 0;
+    m_localDynamicBlockCount = 0;
+    m_localDynamicBlockFirstMs = 0;
+    m_localDynamicLastCoopMs = 0;
 
     int status;
     /************************************************************************************/
@@ -2686,7 +2697,10 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         } else if (targetCheck == TARGET_CHECK_DYNAMIC_BLOCKED_LASER ||
                    targetCheck == TARGET_CHECK_DYNAMIC_BLOCKED_VISION) {
             printf("Target point temporarily blocked by dynamic map, hold and retry.\n");fflush(stdout);
-            triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+            if (holdLocalDynamicBlockBeforeCoop(goal, COOP_AVOID_TRIGGER_NOPATH,
+                                                "target_dynamic_precheck")) {
+                triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+            }
             publishZeroVelocity();
             m_ifastar = 1;
             m_iplanend = 1;
@@ -2767,7 +2781,10 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
                 } else if (targetCheck2 == TARGET_CHECK_DYNAMIC_BLOCKED_LASER ||
                            targetCheck2 == TARGET_CHECK_DYNAMIC_BLOCKED_VISION) {
                     printf("Target point temporarily blocked before planning, hold and retry.\n");fflush(stdout);
-                    triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+                    if (holdLocalDynamicBlockBeforeCoop(goal, COOP_AVOID_TRIGGER_NOPATH,
+                                                        "target_dynamic_before_plan")) {
+                        triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+                    }
                     publishZeroVelocity();
                     m_ifastar = 1;
                     return;
@@ -2789,6 +2806,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         int num = path.size();
         if (num > 0) {
             printf("astar planning succeed !\n");fflush(stdout);
+            resetLocalDynamicBlockState();
             istartgo = 1;
             rrset = 0;
             if (1 == printnopathflag) {
@@ -2813,7 +2831,10 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         if (num <= 0) {
             printf("astar planning failure !\n");fflush(stdout);
             setLastFullPathError(ASTAR_NO_PATH);
-            triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+            if (holdLocalDynamicBlockBeforeCoop(goal, COOP_AVOID_TRIGGER_NOPATH,
+                                                "astar_no_path")) {
+                triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+            }
             rrset += 1;
             if (0 == printnopathflag) {
                 printf("have no path in a*\n");fflush(stdout);
@@ -2880,6 +2901,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
                 if (path.size() > 0) {
                     m_ifastar = 0;
                     printf("reverse finding succeed !!!!!\n");fflush(stdout);
+                    resetLocalDynamicBlockState();
                     vector<vector<double>> reversepath;
                     int num = path.size();
                     for (int i = 0; i < num; i++) {
@@ -3006,7 +3028,10 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
             nopathstatus = reason;
             nopathflag = 1;
         }
-        triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+        if (holdLocalDynamicBlockBeforeCoop(goal, COOP_AVOID_TRIGGER_NOPATH,
+                                            "dwa_unreachable")) {
+            triggerCoopAvoidance(COOP_AVOID_TRIGGER_NOPATH);
+        }
         m_pNoPathCbFunc(reason); // can not arrive
 
         m_iplanend = 1;
@@ -3025,6 +3050,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
 
     } else {
         nopathstatus = 0;
+        resetLocalDynamicBlockState();
     }
 
     double *pathdot = new double[4];
@@ -4916,6 +4942,11 @@ void CNaviInterface::resetMappingRuntimeState(void) {
     m_coopLastTxAcked = false;
     m_coverageActive = false;
     m_coverageTurnIndex = -1;
+    m_localDynamicBlockGoalValid = false;
+    m_localDynamicBlockGoal = zeroPose;
+    m_localDynamicBlockCount = 0;
+    m_localDynamicBlockFirstMs = 0;
+    m_localDynamicLastCoopMs = 0;
     pthread_mutex_unlock(&m_coop_mutex);
 }
 
@@ -5636,6 +5667,74 @@ void CNaviInterface::resetCoverageState(void) {
     m_coverageActive = false;
     m_coverageTurnIndex = -1;
     pthread_mutex_unlock(&m_coop_mutex);
+}
+
+void CNaviInterface::resetLocalDynamicBlockState(void) {
+    Pose zeroPose;
+    zeroPose.x = 0;
+    zeroPose.y = 0;
+    zeroPose.theta = 0;
+
+    pthread_mutex_lock(&m_coop_mutex);
+    m_localDynamicBlockGoalValid = false;
+    m_localDynamicBlockGoal = zeroPose;
+    m_localDynamicBlockCount = 0;
+    m_localDynamicBlockFirstMs = 0;
+    m_localDynamicLastCoopMs = 0;
+    pthread_mutex_unlock(&m_coop_mutex);
+}
+
+bool CNaviInterface::holdLocalDynamicBlockBeforeCoop(const Pose &goal,
+                                                     int reason,
+                                                     const char *context) {
+    long now = coopNowMs();
+    bool triggerCoop = false;
+    int count = 0;
+    long elapsedMs = 0;
+    long cooldownMs = 0;
+    CoopAvoidState stateSnapshot;
+
+    pthread_mutex_lock(&m_coop_mutex);
+    stateSnapshot = m_coopState;
+    bool sameGoal = m_localDynamicBlockGoalValid &&
+                    sqrt(coopDist2(goal.x, goal.y,
+                                   m_localDynamicBlockGoal.x,
+                                   m_localDynamicBlockGoal.y)) <=
+                        kLocalDynamicBlockSameGoalDistance;
+    if (!sameGoal) {
+        m_localDynamicBlockGoalValid = true;
+        m_localDynamicBlockGoal = goal;
+        m_localDynamicBlockCount = 0;
+        m_localDynamicBlockFirstMs = now;
+    }
+
+    m_localDynamicBlockCount++;
+    count = m_localDynamicBlockCount;
+    elapsedMs = now - m_localDynamicBlockFirstMs;
+    cooldownMs = m_localDynamicLastCoopMs > 0 ?
+                 now - m_localDynamicLastCoopMs :
+                 kLocalDynamicBlockCoopCooldownMs;
+
+    if (count >= kLocalDynamicBlockCoopThreshold &&
+        elapsedMs >= kLocalDynamicBlockCoopDelayMs &&
+        cooldownMs >= kLocalDynamicBlockCoopCooldownMs) {
+        triggerCoop = true;
+        m_localDynamicLastCoopMs = now;
+        m_localDynamicBlockCount = 0;
+        m_localDynamicBlockFirstMs = now;
+    }
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    printf("LOCAL_DYNAMIC_BLOCK context=%s reason=%d goal=(%.3f,%.3f) count=%d elapsed=%ld trigger_coop=%d\n",
+           context ? context : "unknown", reason, goal.x, goal.y, count,
+           elapsedMs, triggerCoop ? 1 : 0);
+    fflush(stdout);
+
+    if (!triggerCoop && stateSnapshot == COOP_AVOID_NORMAL) {
+        publishCoopHeartbeatStatus(COOP_HEARTBEAT_NORMAL,
+                                   COOP_HEARTBEAT_EVENT_NONE);
+    }
+    return triggerCoop;
 }
 
 void CNaviInterface::triggerCoopAvoidance(int reason) {

@@ -418,6 +418,11 @@ public:
 	long m_coopLastTxTimeMs;
 	int m_coopLastTxRetryCount;
 	bool m_coopLastTxAcked;
+	bool m_localDynamicBlockGoalValid;
+	Pose m_localDynamicBlockGoal;
+	int m_localDynamicBlockCount;
+	long m_localDynamicBlockFirstMs;
+	long m_localDynamicLastCoopMs;
 
 	static void * PlanThreadProc(LPVOID pPara);
 	static void * CoverageThreadProc(LPVOID pPara);
@@ -565,6 +570,9 @@ public:
 	void	publishCoopHeartbeatStatus(int status, int event);
 	void	fallbackToLocalDynamicAvoidance(int failedCommand, int reason,
 										   bool acked, int retryCount);
+	bool	holdLocalDynamicBlockBeforeCoop(const Pose &goal, int reason,
+											const char *context);
+	void	resetLocalDynamicBlockState(void);
 	bool	getCurrentGoal(Pose &goal);
 	bool	peerLikelyBlocksCurrentRoute(int reason);
 	bool	pauseForCoopPeer(int sourceRobotId, int seq);
