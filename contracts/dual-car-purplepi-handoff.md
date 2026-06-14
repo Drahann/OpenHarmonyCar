@@ -24,10 +24,10 @@
 
 | 命令 | 你的动作 | 方案A 谁触发 |
 |---|---|---|
-| `105`/'i' distributed | `cmd124`：`wget http://<主机IP>:8000/defultMap.txt`+`roadFile.txt`（主机 IP 在 byte[1,2,4,6]） | **平板**直发给从车 |
+| `105`/'i' distributed | `cmd124`：优先 `wget http://<主机IP>:8000/zipedMap.txt` 并解压为 `defultMap.txt`，失败回退普通 `defultMap.txt`；`roadFile.txt` 仅旧矩形兼容路径使用（主机 IP 在 byte[1,2,4,6]） | **平板**直发给从车 |
 | `5`/loadMap | 加载导航图(10) + **初始位姿归零 (0,0,0)** 到主车原点 | **平板**直发给从车（拉图后） |
 | `107`/'k' + `108`/'l'(byte1=robotId) | 据对角矩形规划 FullRoad 覆盖(122)+分布式跟踪(123) | **平板**直发给每辆车 |
-| 心跳（500ms，byte0=3 带位姿） | 回发到 `clientIP:5001` | 平板就是该车的 clientIP |
+| 心跳（500ms，byte0=3 带位姿） | 回发到 `clientIP:5001`；byte1/byte2 携带协同避障状态/事件 | 平板就是该车的 clientIP |
 | `0x06` 广播发现 | 只回 9 字节、不记 client/不起心跳/不武装急停 | 平板扫描用 |
 | `'m'`/0x6d forceCreateMap | LCM30+forceNewMap 清旧图重建 | 平板对主车发（建图） |
 
@@ -58,8 +58,8 @@
 
 1. **主车 `:8000` 在自身跑 SLAM/导航时，能否稳定供从车 wget 拉图**？
    你的 `python -m http.server` 是单线程，RK3566 跑 SLAM 时实测 ~47KB/s（普通图 ~6.5MB 会很慢）。
-   - 平板优先拉**压缩图 `zipedMap.txt`**（~6× 小），但**从车 cmd124 拉的是 `defultMap.txt`+`roadFile.txt`**（普通图）。
-   - **请评估**：从车拉普通图的典型耗时？要不要让 cmd124 也优先拉 `zipedMap.txt`？或临时调高 http server 并发？
+   - 平板和从车都优先拉**压缩图 `zipedMap.txt`**（~6× 小），压缩图不可用时才回退普通图。
+   - **请评估**：从车拉压缩图和回退普通图的典型耗时？是否需要临时调高 http server 并发？
 2. **cmd105→cmd124 拉图典型耗时**：平板发 cmd105 后**固定等 `SLAVE_PULL_DELAY_MS`（当前 8s）再发 cmd5**（协议无
    「拉完」回执）。**请给一个真机典型耗时**，好让我们把延时设够；**可选增强**：cmd124 完成后能否回一个信号
    （心跳保留字节 / 一个回包），让平板不靠死等。

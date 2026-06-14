@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-06-14 · A 已落地：协同避障状态走心跳 byte1/byte2，routes 为正式多点队列字段
+
+- 多机覆盖主字段正式定为 `routes[]`，由平板维护多点队列、`cursor` 和 `status`，车端仍只逐点接收普通 UDP `cmd3`。
+- `Navi` 发布 `SERVICE_COMMAND 74`：`iparams[0]=robotId`、`iparams[1]=coopStatus`、`iparams[2]=coopEvent`。
+- `udp2lcm` 订阅 `SERVICE_COMMAND` 后，把 `coopStatus/coopEvent` 写入 9 字节心跳 `[1]/[2]`，解决 Q1“避障暂停/恢复如何让 App 可见”的裸 UDP 路径。
+- 协同避障判断降敏：只检查本车约 0.8m 前瞻路线和对车约 0.8m 前瞻路线，安全半径下限降到 0.20m；协同请求初发加 4 次重发共 5 次仍无业务响应时切回本地动态避障。
+- DWA 动态避障补边界保护：预测轨迹点越出 A* 地图时不再越界读栅格；评分分母为 0 时回到重规划。
+
+---
+
 ## 🆕 2026-06-13 · 架构变更：多机改「平板直连双车」（弃 DDO/agent）→ A
 
 **重要**：多机协同从「软总线 DDO + 车载 agent」改为**平板直连两辆车 UDP**（DDO 因硬件限制搁置、代码保留，
