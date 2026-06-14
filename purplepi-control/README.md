@@ -475,6 +475,8 @@ range resolution height width metersPerPixel x0 y0
 - `serial.log` 显示 PATH 到串口链路有 837 次速度下发，其中约 767 次 `v=0`，约 732 次为原地旋转，只有 70 次 `v>0`。若现场观察 107.251 基本未平移，主要应排查 DWA 控制序列长期原地转向、轮控板实际执行、轮子供电/方向字节/串口设备号，而不是地图精度。
 - 当前 `NewWheelCtrl` 的 `curPose` 由已下发的 `curSpeed/curOmega` 积分并发布到 `POSE`，`wheelSend successfully` 只表示 `write(fd, 7)` 成功，不表示底盘板 ACK 或轮子真实运动。因此导航侧可能按命令估算位姿继续切换目标，即使实车没有同步移动。
 - `pathplanmap.txt` 是整张 A* 输入地图的文本 dump，首行 `20 0.05 1800 1800 0.05 -45 -45`，后面固定 1800x1800 共 3,240,000 个栅格。本次统计为 1,750 个 `-1` 障碍格、3,238,250 个 `0`，文件约 6.48MB 属于文本整图输出的正常体积。`testmap_astar.txt` 同样整图输出，并额外包含值为 `2` 的 A* 路径覆盖格。老代码也已有同样的 `pathplanmap.txt` 和 `testmap_astar.txt` 落盘逻辑，只是路径从 `/mnt/cf/mapfile/...` 改到了 `/data/test/...`。
+- 补充确认：107.251 实际会动，但每次切目标/重新 A* 的反应慢。当前 `planPath()` 每次 A* 前会调用 `astarPlanner.InitializeCellTotal(m_pms->astarMap)`，而 `InitializeCellTotal()` 末尾无条件写 `/data/test/pathplanmap.txt`；A* 成功后又调用 `m_pms->saveMap_Astar()` 写 `/data/test/testmap_astar.txt`。这意味着每次规划都可能同步写两份约 6.48MB 的整图文本，是慢反应的优先怀疑点。
+- 分布式全路径当前没有真正“跑完后返回起点”。`algNum=2` 执行完 `turnPoints` 后只有 `// 返回起点` 注释，实际代码是 `clearNavigationStateAndStop()`、`resetCoverageState()`、`enableCoverage=false`，会停在最后一个覆盖点。文件中保留的 `setGoal(start_real)` 返航代码位于已注释掉的旧函数块，不在当前执行路径中。
 
 ## 八、维护建议
 
