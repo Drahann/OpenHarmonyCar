@@ -20,7 +20,7 @@
 | [`integration-qa.md`](integration-qa.md) | 跨端异步对接 Q&A（Q1–Q13，✅ A 已答复 Q1–Q12 于 2026-06-08；Q13/Q6.1 待 A，见「状态总览」）| App + 紫派 | 滚动 |
 | [`常驻设置方案.md`](常驻设置方案.md) | OH5.0 平板/App 常驻与 UI 不锁屏方案（Q6.1） | App + 紫派 + 镜像 | v0.1 |
 | [`map-format.md`](map-format.md) | 紫派 → App（地图文件/HTTP） | 紫派 + App | **v0.2**（单位/URL 已对账） |
-| [`multi-robot-collab.md`](multi-robot-collab.md) | 多机协同（平板直连双车 + routes 多点队列） | App + 紫派 | **v0.7** |
+| [`multi-robot-collab.md`](multi-robot-collab.md) | 多机协同（平板直连双车 + assignments 区域矩形覆盖） | App + 紫派 | **v0.8** |
 | [`lcm/`](lcm/) | 紫派内部各模块 | 紫派 | v0.1 |
 | [`server-api.md`](server-api.md) | 香橙派 → App（视频流+读数，WiFi 直连） | 香橙派(B) | **v1.0（已定稿）** |
 | [`vision-stream-api.md`](vision-stream-api.md) | 香橙派视觉服务完整接口（REST + WebSocket `/ws/video`） | 香橙派(B) | **v1.0** |

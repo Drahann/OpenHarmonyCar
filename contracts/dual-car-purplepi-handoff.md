@@ -24,7 +24,7 @@
 
 | 命令 | 你的动作 | 方案A 谁触发 |
 |---|---|---|
-| `105`/'i' distributed | `cmd124`：优先 `wget http://<主机IP>:8000/zipedMap.txt` 并解压为 `defultMap.txt`，失败回退普通 `defultMap.txt`；`roadFile.txt` 仅旧矩形兼容路径使用（主机 IP 在 byte[1,2,4,6]） | **平板**直发给从车 |
+| `105`/'i' distributed | `cmd124`：优先 `wget http://<主机IP>:8000/zipedMap.txt` 并解压为 `defultMap.txt`，失败回退普通 `defultMap.txt`；不拉取 `roadFile.txt`（主机 IP 在 byte[1,2,4,6]） | **平板**直发给从车 |
 | `5`/loadMap | 加载导航图(10) + **初始位姿归零 (0,0,0)** 到主车原点 | **平板**直发给从车（拉图后） |
 | `107`/'k' + `108`/'l'(byte1=robotId) | 据对角矩形规划 FullRoad 覆盖(122)+分布式跟踪(123) | **平板**直发给每辆车 |
 | 心跳（500ms，byte0=3 带位姿） | 回发到 `clientIP:5001`；byte1/byte2 携带协同避障状态/事件 | 平板就是该车的 clientIP |

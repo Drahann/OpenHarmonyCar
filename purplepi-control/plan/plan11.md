@@ -1,13 +1,14 @@
-# plan11：routes 多点队列、协同避障降敏与脚本重连
+# plan11：协同避障降敏与脚本重连（覆盖方案已纠偏）
+
+> 2026-06-14 纠偏说明：本文件初版把多机覆盖误写成“平板生成 `routes[].points[]` 多点队列”。用户已明确当前方案应为“平板给两辆车分别下发两个区域矩形，机器人端自己生成覆盖路径”。该错误已在 `plan12.md` 中修正并落地；以 `plan12.md`、README 和 `multi-robot-collab.md` v0.8 为准。
 
 ## 本轮已完成
 
 1. 阅读 `全局须知.md`、`plan/plan9.md`、`plan/plan10.md`，按 plan10 的“下一步工作”继续执行。
-2. 正式化多机覆盖 `routes[]` 线协议字段：
-   - `readme-upload/contracts/multi-robot-collab.md` 升级到 v0.7。
-   - 当前主路径明确为“平板直连双车 UDP + `routes[].points[]` 多点队列”。
-   - 平板维护 `carId/robotId/points/cursor/status`，逐点翻译为现有 UDP `cmd3 -> ROBOT_CONTROL 20`，车端不接收整条队列。
-   - 旧 `assignments + 107/108 + roadFile.txt` 保留为矩形覆盖兼容路径。
+2. 多机覆盖字段的初版理解错误：
+   - 本文件初版把 `routes[]/points[]` 写成主路径，这是错误解释。
+   - 正确方案已改为 `assignments[]` 区域矩形：平板分别给两辆车下发各自的 `107/108` 矩形区域。
+   - 机器人端收到本车区域后由 `122` 生成 `roadFile.txt`，再由 `123` 完整执行本车覆盖路径。
 3. 新增机器人“避障暂停/恢复”状态回传：
    - `Navi` 通过 `SERVICE_COMMAND 74` 发布 `robotId/status/event`。
    - `udp2lcm` 订阅 `SERVICE_COMMAND`，把状态写入心跳 byte1，把事件写入 byte2。
@@ -88,7 +89,7 @@
 
 ## 下一步需要审批 / 实机验证
 
-1. 实机验证平板多点队列主路径：master 建图后，sub 执行 `105 -> 5`，然后两车分别按 `routes[].points[]` 逐点接收 `cmd3`。
+1. 实机验证平板双区域主路径：master 建图后，sub 执行 `105 -> 5`，然后两车分别接收自己的 `107/108` 矩形区域，由各车本地生成并完整执行覆盖路径。
 2. 实机观察心跳 byte1/byte2：
    - 正常应为 `0/0`。
    - 协同诊断时应为 `1/1` 或 `1/2`。

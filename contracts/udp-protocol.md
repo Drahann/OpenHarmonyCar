@@ -111,7 +111,7 @@ App 的 `robotState` 枚举值**刻意对齐 ASCII**，所以 byte0 既是 App �
   即把**源 IP** 设为视觉源 host（`Storage.setVisionHost`，已实现）、取代写死 IP；平板扫一次设备即自动更新香橙派地址。
   > 不同于车的 `0x06` 响应（`[0]=0x06`+位姿）；视觉设备**只用 `[0]=0x07` 区分**，不带位姿。App 端按 `byte0` 分流（车 vs 香橙派），无需读其它字节。
 - **心跳**：紫派每 **500ms** 回一帧（`udp.c:121`）。
-- **协同避障状态**：`Navi` 通过 `SERVICE_COMMAND 74` 发布 `robotId/status/event`，`udp2lcm` 写入下一帧心跳 byte1/byte2；App 在多点队列覆盖中据此把车辆标注为 `running/avoiding/paused` 等状态。
+- **协同避障状态**：`Navi` 通过 `SERVICE_COMMAND 74` 发布 `robotId/status/event`，`udp2lcm` 写入下一帧心跳 byte1/byte2；App 在区域覆盖中据此把车辆标注为 `running/avoiding/paused` 等状态。
 - **保活/安全**：App 至少每 **1s** 发一次指令（哪怕空指令）。紫派若 **3s** 未收到任何指令（`udp.c:77`），
   立即令轮控**急停**以防失控，并继续等待。⚠️ 该超时值两端务必一致。
 - **遥控长按**：App 持续发命令 1（每实例节流）；松手发 `runState=stop`。

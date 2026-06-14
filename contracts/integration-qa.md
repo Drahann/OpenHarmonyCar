@@ -6,9 +6,12 @@
 
 ---
 
-## 2026-06-14 · A 已落地：协同避障状态走心跳 byte1/byte2，routes 为正式多点队列字段
+## 2026-06-14 · A 纠偏落地：平板下发每车区域，机器人本地生成完整覆盖路径
 
-- 多机覆盖主字段正式定为 `routes[]`，由平板维护多点队列、`cursor` 和 `status`，车端仍只逐点接收普通 UDP `cmd3`。
+- 纠正上一版误写：多机覆盖主字段不是 `routes[]`，而是 `assignments[]` 区域矩形。平板只表达“这辆车 = 这块矩形”，不生成、不维护、不下发覆盖路径点。
+- `107/108` 是当前区域覆盖主接口：平板给每辆车各发一组对角矩形；车端 `122` 在本车矩形内生成 `/data/test/roadFile.txt`，`123` 读取本车生成的整条路径完整执行。
+- `123` 已去掉按 `robot_id` 前半/后半分段的共享路径语义；`robot_id` 只保留为本车身份和协同避障优先级。
+- 子机 `105/cmd124` 只拉主机地图，优先 `zipedMap.txt`、失败回退 `defultMap.txt`；不再拉主机 `roadFile.txt`。
 - `Navi` 发布 `SERVICE_COMMAND 74`：`iparams[0]=robotId`、`iparams[1]=coopStatus`、`iparams[2]=coopEvent`。
 - `udp2lcm` 订阅 `SERVICE_COMMAND` 后，把 `coopStatus/coopEvent` 写入 9 字节心跳 `[1]/[2]`，解决 Q1“避障暂停/恢复如何让 App 可见”的裸 UDP 路径。
 - 协同避障判断降敏：只检查本车约 0.8m 前瞻路线和对车约 0.8m 前瞻路线，安全半径下限降到 0.20m；协同请求初发加 4 次重发共 5 次仍无业务响应时切回本地动态避障。
