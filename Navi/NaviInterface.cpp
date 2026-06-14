@@ -6784,45 +6784,12 @@ void CNaviInterface::subGetMapFromMain(int* ip) {
         }
     }
     if (!mapFetched) {
-        fprintf(stderr, "Abort fetching path file because map fetch failed.\n");
+        fprintf(stderr, "Abort distributed map loading because map fetch failed.\n");
         fflush(stderr);
         return;
     }
-    // === 下载路径文件 ===
-    const char* remotePathFile = "/roadFile.txt";
-    const char* localPathFile = "/data/test/roadFile.txt";
-    const char* localPathTmpFile = "/data/test/roadFile.txt.tmp";
-    const int maxRetries = 10;
-    const int delaySeconds = 2;
-
-    for (int attempt = 1; attempt <= maxRetries; ++attempt) {
-        remove(localPathTmpFile);
-        char pathCmd[256];
-        snprintf(pathCmd, sizeof(pathCmd),
-                 "wget http://%s:8000%s -O %s --timeout=10 --tries=1",
-                 ipStr, remotePathFile, localPathTmpFile);
-
-        cout << "Attempt " << attempt << ": Executing command: " << pathCmd << endl;
-        int retPath = system(pathCmd);
-
-        if (retPath == 0) {
-            if (fileHasContent(localPathTmpFile)) {
-                if (replaceFileAtomic(localPathTmpFile, localPathFile)) {
-                    printf("Path file fetched successfully.\n"); fflush(stdout);
-                    break; // 成功退出循环
-                } else {
-                    printf("Failed to replace path file. Retrying...\n"); fflush(stdout);
-                }
-            } else {
-                printf("Path file is empty, retrying in %d seconds...\n", delaySeconds); fflush(stdout);
-            }
-        } else {
-            fprintf(stderr, "Failed to fetch path file. Error code: %d. Retrying...\n", retPath);
-        }
-
-        remove(localPathTmpFile);
-        sleep(delaySeconds);
-    }
+    printf("Map fetched; roadFile.txt will be generated locally from this robot's assigned area.\n");
+    fflush(stdout);
 }
 void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
     CNaviInterface *pObject = (CNaviInterface *)pPara;
@@ -7321,13 +7288,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         pObject->enableCoverage = false;
                         continue;
                     }
-                    vector<IPoint> subPath;
-                    int mid = fullPath.size() / 2;
-                    if (robotId == 0) {
-                        subPath.assign(fullPath.begin(), fullPath.begin() + mid);  // 主机从前半段
-                    } else if (robotId == 1) {
-                        subPath.assign(fullPath.rbegin(), fullPath.rbegin() + (fullPath.size() - mid));  // 从机从后半段逆序走
-                    } else {
+                    if (robotId != 0 && robotId != 1) {
                         printf("Invalid robot_id=%d for distributed coverage.\n", robotId);fflush(stdout);
                         pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
                         pObject->clearNavigationStateAndStop();
@@ -7335,8 +7296,8 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         pObject->enableCoverage = false;
                         continue;
                     }
-                    printf("Robot %d will follow path with %zu points.\n", robotId, subPath.size());fflush(stdout);
-                    vector<IPoint> gridPath = subPath;
+                    printf("Robot %d will follow full local coverage path with %zu points.\n", robotId, fullPath.size());fflush(stdout);
+                    vector<IPoint> gridPath = fullPath;
                     if (gridPath.size() < 2) {
                         printf("Path too short.\n");fflush(stdout);
                         pObject->setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);

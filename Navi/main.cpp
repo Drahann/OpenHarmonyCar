@@ -929,7 +929,7 @@ void RobotCtrlHandle(const lcm_recv_buf_t *rbuf, const char *channel,
         break;
     }
 
-    case 123: // 读取路径文件进行指定主机/子机进行全路径覆盖
+    case 123: // 读取本车生成的路径文件并执行本车区域全覆盖
     {
         int robotId = robotctrldata->iparams[0]; // 0 主机器人，1 副机器人
         
