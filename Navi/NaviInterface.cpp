@@ -2,6 +2,7 @@
 #include "Astarplanner.h"
 #include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <sys/time.h>
 
 extern lcm_t *lcm;
@@ -14,6 +15,16 @@ extern "C" void MapServerDebugDetach(void);
 static FILE *g_mappingDebugFile = NULL;
 static unsigned long g_mappingDebugFrameSeq = 0;
 static const char *kMappingDebugPath = "/data/test/mapping_debug.log";
+
+bool NAVI_ShouldDumpPlanDebugMaps(void)
+{
+    const char *value = getenv("NAVI_DUMP_PLAN_MAPS");
+    if (value == NULL || value[0] == '\0') {
+        return false;
+    }
+    return value[0] == '1' || value[0] == 'y' || value[0] == 'Y' ||
+           value[0] == 't' || value[0] == 'T';
+}
 
 static long mappingDebugNowMs()
 {
@@ -2826,7 +2837,9 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
                 int b = (int)((tmp.at(1) - yy0) / merPpix);
                 m_pms->globalBinaryMap.data[b * wth + a] = (BYTE)2;
             }
-            m_pms->saveMap_Astar();
+            if (NAVI_ShouldDumpPlanDebugMaps()) {
+                m_pms->saveMap_Astar();
+            }
         }
         if (num <= 0) {
             printf("astar planning failure !\n");fflush(stdout);
@@ -2932,7 +2945,9 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
                         int b = (int)((tmp.at(1) - yy0) / merPpix);
                         m_pms->globalBinaryMap.data[b * wth + a] = (BYTE)2;
                     }
-                    m_pms->saveMap_Astar();
+                    if (NAVI_ShouldDumpPlanDebugMaps()) {
+                        m_pms->saveMap_Astar();
+                    }
                 } else {
                     printf("reverse fingding failure\n");fflush(stdout);
                 }
@@ -3002,7 +3017,6 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         return;
     }
     if (!m_blaserdwa) {
-        printf("ready for dwa\n");fflush(stdout);
         m_laseronlyflag = 0.0;
         DWAplan(vw, ifend);
     } else {
@@ -3107,10 +3121,6 @@ int CNaviInterface::DWAplan(vector<double> &goalvw, int &flag) {
 
     if (1.6 >= cur2enddist) {
         vector<double> pathendpose = path[pnum - 1];
-
-        //TODO
-        printf("cant arv1");fflush(stdout);
-        //////////////////
 
         double doarrive = doArrive(pathendpose);
         if (0 == doarrive) {
@@ -7396,6 +7406,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         continue;
                     }
                     printf("Robot %d will follow full local coverage path with %zu points.\n", robotId, fullPath.size());fflush(stdout);
+                    Pose returnStart = pObject->m_CurPosForPath;
                     vector<IPoint> gridPath = fullPath;
                     if (gridPath.size() < 2) {
                         printf("Path too short.\n");fflush(stdout);
@@ -7450,8 +7461,9 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                             IPoint p_grid = turnPoints[turnIndex];
                             Pose p_real = pObject->astarPlanner.GridToGlobal((int)p_grid.x, (int)p_grid.y);
 
-                            printf("[Turn %lu/%lu] Navigating to Grid (%.0f, %.0f) => World (%.2f, %.2f)\n",
-                                turnIndex + 1, turnPoints.size(), p_grid.x, p_grid.y, p_real.x, p_real.y);
+                            printf("[Turn %lu/%lu] Grid (%d, %d) -> World (%.2f, %.2f)\n",
+                                turnIndex + 1, turnPoints.size(),
+                                (int)p_grid.x, (int)p_grid.y, p_real.x, p_real.y);
                             fflush(stdout);
 
                             pObject->markCoverageIndex((int)turnIndex);
@@ -7478,7 +7490,26 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         }
                     }
 
-                    // 返回起点
+                    if (!pObject->targetErr) {
+                        printf("Coverage path finished, returning to start point (%.2f, %.2f)\n",
+                               returnStart.x, returnStart.y);
+                        fflush(stdout);
+                        pObject->setvisionrecenter();
+                        pObject->setGoal(returnStart);
+                        while (pObject->m_waypoints.size() > 0 && !pObject->targetErr) {
+                            pObject->updateCoopAvoidance();
+                            if (pObject->isStoppedForCoopPeer()) {
+                                usleep(100000);
+                                continue;
+                            }
+                            usleep(10000);
+                        }
+                        if (pObject->targetErr) {
+                            printf("Return to start point failed, stopping coverage.\n");
+                            fflush(stdout);
+                        }
+                    }
+
                     pObject->clearNavigationStateAndStop();
                     pObject->resetCoverageState();
                     pObject->enableCoverage = false;
@@ -7604,7 +7635,7 @@ bool CNaviInterface::CreateFullPath(int x1, int y1, int x2, int y2, int* rob, in
 		xpoint = xb - xnum[0] / 2;
 		dirx = -1;
 	}
-	if (abs(roby - ys) <= abs(robx - xb)) {
+	if (abs(roby - ys) <= abs(roby - yb)) {
 		ypoint = ys + ynum[0] / 2;
 		diry = 1;
 	}
@@ -7774,6 +7805,7 @@ void CNaviInterface::NavigatePathByGridPoints(const vector<Pose>& gridPath)// �
         setLastFullPathError(FULLPATH_ROAD_FILE_INVALID);
         return;
     }
+    Pose returnStart = m_CurPosForPath;
 
     // 提取拐点
     vector<Pose> turnPoints;
@@ -7803,8 +7835,9 @@ void CNaviInterface::NavigatePathByGridPoints(const vector<Pose>& gridPath)// �
         Pose p_grid = turnPoints[i];
         Pose p_real = astarPlanner.GridToGlobal((int)p_grid.x, (int)p_grid.y);
 
-        printf("[Turn %lu/%lu] Navigating to Grid (%.0f, %.0f) => World (%.2f, %.2f)\n",
-               i + 1, turnPoints.size(), p_grid.x, p_grid.y, p_real.x, p_real.y);
+        printf("[Turn %lu/%lu] Grid (%d, %d) -> World (%.2f, %.2f)\n",
+               i + 1, turnPoints.size(),
+               (int)p_grid.x, (int)p_grid.y, p_real.x, p_real.y);
         fflush(stdout);
 
         // 等待前一个导航完成
@@ -7825,7 +7858,16 @@ void CNaviInterface::NavigatePathByGridPoints(const vector<Pose>& gridPath)// �
         fullCoverageAlg.pathIPoint.push(iPoint);
     }
 
-    // 返回起点
+    printf("Coverage path finished, returning to start point (%.2f, %.2f)\n",
+           returnStart.x, returnStart.y);
+    fflush(stdout);
+    setvisionrecenter();
+    setGoal(returnStart);
+    while (m_waypoints.size() > 0 && !targetErr) ;
+    if (targetErr) {
+        printf("Return to start point failed, stopping coverage.\n");
+        fflush(stdout);
+    }
     clearNavigationStateAndStop();
 }
 

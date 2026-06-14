@@ -659,6 +659,7 @@ void NAVI_SetgridPath(const vector<Pose>& gridPath);
 void NAVI_SetrobotId(int robotId);
 
 IPoint NAVI_GlobalToGrid(double x, double y);
+bool NAVI_ShouldDumpPlanDebugMaps(void);
 void NAVI_HandleCoopAvoidMessage(int commandId, int targetRobotId, int sourceRobotId,
 								 int seq, const double *dparams, int ndparams,
 								 const int8_t *iparams, int niparams,

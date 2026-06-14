@@ -690,46 +690,48 @@ void CAstar::InitializeCellTotal(ProbMap &map) {
 	outFile.close();
 #endif
 #if 1
-    ofstream outFile;
+    if (NAVI_ShouldDumpPlanDebugMaps()) {
+        ofstream outFile;
 
-    outFile.open("/data/test/pathplanmap.txt", ios::out);
+        outFile.open("/data/test/pathplanmap.txt", ios::out);
 
-    if (!outFile) {
-        printf("epenerror\n");
-        // return false;
-    }
-
-    outFile << 20;
-    outFile << ' ';
-    outFile << 0.05;
-    outFile << ' ';
-    outFile << map.height;
-    outFile << ' ';
-    outFile << map.width;
-    outFile << ' ';
-    outFile << map.metersPerPixel;
-    outFile << ' ';
-    outFile << map.x0;
-    outFile << ' ';
-    outFile << map.y0;
-    outFile << endl;
-
-    for (int j = 0; j < map.height; j++) {
-        for (int i = 0; i < map.width; i++) {
-            double status = 0;
-            status = map.data[j * map.width + i];
-            if (status > 0.5) {
-                outFile << -1;
-            } else {
-                outFile << 0;
-            }
-
-            outFile << ' ';
+        if (!outFile) {
+            printf("epenerror\n");
+            // return false;
         }
-        outFile << endl;
-    }
 
-    outFile.close();
+        outFile << 20;
+        outFile << ' ';
+        outFile << 0.05;
+        outFile << ' ';
+        outFile << map.height;
+        outFile << ' ';
+        outFile << map.width;
+        outFile << ' ';
+        outFile << map.metersPerPixel;
+        outFile << ' ';
+        outFile << map.x0;
+        outFile << ' ';
+        outFile << map.y0;
+        outFile << endl;
+
+        for (int j = 0; j < map.height; j++) {
+            for (int i = 0; i < map.width; i++) {
+                double status = 0;
+                status = map.data[j * map.width + i];
+                if (status > 0.5) {
+                    outFile << -1;
+                } else {
+                    outFile << 0;
+                }
+
+                outFile << ' ';
+            }
+            outFile << endl;
+        }
+
+        outFile.close();
+    }
 #endif
 }
 
