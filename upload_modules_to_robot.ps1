@@ -2,12 +2,14 @@ param(
     [string]$ConfigPath = (Join-Path $PSScriptRoot "config.txt"),
     [string[]]$Robot,
     [string]$RemoteDir = "/data/test",
+    [int]$ReconnectDelaySeconds = 2,
     [switch]$Build
 )
 
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$hdc = (Get-Command hdc -ErrorAction Stop).Source
 
 function Invoke-Step {
     param(
@@ -89,17 +91,25 @@ function Build-Modules {
 function Connect-Robot {
     param([string]$Target)
 
-    Invoke-Step "Connect $Target" {
-        hdc tconn $Target
+    while ($true) {
+        Write-Host "==> Connect $Target"
+        & $hdc tconn $Target
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        Write-Warning "Connect $Target failed, retrying in $ReconnectDelaySeconds seconds..."
+        Start-Sleep -Seconds $ReconnectDelaySeconds
     }
 }
 
 function Prepare-Remote {
     param([string]$Target)
 
+    Connect-Robot $Target
     Invoke-Step "Prepare ${Target}:$RemoteDir" {
-        hdc -t $Target shell mount -o remount -rw /
-        hdc -t $Target shell "mkdir -p $RemoteDir"
+        & $hdc -t $Target shell mount -o remount -rw /
+        & $hdc -t $Target shell "mkdir -p $RemoteDir"
     }
 }
 
@@ -109,8 +119,9 @@ function Send-FileToRobot {
         [string]$LocalPath
     )
 
+    Connect-Robot $Target
     Invoke-Step "Send $(Split-Path -Leaf $LocalPath) to $Target" {
-        hdc -t $Target file send $LocalPath "$RemoteDir/"
+        & $hdc -t $Target file send $LocalPath "$RemoteDir/"
     }
 }
 
@@ -121,8 +132,9 @@ function Chmod-RemoteFiles {
     )
 
     $names = ($Files | ForEach-Object { "$RemoteDir/$($_.Name)" }) -join " "
+    Connect-Robot $Target
     Invoke-Step "Chmod deploy files on $Target" {
-        hdc -t $Target shell "chmod 777 $names"
+        & $hdc -t $Target shell "chmod 777 $names"
     }
 }
 

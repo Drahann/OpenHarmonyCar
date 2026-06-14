@@ -56,14 +56,20 @@ void ScanMatcher::processScan(
     Pose xytCur;
 
     pthread_mutex_lock(&m_csPose_mutex);
-    xytCur = xyt; //»úÆ÷ÈËÔÚÊÀœç×ø±êÏµÖÐµÄÎ»×Ë£¬xyt=0,0,0  µÚÒ»ŽÎ
 
-    // NaviInterface ÀïµÄRevisePoseº¯Êý
-    if (m_IfVaild_Encoder) //Èç¹ûÐèÒªŸÀÆ«
+    // Apply the newest encoder/revise pose before copying xyt to xytCur.
+    // The previous order copied the old xyt first, so the current laser frame
+    // could be matched and saved with a one-frame-old pose.
+    if (m_IfVaild_Encoder)
     {
-        xyt = Encoderpos; //ÂëÅÌÖµž³Öµl
+        xyt = Encoderpos;
+        xyt.theta = MathUtil::mod2pi(xyt.theta);
         m_IfVaild_Encoder = false;
     }
+
+    xytCur = xyt;
+    xytCur.theta = MathUtil::mod2pi(xytCur.theta);
+
     pthread_mutex_unlock(&m_csPose_mutex);
 
     if (scans.size() == 0) // g,scansÊÇ¿ÉÒÔ±£ÁôÏÂÀŽµÄ
@@ -172,11 +178,12 @@ void ScanMatcher::processScan(
         matcher.matchRaw(rpoints, xytCur, NULL, search_x_m, search_y_m,
                          search_theta_rad, search_theta_res_rad, res, flag, 0);
     }
-    // res.theta = Simu_normalize_theta(res.theta);//角度标准化，范围为[-pi,pi)
+    res.theta = MathUtil::mod2pi(res.theta);
     xytCur = res; //µ±Ç°Î»ÖÃ
 
     pthread_mutex_lock(&m_csPose_mutex);
     xyt = xytCur;
+    xyt.theta = MathUtil::mod2pi(xyt.theta);
     pthread_mutex_unlock(&m_csPose_mutex);
 
     // where was our last scan?

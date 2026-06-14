@@ -2,6 +2,8 @@
 #include "MapServer.h"
 #include <cerrno>
 #include <cstdio>
+#include <cstdarg>
+#include <sys/time.h>
 
 static bool replaceTempFile(const string &tmpName, const string &finalName) {
     if (rename(tmpName.c_str(), finalName.c_str()) == 0) {
@@ -34,6 +36,112 @@ static bool closeAndReplaceMapFile(ofstream &outFile,
     return replaceTempFile(tmpName, finalName);
 }
 
+
+static FILE *g_mapServerDebugFile = NULL;
+
+static long mapServerDebugNowMs()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+static void mapServerDebugLog(const char *format, ...)
+{
+    if (g_mapServerDebugFile == NULL) {
+        return;
+    }
+    va_list args;
+    va_start(args, format);
+    vfprintf(g_mapServerDebugFile, format, args);
+    va_end(args);
+    fflush(g_mapServerDebugFile);
+}
+
+extern "C" void MapServerDebugAttach(FILE *file)
+{
+    g_mapServerDebugFile = file;
+    if (g_mapServerDebugFile != NULL) {
+        fprintf(g_mapServerDebugFile, "MAPSERVER_DEBUG_ATTACH %ld\n",
+                mapServerDebugNowMs());
+        fflush(g_mapServerDebugFile);
+    }
+}
+
+extern "C" void MapServerDebugDetach(void)
+{
+    if (g_mapServerDebugFile != NULL) {
+        fprintf(g_mapServerDebugFile, "MAPSERVER_DEBUG_DETACH %ld\n",
+                mapServerDebugNowMs());
+        fflush(g_mapServerDebugFile);
+        g_mapServerDebugFile = NULL;
+    }
+}
+
+static bool isDefaultZipMapTarget(const char *fileName) {
+    if (fileName == NULL) {
+        return true;
+    }
+    return string(fileName).find("defultMap.txt") != string::npos ||
+           string(fileName).find("unprobdefultMap.txt") != string::npos;
+}
+
+
+template <typename TMap>
+static void resetMapStorageMetadata(TMap &map) {
+    map.data = NULL;
+    map.width = 0;
+    map.height = 0;
+    map.x0 = 0;
+    map.y0 = 0;
+    map.metersPerPixel = 0;
+}
+
+template <typename TMap>
+static void releaseMapStorage(TMap &map) {
+    if (map.data != NULL) {
+        delete[] map.data;
+        map.data = NULL;
+    }
+    resetMapStorageMetadata(map);
+}
+
+static void resetMapServerStorageMetadata(MapServer *server) {
+    if (server == NULL) {
+        return;
+    }
+    resetMapStorageMetadata(server->globalBinaryMap);
+    resetMapStorageMetadata(server->globalGaussianMap);
+    resetMapStorageMetadata(server->globalWallMap);
+    resetMapStorageMetadata(server->laserMap);
+    resetMapStorageMetadata(server->astarMap);
+    resetMapStorageMetadata(server->globalProbMap);
+    resetMapStorageMetadata(server->visionMap);
+    resetMapStorageMetadata(server->globalcorrectionMap);
+    resetMapStorageMetadata(server->globalcorrectionMap2);
+    resetMapStorageMetadata(server->autochargemap);
+    resetMapStorageMetadata(server->globalVisionMap);
+    resetMapStorageMetadata(server->testpathmap);
+}
+
+static void releaseMapServerStorage(MapServer *server) {
+    if (server == NULL) {
+        return;
+    }
+    releaseMapStorage(server->globalBinaryMap);
+    releaseMapStorage(server->globalGaussianMap);
+    releaseMapStorage(server->globalWallMap);
+    releaseMapStorage(server->laserMap);
+    releaseMapStorage(server->astarMap);
+    releaseMapStorage(server->globalProbMap);
+    releaseMapStorage(server->visionMap);
+    releaseMapStorage(server->globalcorrectionMap);
+    releaseMapStorage(server->globalcorrectionMap2);
+    releaseMapStorage(server->autochargemap);
+    releaseMapStorage(server->globalVisionMap);
+    releaseMapStorage(server->testpathmap);
+}
+
 int bSaveMapDone = 0;
 MapServer::MapServer(void) {
     robotDiameter = 0.1;
@@ -42,15 +150,30 @@ MapServer::MapServer(void) {
     range = 15;
     resolution = 0.05;
     bHaveWall = false;
+
+    // MapServer 会在重复建图时反复 new/delete。这里显式把所有地图
+    // data 指针和尺寸清成空状态，避免第二次建图时因为旧指针/脏元数据
+    // 让 makeNewGridMap() 误判为“地图已经初始化”。
+    resetMapServerStorageMetadata(this);
 }
 
-MapServer::~MapServer(void) {}
+MapServer::~MapServer(void) {
+    mapServerDebugLog("MAPSERVER_DESTRUCT %ld map %.9f %.9f %d %d %.9f has_data %d\n",
+                      mapServerDebugNowMs(), globalBinaryMap.x0,
+                      globalBinaryMap.y0, globalBinaryMap.width,
+                      globalBinaryMap.height,
+                      globalBinaryMap.metersPerPixel,
+                      globalBinaryMap.data != NULL ? 1 : 0);
+    releaseMapServerStorage(this);
+}
 
 void MapServer::SetConfig(double _range, double _resolution) {
     robotDiameter = 0.1;
     debug = false;
     range = _range;
     resolution = _resolution;
+    mapServerDebugLog("MAPSERVER_SET_CONFIG %ld range %.9f resolution %.9f\n",
+                      mapServerDebugNowMs(), range, resolution);
 }
 
 bool MapServer::loadMap(const char *fileName,
@@ -327,15 +450,43 @@ bool MapServer::makeNewGridMap(
     GridMap &
         gm) // g��������Ԫ����GNode��ÿ��GNode�������㣬���һ��GNode�����µĻ�����λ��
 {
-    //�����Ƶ�ͼ����ͼ���ĵ�Ϊ������λ��
-    if (globalBinaryMap.data ==
-        NULL) //��������ڶ����Ƶ�ͼ�����½�һ�����½���ͼ�����ĵ㣬��g�����һ��GNode�еĻ�����λ��
-    {
+    if (g.nodes.empty()) {
+        printf("ERR: makeNewGridMap failed: graph has no nodes\n");
+        mapServerDebugLog("MAP_INIT_FAILED %ld reason empty_graph\n",
+                          mapServerDebugNowMs());
+        return false;
+    }
+
+    bool mapInvalid = (globalBinaryMap.data == NULL ||
+                       globalBinaryMap.width <= 0 ||
+                       globalBinaryMap.height <= 0 ||
+                       globalBinaryMap.metersPerPixel < 0.00000001);
+
+    // 建图初始化不能只判断 data 是否为 NULL。重复建图时如果旧指针或尺寸残留，
+    // 会跳过 makePixels()，导致第二次建图从脏地图状态开始拼接。
+    if (mapInvalid) {
+        if (globalBinaryMap.data != NULL) {
+            delete[] globalBinaryMap.data;
+            globalBinaryMap.data = NULL;
+        }
         globalBinaryMap.makePixels(
             g.nodes.at(g.nodes.size() - 1).state.x - range,
             g.nodes.at(g.nodes.size() - 1).state.y - range,
             (int)(2 * range / resolution), (int)(2 * range / resolution),
             resolution, 0, false);
+        mapServerDebugLog("MAP_INIT %ld nodes %lu map_invalid 1 %.9f %.9f %d %d %.9f\n",
+                          mapServerDebugNowMs(),
+                          (unsigned long)g.nodes.size(),
+                          globalBinaryMap.x0, globalBinaryMap.y0,
+                          globalBinaryMap.width, globalBinaryMap.height,
+                          globalBinaryMap.metersPerPixel);
+    } else {
+        mapServerDebugLog("MAP_INIT_SKIP %ld nodes %lu map_invalid 0 %.9f %.9f %d %d %.9f\n",
+                          mapServerDebugNowMs(),
+                          (unsigned long)g.nodes.size(),
+                          globalBinaryMap.x0, globalBinaryMap.y0,
+                          globalBinaryMap.width, globalBinaryMap.height,
+                          globalBinaryMap.metersPerPixel);
     }
     return true;
 }
@@ -438,10 +589,23 @@ bool MapServer::addToGlobalMap(Pose pose, vector<Pose> &points) {
         globalBinaryMap.height = height / globalBinaryMap.metersPerPixel;
     }
 
+    mapServerDebugLog("ADD_TO_GLOBAL_MAP %ld pose %.9f %.9f %.9f points %lu expand_x %d expand_y %d map %.9f %.9f %d %d %.9f\n",
+                      mapServerDebugNowMs(), pose.x, pose.y, pose.theta,
+                      (unsigned long)points.size(), expandX ? 1 : 0,
+                      expandY ? 1 : 0, globalBinaryMap.x0,
+                      globalBinaryMap.y0, globalBinaryMap.width,
+                      globalBinaryMap.height,
+                      globalBinaryMap.metersPerPixel);
+
     // addGridMap(globalBinaryMap, pose, points);//��ɨ��ĵ����ӽ�ȥ
     return expandX || expandY;
 }
 bool MapServer::addGridMap(GridMap &gridMap, Pose pose, vector<Pose> &points) {
+    mapServerDebugLog("ADD_GRID_MAP %ld pose %.9f %.9f %.9f points %lu map %.9f %.9f %d %d %.9f\n",
+                      mapServerDebugNowMs(), pose.x, pose.y, pose.theta,
+                      (unsigned long)points.size(), gridMap.x0, gridMap.y0,
+                      gridMap.width, gridMap.height,
+                      gridMap.metersPerPixel);
     Pose lastp;
 
     lastp.x = 0;
@@ -562,6 +726,157 @@ bool MapServer::saveMap(const char *fileName) {
             }
 
             outFile << ' ';
+        }
+        outFile << endl;
+    }
+
+    bool saved = closeAndReplaceMapFile(outFile, tmpName, finalName);
+    if (saved && isDefaultZipMapTarget(fileName) &&
+        !saveZipedMap("/data/test/zipedMap.txt")) {
+        printf("WARN: save zipedMap.txt failed\n");
+    }
+    return saved;
+}
+
+bool MapServer::saveZipedMap(const char *fileName) {
+    if (fileName == NULL) {
+        return false;
+    }
+
+    bool useProbMap = globalProbMap.data != NULL &&
+                      globalProbMap.width > 0 &&
+                      globalProbMap.height > 0;
+    bool useBinaryMap = !useProbMap &&
+                        globalBinaryMap.data != NULL &&
+                        globalBinaryMap.width > 0 &&
+                        globalBinaryMap.height > 0;
+    if (!useProbMap && !useBinaryMap) {
+        printf("WARN: no map data for ziped map\n");
+        return false;
+    }
+
+    int height = useProbMap ? globalProbMap.height : globalBinaryMap.height;
+    int width = useProbMap ? globalProbMap.width : globalBinaryMap.width;
+    double meterPer = useProbMap ? globalProbMap.metersPerPixel
+                                 : globalBinaryMap.metersPerPixel;
+    double x0 = useProbMap ? globalProbMap.x0 : globalBinaryMap.x0;
+    double y0 = useProbMap ? globalProbMap.y0 : globalBinaryMap.y0;
+
+    string finalName = fileName;
+    string tmpName = finalName + ".tmp";
+    ofstream outFile(tmpName.c_str(), ios::out);
+    if (!outFile) {
+        printf("open ziped map error\n");
+        return false;
+    }
+
+    outFile << "ZMAP1" << endl;
+    outFile << range << ' ' << resolution << ' ' << height << ' ' << width
+            << ' ' << meterPer << ' ' << x0 << ' ' << y0 << endl;
+
+    for (int j = 0; j < height; ++j) {
+        int wordCount = (width + 63) / 64;
+        outFile << width << ' ' << wordCount;
+
+        unsigned long long word = 0;
+        int bitCount = 0;
+        for (int i = 0; i < width; ++i) {
+            bool blocked = false;
+            if (useProbMap) {
+                blocked = globalProbMap.data[j * width + i] > 0.5;
+            } else {
+                int status = globalBinaryMap.data[j * width + i];
+                blocked = (status == 255);
+            }
+
+            word = (word << 1) | (blocked ? 1ULL : 0ULL);
+            ++bitCount;
+            if (bitCount == 64) {
+                outFile << ' ' << word;
+                word = 0;
+                bitCount = 0;
+            }
+        }
+
+        if (bitCount > 0) {
+            word <<= (64 - bitCount);
+            outFile << ' ' << word;
+        }
+        outFile << endl;
+    }
+
+    return closeAndReplaceMapFile(outFile, tmpName, finalName);
+}
+
+bool MapServer::loadZipedMap(const char *fileName, const char *outMapFileName) {
+    if (fileName == NULL || outMapFileName == NULL) {
+        return false;
+    }
+
+    ifstream inFile(fileName, ios::in);
+    if (!inFile) {
+        printf("open ziped map read error\n");
+        return false;
+    }
+
+    string magic;
+    double savedRange;
+    double savedResolution;
+    double meterPer;
+    double x0;
+    double y0;
+    int height;
+    int width;
+
+    if (!(inFile >> magic) || magic != "ZMAP1" ||
+        !(inFile >> savedRange >> savedResolution >> height >> width >>
+          meterPer >> x0 >> y0)) {
+        printf("ERR: Wrong ziped map header\n");
+        return false;
+    }
+
+    if (height <= 0 || width <= 0 || meterPer < 0.00000001) {
+        printf("ERR: Wrong ziped map format\n");
+        return false;
+    }
+
+    string finalName = outMapFileName;
+    string tmpName = finalName + ".tmp";
+    ofstream outFile(tmpName.c_str(), ios::out);
+    if (!outFile) {
+        printf("open ziped map output error\n");
+        return false;
+    }
+
+    outFile << savedRange << ' ' << savedResolution << ' ' << height << ' '
+            << width << ' ' << meterPer << ' ' << x0 << ' ' << y0 << endl;
+
+    for (int j = 0; j < height; ++j) {
+        int rowBits = 0;
+        int wordCount = 0;
+        if (!(inFile >> rowBits >> wordCount) || rowBits != width ||
+            wordCount != (width + 63) / 64) {
+            printf("ERR: Wrong ziped map row header row=%d\n", j);
+            remove(tmpName.c_str());
+            return false;
+        }
+
+        vector<unsigned long long> words;
+        for (int k = 0; k < wordCount; ++k) {
+            unsigned long long word = 0;
+            if (!(inFile >> word)) {
+                printf("ERR: Incomplete ziped map row=%d\n", j);
+                remove(tmpName.c_str());
+                return false;
+            }
+            words.push_back(word);
+        }
+
+        for (int i = 0; i < width; ++i) {
+            int wordIndex = i / 64;
+            int bitIndex = i % 64;
+            bool blocked = ((words[wordIndex] >> (63 - bitIndex)) & 1ULL) != 0;
+            outFile << (blocked ? -1 : 0) << ' ';
         }
         outFile << endl;
     }
@@ -839,7 +1154,14 @@ bool MapServer::saveProbMap(const char *fileName) {
         }
         outFile << endl;
     }
-    return closeAndReplaceMapFile(outFile, displayTmpName, name);
+    if (!closeAndReplaceMapFile(outFile, displayTmpName, name)) {
+        return false;
+    }
+    if (isDefaultZipMapTarget(fileName) &&
+        !saveZipedMap("/data/test/zipedMap.txt")) {
+        printf("WARN: save zipedMap.txt failed\n");
+    }
+    return true;
     ////////////////
 }
 

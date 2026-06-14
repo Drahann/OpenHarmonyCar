@@ -3,8 +3,7 @@ import os
 import tkinter as tk
 
 
-DEFAULT_LOGS = ["navi.log", "udp2lcm.log", "serial.log", "lidar.log"]
-
+DEFAULT_LOGS = ["navi.log", "serial.log", "udp2lcm.log"]
 
 def read_robots(config_path):
     robots = []

@@ -2,8 +2,9 @@ param(
     [string]$ConfigPath = (Join-Path $PSScriptRoot "config.txt"),
     [string]$RemoteDir = "/data/test",
     [string]$LogRoot = (Join-Path $PSScriptRoot "robot_logs"),
-    [string[]]$LogNames = @("navi.log", "udp2lcm.log", "serial.log", "lidar.log"),
+    [string[]]$LogNames = @("navi.log","serial.log","udp2lcm.log"),
     [int]$IntervalMs = 500,
+    [int]$ReconnectDelaySeconds = 2,
     [switch]$NoStart,
     [switch]$NoViewer
 )
@@ -57,6 +58,25 @@ function Invoke-Hdc {
     }
 }
 
+function Connect-HdcTarget {
+    param(
+        [string]$Hdc,
+        [string]$Target,
+        [int]$RetryDelaySeconds
+    )
+
+    while ($true) {
+        Write-Host "==> Connect $Target"
+        & $Hdc tconn $Target
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        Write-Warning "Connect $Target failed, retrying in $RetryDelaySeconds seconds..."
+        Start-Sleep -Seconds $RetryDelaySeconds
+    }
+}
+
 $hdc = (Get-Command hdc -ErrorAction Stop).Source
 $python = (Get-Command python -ErrorAction Stop).Source
 $viewer = Join-Path $PSScriptRoot "watch_robot_logs.py"
@@ -78,9 +98,7 @@ foreach ($robot in $robots) {
 if (-not $NoStart) {
     foreach ($robot in $robots) {
         $target = Get-Target $robot
-        Invoke-Hdc "Connect $target" {
-            & $hdc tconn $target
-        }
+        Connect-HdcTarget -Hdc $hdc -Target $target -RetryDelaySeconds $ReconnectDelaySeconds
         Invoke-Hdc "Start robot $target" {
             & $hdc -t $target shell "$RemoteDir/test.sh" run
         }
@@ -95,16 +113,34 @@ try {
         $localDir = Join-Path $LogRoot $safeName
 
         $jobs += Start-Job -Name "logs-$safeName" -ScriptBlock {
-            param($Hdc, $Target, $RemoteDir, $LocalDir, $LogNames, $IntervalMs)
+            param($Hdc, $Target, $RemoteDir, $LocalDir, $LogNames, $IntervalMs, $ReconnectDelaySeconds)
+
+            function Connect-HdcTarget {
+                param(
+                    [string]$Hdc,
+                    [string]$Target,
+                    [int]$RetryDelaySeconds
+                )
+
+                while ($true) {
+                    & $Hdc tconn $Target | Out-Null
+                    if ($LASTEXITCODE -eq 0) {
+                        return
+                    }
+
+                    Write-Warning "Connect $Target failed, retrying in $RetryDelaySeconds seconds..."
+                    Start-Sleep -Seconds $RetryDelaySeconds
+                }
+            }
 
             while ($true) {
-                & $Hdc tconn $Target | Out-Null
+                Connect-HdcTarget -Hdc $Hdc -Target $Target -RetryDelaySeconds $ReconnectDelaySeconds
                 foreach ($logName in $LogNames) {
                     & $Hdc -t $Target file recv "$RemoteDir/$logName" "$LocalDir\" | Out-Null
                 }
                 Start-Sleep -Milliseconds $IntervalMs
             }
-        } -ArgumentList $hdc, $target, $RemoteDir, $localDir, $LogNames, $IntervalMs
+        } -ArgumentList $hdc, $target, $RemoteDir, $localDir, $LogNames, $IntervalMs, $ReconnectDelaySeconds
 
         Write-Host "Started log receiver for $target -> $localDir"
     }

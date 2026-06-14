@@ -237,12 +237,14 @@ bool visionswitch = true;
 int iVisionDateFlag = 1;
 int g_iSaveDateFlag = 0;
 
-static const double kCoopMinSafeRadius = 0.35;
-static const double kCoopRobotMargin = 0.20;
-static const double kCoopLaserEvidenceMargin = 0.30;
+static const double kCoopMinSafeRadius = 0.20;
+static const double kCoopRobotMargin = 0.05;
+static const double kCoopLaserEvidenceMargin = 0.08;
+static const double kCoopRouteLookaheadDistance = 0.80;
+static const double kCoopPeerLookaheadDistance = 0.80;
 static const long kCoopMessageTimeoutMs = 3500;
 static const long kCoopRetryIntervalMs = 450;
-static const int kCoopMaxRetries = 6;
+static const int kCoopMaxRetries = 4;
 
 static const char *coopCommandName(int commandId)
 {
@@ -338,6 +340,20 @@ static double coopSegmentDistance(Pose a1, Pose a2, Pose b1, Pose b2)
     double d = d1 < d2 ? d1 : d2;
     d = d < d3 ? d : d3;
     return d < d4 ? d : d4;
+}
+
+static Pose coopClipSegmentEnd(Pose start, Pose end, double maxDistance)
+{
+    double dist = sqrt(coopDist2(start.x, start.y, end.x, end.y));
+    if (dist <= maxDistance || dist < 1e-6) {
+        return end;
+    }
+    double ratio = maxDistance / dist;
+    Pose clipped;
+    clipped.x = start.x + (end.x - start.x) * ratio;
+    clipped.y = start.y + (end.y - start.y) * ratio;
+    clipped.theta = end.theta;
+    return clipped;
 }
 
 static bool defaultPublishedMapExists()
@@ -639,6 +655,8 @@ CNaviInterface::CNaviInterface(void) {
     m_coopActivePeer = -1;
     m_coopTriggerReason = 0;
     m_coopStateTimeMs = 0;
+    m_coopHeartbeatStatus = COOP_HEARTBEAT_NORMAL;
+    m_coopHeartbeatEvent = COOP_HEARTBEAT_EVENT_NONE;
     m_coopPendingStopRequest = false;
     m_coopPendingStopSource = -1;
     m_coopPendingStopSeq = 0;
@@ -3415,7 +3433,9 @@ int CNaviInterface::DWAplan(vector<double> &goalvw, int &flag) {
         return 0;
     }
 
-    if (sumthetascore == 0 || 0 == sumdistscore) {
+    if (sumthetascore == 0 || 0 == sumdistscore ||
+        sumthetascore_1 == 0 || sumdistscore_1 == 0 ||
+        sumsavescore == 0 || (1 <= ifirstpublish && sumvibrascore == 0)) {
         goalvw.push_back(0);
         goalvw.push_back(0);
 
@@ -3499,6 +3519,12 @@ int CNaviInterface::choose_goal(Pose &robot, vector<double> &goal,
         int iy = (y - m_pms->astarMap.y0) / metersperpix;
 
         int GMapWidth = m_pms->astarMap.width;
+        int GMapHeight = m_pms->astarMap.height;
+        if (ix < 0 || ix >= GMapWidth || iy < 0 || iy >= GMapHeight) {
+            goal_follow.push_back(goal.at(0));
+            goal_follow.push_back(goal.at(1));
+            return 1;
+        }
 
         int value = astarPlanner.m_pGridState[iy * GMapWidth + ix].CurrentState;
         if ((0 == value) || (5 == value)) {
@@ -3582,12 +3608,19 @@ double CNaviInterface::difsafelaseronly(vector<Pose> &path) {
 
 double CNaviInterface::bifsave(Pose &p) {
 
+    if (m_pms == NULL || m_pms->astarMap.metersPerPixel <= 0) {
+        return 0;
+    }
     double metersperpix = m_pms->astarMap.metersPerPixel;
 
     int ix = (p.x - m_pms->astarMap.x0) / metersperpix;
     int iy = (p.y - m_pms->astarMap.y0) / metersperpix;
 
     int GMapWidth = m_pms->astarMap.width;
+    int GMapHeight = m_pms->astarMap.height;
+    if (ix < 0 || ix >= GMapWidth || iy < 0 || iy >= GMapHeight) {
+        return 0;
+    }
 
     int value = astarPlanner.m_pGridState[iy * GMapWidth + ix].CurrentState;
     if ((0 == value) || (5 == value)) {
@@ -3690,12 +3723,24 @@ double CNaviInterface::bifsave(Pose &p) {
 
 double CNaviInterface::bifsavelaseronly(Pose &p) {
 
+    if (m_pms == NULL || m_pms->astarMap.metersPerPixel <= 0) {
+        return 0;
+    }
     double metersperpix = m_pms->astarMap.metersPerPixel;
 
     int ix = (p.x - m_pms->astarMap.x0) / metersperpix;
     int iy = (p.y - m_pms->astarMap.y0) / metersperpix;
 
     int GMapWidth = m_pms->astarMap.width;
+    int GMapHeight = m_pms->astarMap.height;
+    if (ix < 0 || ix >= GMapWidth || iy < 0 || iy >= GMapHeight) {
+        return 0;
+    }
+
+    int value = astarPlanner.m_pGridState[iy * GMapWidth + ix].CurrentState;
+    if (value != 0 && value != 5) {
+        return 0;
+    }
 
     int lx = (p.x - m_pms->laserMap.x0) / metersperpix;
     int ly = (p.y - m_pms->laserMap.y0) / metersperpix;
@@ -3768,6 +3813,11 @@ double CNaviInterface::bifsavelaseronly(Pose &p) {
         }
         return 0;
     }
+
+    if (value == 0) {
+        return 3;
+    }
+    return 1;
 }
 
 double CNaviInterface::doArrive(vector<double> &p) {
@@ -4537,7 +4587,9 @@ int CNaviInterface::DWAplanlaseronly(vector<double> &goalvw, int &flag) {
         return 0;
     }
 
-    if (sumthetascore == 0 || 0 == sumdistscore) {
+    if (sumthetascore == 0 || 0 == sumdistscore ||
+        sumthetascore_1 == 0 || sumdistscore_1 == 0 ||
+        sumsavescore == 0 || (1 <= ifirstpublish && sumvibrascore == 0)) {
         goalvw.push_back(0);
         goalvw.push_back(0);
 
@@ -4843,6 +4895,8 @@ void CNaviInterface::resetMappingRuntimeState(void) {
     m_coopActivePeer = -1;
     m_coopTriggerReason = 0;
     m_coopStateTimeMs = 0;
+    m_coopHeartbeatStatus = COOP_HEARTBEAT_NORMAL;
+    m_coopHeartbeatEvent = COOP_HEARTBEAT_EVENT_NONE;
     m_coopPendingStopRequest = false;
     m_coopPendingStopSource = -1;
     m_coopPendingStopSeq = 0;
@@ -5254,6 +5308,69 @@ void CNaviInterface::clearCoopReliableTxLocked(void) {
     m_coopLastTxAcked = false;
 }
 
+void CNaviInterface::publishCoopHeartbeatStatus(int status, int event) {
+    bool changed = false;
+    pthread_mutex_lock(&m_coop_mutex);
+    if (m_coopHeartbeatStatus != status || m_coopHeartbeatEvent != event) {
+        m_coopHeartbeatStatus = status;
+        m_coopHeartbeatEvent = event;
+        changed = true;
+    }
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    if (!changed || lcm == NULL) {
+        return;
+    }
+
+    int8_t iparams[3] = {
+        (int8_t)robotId,
+        (int8_t)status,
+        (int8_t)event
+    };
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_STATUS_COMMAND;
+    cmd.robotid = (int8_t)robotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 3;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(lcm, "SERVICE_COMMAND", &cmd);
+    coopLogMessage("STATUS", robotId, COOP_AVOID_STATUS_COMMAND, robotId,
+                   robotId, 0, COOP_AVOID_NORMAL, 0,
+                   (status << 8) | (event & 0xff));
+}
+
+void CNaviInterface::fallbackToLocalDynamicAvoidance(int failedCommand,
+                                                     int reason,
+                                                     bool acked,
+                                                     int retryCount) {
+    pthread_mutex_lock(&m_goal_mutex);
+    if (m_waypoints.size() > 0) {
+        m_ifastar = 1;
+        m_blaserdwa = false;
+        m_blaserastar = false;
+        istartgo = 0;
+        targetErr = false;
+    }
+    pthread_mutex_unlock(&m_goal_mutex);
+
+    int event = COOP_HEARTBEAT_EVENT_TIMEOUT;
+    if (reason == COOP_AVOID_TRIGGER_MATCH_JUMP) {
+        event = COOP_HEARTBEAT_EVENT_MATCH_JUMP;
+    } else if (reason == COOP_HEARTBEAT_EVENT_NO_LCM) {
+        event = COOP_HEARTBEAT_EVENT_NO_LCM;
+    }
+    publishCoopHeartbeatStatus(COOP_HEARTBEAT_LOCAL_DYNAMIC_FALLBACK, event);
+    coopLogMessage("FALLBACK_LOCAL_DYNAMIC", robotId, failedCommand, robotId,
+                   1 - robotId, 0, COOP_AVOID_NORMAL, retryCount,
+                   acked ? 1 : 0);
+}
+
 void CNaviInterface::sendCoopAck(int targetRobotId, int seq, int ackedCommandId) {
     if (coop_lcm == NULL) {
         coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_ACK,
@@ -5522,7 +5639,12 @@ void CNaviInterface::resetCoverageState(void) {
 }
 
 void CNaviInterface::triggerCoopAvoidance(int reason) {
-    if (coop_lcm == NULL || robotId < 0 || robotId > 1) {
+    if (robotId < 0 || robotId > 1) {
+        return;
+    }
+    if (coop_lcm == NULL) {
+        fallbackToLocalDynamicAvoidance(COOP_AVOID_CMD_POSE_REQUEST,
+                                        COOP_HEARTBEAT_EVENT_NO_LCM, false, 0);
         return;
     }
     int seq;
@@ -5547,6 +5669,10 @@ void CNaviInterface::triggerCoopAvoidance(int reason) {
     pthread_mutex_unlock(&m_coop_mutex);
 
     publishZeroVelocity();
+    publishCoopHeartbeatStatus(COOP_HEARTBEAT_DIAGNOSING,
+                               reason == COOP_AVOID_TRIGGER_MATCH_JUMP ?
+                               COOP_HEARTBEAT_EVENT_MATCH_JUMP :
+                               COOP_HEARTBEAT_EVENT_NOPATH);
     coopLogMessage("TRIGGER", robotId, COOP_AVOID_CMD_POSE_REQUEST, robotId,
                    1 - robotId, seq, COOP_AVOID_WAIT_PEER_POSE, 0, reason);
     sendCoopPoseRequest(seq, reason);
@@ -5586,6 +5712,8 @@ bool CNaviInterface::pauseForCoopPeer(int sourceRobotId, int seq) {
     pthread_mutex_unlock(&m_coop_mutex);
 
     publishZeroVelocity();
+    publishCoopHeartbeatStatus(COOP_HEARTBEAT_STOPPED_FOR_PEER,
+                               COOP_HEARTBEAT_EVENT_NOPATH);
     coopLogMessage("PAUSE_FOR_PEER", robotId, COOP_AVOID_CMD_STOP_REQUEST,
                    sourceRobotId, robotId, seq, COOP_AVOID_STOPPED_FOR_PEER,
                    0, hasGoal ? 1 : 0);
@@ -5613,6 +5741,8 @@ void CNaviInterface::resumeAfterCoopPeer(void) {
     if (hasGoal) {
         setGoal(savedGoal);
     }
+    publishCoopHeartbeatStatus(COOP_HEARTBEAT_NORMAL,
+                               COOP_HEARTBEAT_EVENT_RESUME);
     coopLogMessage("RESUME_AFTER_PEER", robotId, COOP_AVOID_CMD_RESUME_REQUEST,
                    activePeer, robotId, activeSeq, COOP_AVOID_NORMAL, 0,
                    hasGoal ? 1 : 0);
@@ -5633,7 +5763,7 @@ bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
         return false;
     }
 
-    vector<Pose> route;
+    vector<Pose> fullRoute;
     if (path.size() >= 2) {
         for (size_t i = 0; i < path.size(); ++i) {
             if (path[i].size() >= 2) {
@@ -5641,22 +5771,47 @@ bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
                 p.x = path[i][0];
                 p.y = path[i][1];
                 p.theta = 0;
-                route.push_back(p);
+                fullRoute.push_back(p);
             }
         }
     }
-    if (route.size() < 2) {
+    if (fullRoute.size() < 2) {
         Pose goal;
         if (!getCurrentGoal(goal)) {
             return false;
         }
-        route.push_back(m_CurPos);
-        route.push_back(goal);
+        fullRoute.push_back(goal);
+    }
+
+    vector<Pose> route;
+    route.push_back(m_CurPos);
+    double accumulated = 0.0;
+    Pose last = m_CurPos;
+    for (size_t i = 0; i < fullRoute.size(); ++i) {
+        double segment = sqrt(coopDist2(last.x, last.y,
+                                       fullRoute[i].x, fullRoute[i].y));
+        if (segment < 1e-6) {
+            continue;
+        }
+        accumulated += segment;
+        route.push_back(fullRoute[i]);
+        last = fullRoute[i];
+        if (accumulated >= kCoopRouteLookaheadDistance) {
+            break;
+        }
+    }
+    if (route.size() < 2) {
+        return false;
     }
 
     double safeRadius = m_config.robotconfig.radius + kCoopRobotMargin;
     if (safeRadius < kCoopMinSafeRadius) {
         safeRadius = kCoopMinSafeRadius;
+    }
+    Pose peerLookaheadGoal = peerGoal;
+    if (peerHasGoal) {
+        peerLookaheadGoal = coopClipSegmentEnd(peerPose, peerGoal,
+                                               kCoopPeerLookaheadDistance);
     }
 
     bool blocksRoute = false;
@@ -5666,7 +5821,8 @@ bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
             break;
         }
         if (peerHasGoal &&
-            coopSegmentDistance(route[i - 1], route[i], peerPose, peerGoal) <= safeRadius) {
+            coopSegmentDistance(route[i - 1], route[i], peerPose,
+                                peerLookaheadGoal) <= safeRadius) {
             blocksRoute = true;
             break;
         }
@@ -5685,7 +5841,9 @@ bool CNaviInterface::peerLikelyBlocksCurrentRoute(int reason) {
         if (LinAlg::DistancePose(evidence[i], peerPose) <= evidenceRadius) {
             return true;
         }
-        if (peerHasGoal && coopPointToSegmentDistance(evidence[i], peerPose, peerGoal) <= evidenceRadius) {
+        if (peerHasGoal &&
+            coopPointToSegmentDistance(evidence[i], peerPose,
+                                       peerLookaheadGoal) <= evidenceRadius) {
             return true;
         }
     }
@@ -5701,16 +5859,29 @@ void CNaviInterface::updateCoopAvoidance(void) {
     bool shouldCheckArrival = false;
     int resumeTarget = -1;
     int resumeSeq = 0;
+    bool shouldFallback = false;
+    int fallbackCommand = 0;
+    int fallbackReason = 0;
+    int fallbackRetryCount = 0;
+    bool fallbackAcked = false;
 
     pthread_mutex_lock(&m_coop_mutex);
     if (m_coopState == COOP_AVOID_WAIT_PEER_POSE ||
         m_coopState == COOP_AVOID_WAIT_STOP_ACK ||
         m_coopState == COOP_AVOID_WAIT_RESUME_ACK) {
-        if (now - m_coopStateTimeMs > kCoopMessageTimeoutMs) {
+        bool retryExhausted = m_coopLastTxCommand != 0 &&
+                              m_coopLastTxRetryCount >= kCoopMaxRetries &&
+                              now - m_coopLastTxTimeMs >= kCoopRetryIntervalMs;
+        if (now - m_coopStateTimeMs > kCoopMessageTimeoutMs || retryExhausted) {
             coopLogMessage("TIMEOUT", robotId, m_coopLastTxCommand, robotId,
                            m_coopLastTxTarget, m_coopLastTxSeq, m_coopState,
                            m_coopLastTxRetryCount,
                            m_coopLastTxAcked ? 1 : 0);
+            fallbackCommand = m_coopLastTxCommand;
+            fallbackReason = m_coopLastTxReason;
+            fallbackRetryCount = m_coopLastTxRetryCount;
+            fallbackAcked = m_coopLastTxAcked;
+            shouldFallback = true;
             m_coopState = COOP_AVOID_NORMAL;
             m_coopActivePeer = -1;
             m_coopPendingStopRequest = false;
@@ -5742,6 +5913,11 @@ void CNaviInterface::updateCoopAvoidance(void) {
         sendCoopStopRequest(resendTarget, resendSeq, resendReason);
     } else if (resendCommand == COOP_AVOID_CMD_RESUME_REQUEST) {
         sendCoopResumeRequest(resendTarget, resendSeq);
+    }
+
+    if (shouldFallback) {
+        fallbackToLocalDynamicAvoidance(fallbackCommand, fallbackReason,
+                                        fallbackAcked, fallbackRetryCount);
     }
 
     if (shouldCheckArrival) {
@@ -5870,6 +6046,8 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
                 clearCoopReliableTxLocked();
             }
             pthread_mutex_unlock(&m_coop_mutex);
+            publishCoopHeartbeatStatus(COOP_HEARTBEAT_NORMAL,
+                                       COOP_HEARTBEAT_EVENT_NONE);
         }
         break;
     }
@@ -5909,6 +6087,10 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
             m_coopState = COOP_AVOID_PEER_PAUSED_BY_ME;
             m_coopStateTimeMs = coopNowMs();
             clearCoopReliableTxLocked();
+            pthread_mutex_unlock(&m_coop_mutex);
+            publishCoopHeartbeatStatus(COOP_HEARTBEAT_PEER_PAUSED_BY_ME,
+                                       COOP_HEARTBEAT_EVENT_NOPATH);
+            break;
         }
         pthread_mutex_unlock(&m_coop_mutex);
         break;
@@ -5925,6 +6107,10 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
             m_coopState = COOP_AVOID_NORMAL;
             m_coopActivePeer = -1;
             clearCoopReliableTxLocked();
+            pthread_mutex_unlock(&m_coop_mutex);
+            publishCoopHeartbeatStatus(COOP_HEARTBEAT_NORMAL,
+                                       COOP_HEARTBEAT_EVENT_RESUME);
+            break;
         }
         pthread_mutex_unlock(&m_coop_mutex);
         break;

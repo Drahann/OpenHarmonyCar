@@ -29,6 +29,7 @@
 #define COOP_AVOID_CMD_RESUME_REQUEST -36
 #define COOP_AVOID_CMD_RESUME_ACK    -35
 #define COOP_AVOID_CMD_ACK           -34
+#define COOP_AVOID_STATUS_COMMAND     74
 
 enum CoopAvoidState
 {
@@ -44,6 +45,25 @@ enum CoopAvoidTrigger
 {
 	COOP_AVOID_TRIGGER_NOPATH = 1,
 	COOP_AVOID_TRIGGER_MATCH_JUMP = 2
+};
+
+enum CoopAvoidHeartbeatStatus
+{
+	COOP_HEARTBEAT_NORMAL = 0,
+	COOP_HEARTBEAT_DIAGNOSING = 1,
+	COOP_HEARTBEAT_STOPPED_FOR_PEER = 2,
+	COOP_HEARTBEAT_PEER_PAUSED_BY_ME = 3,
+	COOP_HEARTBEAT_LOCAL_DYNAMIC_FALLBACK = 4
+};
+
+enum CoopAvoidHeartbeatEvent
+{
+	COOP_HEARTBEAT_EVENT_NONE = 0,
+	COOP_HEARTBEAT_EVENT_NOPATH = 1,
+	COOP_HEARTBEAT_EVENT_MATCH_JUMP = 2,
+	COOP_HEARTBEAT_EVENT_TIMEOUT = 3,
+	COOP_HEARTBEAT_EVENT_RESUME = 4,
+	COOP_HEARTBEAT_EVENT_NO_LCM = 5
 };
 
 enum MapLifecycleState
@@ -377,6 +397,8 @@ public:
 	int m_coopActivePeer;
 	int m_coopTriggerReason;
 	long m_coopStateTimeMs;
+	int m_coopHeartbeatStatus;
+	int m_coopHeartbeatEvent;
 	bool m_coopPendingStopRequest;
 	int m_coopPendingStopSource;
 	int m_coopPendingStopSeq;
@@ -540,6 +562,9 @@ public:
 	void	sendCoopAck(int targetRobotId, int seq, int ackedCommandId);
 	void	beginCoopReliableTxLocked(int commandId, int targetRobotId, int seq, int reason);
 	void	clearCoopReliableTxLocked(void);
+	void	publishCoopHeartbeatStatus(int status, int event);
+	void	fallbackToLocalDynamicAvoidance(int failedCommand, int reason,
+										   bool acked, int retryCount);
 	bool	getCurrentGoal(Pose &goal);
 	bool	peerLikelyBlocksCurrentRoute(int reason);
 	bool	pauseForCoopPeer(int sourceRobotId, int seq);

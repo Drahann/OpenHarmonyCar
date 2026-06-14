@@ -52,6 +52,7 @@ public:
 		debug = false;
 		range = _range;
 		resolution = _resolution;
+		bHaveWall = false;
 	};
 	~MapServer(void);
 	bool loadMap(const char* fileName,vector<Pose> &vtWallPos);
@@ -88,6 +89,8 @@ public:
 
 	
 	bool saveProbMap(const char* fileName);
+	bool saveZipedMap(const char* fileName);
+	bool loadZipedMap(const char* fileName, const char* outMapFileName);
 
 
 	/*****************/

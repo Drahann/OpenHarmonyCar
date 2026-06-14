@@ -8,6 +8,8 @@ pthread_mutex_t heartBeatMutex;
 struct sockaddr_in clientAddr;
 char clientIP[20] = "";
 lcm_t *lcm;
+static int8_t coopHeartbeatStatus = 0;
+static int8_t coopHeartbeatEvent = 0;
 
 pid_t httpServerPid = -1;
 
@@ -19,6 +21,18 @@ static int mapCreateRequestedFromHeartbeat = 0;
 
 static bool defaultMapExists(void) {
     return access("/data/test/defultMap.txt", F_OK) == 0;
+}
+
+static bool isZeroWheelStopMessage(const char *buffer, int bytesReceived) {
+    if (buffer == NULL || bytesReceived < 9 || (unsigned char)buffer[0] != 0x01) {
+        return false;
+    }
+    for (int i = 1; i < 9; i++) {
+        if ((unsigned char)buffer[i] != 0x00) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /* 捕获 SIGINT 信号（通常是 Ctrl+C），清理资源并退出程序 */
@@ -44,6 +58,7 @@ int main() {
     pthread_create(&udpRecv, NULL, udpRecvHandler, NULL);
     // 订阅 LCM 通道 CURRENTPOSE，使用回调函数 poseHandler 处理位置消息
     pose_t_subscribe(lcm, "CURRENTPOSE", poseHandler, NULL);
+    robot_control_t_subscribe(lcm, "SERVICE_COMMAND", serviceCommandHandler, NULL);
     if ((httpServerPid = fork()) == 0) {
         // 拉起服务器进程，App 通过 http://<紫派IP>:8000/defultMap.txt 拉取地图
         // ATTENTION: 这里的路径需要根据实际存储地图的路径来修改
@@ -54,7 +69,12 @@ int main() {
          * 其他的是传递过去的参数，按一般约定，第一个参数是程序名，不被使用
          * 因而这里出现了两个python
          */
-        execlp("python", "python", "-m", "http.server", NULL);
+        execlp("python3", "python3", "-u", "-m", "http.server", "8000",
+               "--bind", "0.0.0.0", "--directory", "/data/test", NULL);
+        execlp("python", "python", "-u", "-m", "http.server", "8000",
+               "--bind", "0.0.0.0", "--directory", "/data/test", NULL);
+        perror("start http map server failed");
+        exit(1);
     }
     while (true) {
         // pause();
@@ -78,11 +98,19 @@ void parseCmd(const char *buffer, int bytesReceived) {
         fprintf(stderr, "Error: Invalid message\n");
         return;
     }
-    printf("Received UDP message (9 bytes): ");
-    for (int i = 0; i < 9; i++) {
-        printf("%02hhx ", buffer[i]);
+
+    unsigned char msgType = (unsigned char)buffer[0];
+    bool isHeartbeatMsg = (msgType == 0x00);
+    bool isQuietStopMsg = isZeroWheelStopMessage(buffer, bytesReceived);
+    if (!isHeartbeatMsg && !isQuietStopMsg) {
+        int dumpLen = bytesReceived < 9 ? bytesReceived : 9;
+        printf("Received UDP message (%d bytes, dump %d): ", bytesReceived, dumpLen);
+        for (int i = 0; i < dumpLen; i++) {
+            printf("%02hhx ", buffer[i]);
+        }
+        printf("\n");
+        fflush(stdout);
     }
-    printf("\n");
 
     path_ctrl_t path;
     robot_control_t robotCtrlData;
@@ -100,8 +128,6 @@ void parseCmd(const char *buffer, int bytesReceived) {
         // 手机端用来与udp2lcm服务器建立连接的初始化消息
         // 也是手机端的心跳
         if (defaultMapExists() || mapCreateRequestedFromHeartbeat) {
-            printf("Heartbeat received, skip automatic create map. mapExists=%d requested=%d\n",
-                   defaultMapExists() ? 1 : 0, mapCreateRequestedFromHeartbeat);
             return;
         }
         // 兼容旧平板：首次连接且没有默认地图时，才自动下达30号建图命令。
@@ -436,7 +462,8 @@ void poseHandler(const lcm_recv_buf_t *rbuf, const char *channel,
     pthread_mutex_lock(&heartBeatMutex);
     // 填充 heartBeat 数组，用于存储当前的位姿信息
     heartBeat[0] = 0x03;    // 消息标志位，表示心跳类型为位姿更新
-    heartBeat[1] = heartBeat[2] = 0;    // 保留字段，初始化为 0
+    heartBeat[1] = coopHeartbeatStatus; // 协同避障状态
+    heartBeat[2] = coopHeartbeatEvent;  // 协同避障事件
     // 将 x 坐标拆分为高字节和低字节，存储到 heartBeat 数组
     heartBeat[3] = x >> 8;  // x 的高 8 位
     heartBeat[4] = x & 0xff;    // x 的低 8 位
@@ -448,6 +475,25 @@ void poseHandler(const lcm_recv_buf_t *rbuf, const char *channel,
     heartBeat[8] = sita;    // sita 的低 8 位
     // 解锁互斥锁，允许其他线程访问 heartBeat 数组
     pthread_mutex_unlock(&heartBeatMutex);
+}
+
+void serviceCommandHandler(const lcm_recv_buf_t *rbuf, const char *channel,
+                           const robot_control_t *msg, void *userdata) {
+    if (msg == NULL || msg->commandid != 74 ||
+        msg->niparams < 3 || msg->iparams == NULL) {
+        return;
+    }
+
+    pthread_mutex_lock(&heartBeatMutex);
+    coopHeartbeatStatus = msg->iparams[1];
+    coopHeartbeatEvent = msg->iparams[2];
+    heartBeat[1] = coopHeartbeatStatus;
+    heartBeat[2] = coopHeartbeatEvent;
+    pthread_mutex_unlock(&heartBeatMutex);
+
+    printf("Heartbeat coop status updated: robot=%d status=%d event=%d\n",
+           msg->iparams[0], msg->iparams[1], msg->iparams[2]);
+    fflush(stdout);
 }
 
 /*

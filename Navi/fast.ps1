@@ -5,6 +5,3 @@ try {
 catch {
     exit 1
 }
-
-Copy-Item .\build\navigation D:\Fast\module\test_mod\ -Force
-cd D:\Fast\module\

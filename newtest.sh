@@ -2,18 +2,23 @@
 set -e
 
 cd /data/test
-# check arguments
-if [ $# -ne 1 ]; then
-    echo -e "\033[31mError: Invalid arguments\033[0m"
-    echo -e "\033[31mUsage: ./test.sh [run|stop|clean]\033[0m"
-    exit 1
-elif [ $1 = "run" ]; then
+
+start_screen_app() {
     # for DAYU200, start the app at front-end
     # to keep the screen on
     echo -e "\033[32mStarting screen app...\033[0m"
     aa start -a EntryAbility -b com.example.myapplication
     sleep 3
     echo -e "\033[32mScreen app started\033[0m"
+}
+
+# check arguments
+if [ $# -ne 1 ]; then
+    echo -e "\033[31mError: Invalid arguments\033[0m"
+    echo -e "\033[31mUsage: ./test.sh [run|stop|clean]\033[0m"
+    exit 1
+elif [ $1 = "run" ]; then
+    start_screen_app
     
     # if there is at least 2 file /dev/ttyUSB*(not always named as 0 or 1)
     # we can start our working processes
@@ -37,12 +42,7 @@ elif [ $1 = "run" ]; then
     
     echo hello
 elif [ $1 = "newrun" ]; then
-    # for DAYU200, start the app at front-end
-    # to keep the screen on
-    echo -e "\033[32mStarting screen app...\033[0m"
-    aa start -a EntryAbility -b com.example.myapplication
-    sleep 3
-    echo -e "\033[32mScreen app started\033[0m"
+    start_screen_app
     
     # if there is at least 2 file /dev/ttyUSB*(not always named as 0 or 1)
     # we can start our working processes

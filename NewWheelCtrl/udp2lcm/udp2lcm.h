@@ -36,6 +36,8 @@ bool LCMInit();
 void *udpSendHandler(void *args);
 void *udpRecvHandler(void *args);
 void parseCmd(const char *buffer, int bytesReceived);
+void serviceCommandHandler(const lcm_recv_buf_t *rbuf, const char *channel,
+                           const robot_control_t *msg, void *userdata);
 void robotCtrlInit(robot_control_t *robotCtrlData, int64_t utime,
                    int8_t commandid, int8_t robotid, int8_t ndparams,
                    int8_t niparams, int8_t nsparams, int64_t nbparams);
