@@ -1,0 +1,85 @@
+udpRecvHandler
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+192.168.107.252 - - [14/Jun/2026 15:04:38] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:04:38] "GET /zipedMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:04:38] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:04:38] "GET /defultMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:04:50] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:04:50] "GET /zipedMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:04:50] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:04:50] "GET /defultMap.txt HTTP/1.1" 404 -
+Received UDP message (9 bytes, dump 9): 6d 00 00 00 00 00 00 00 00 
+Force Create Map!
+Received UDP message (9 bytes, dump 9): 01 01 14 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 14 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 14 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 01 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 01 02 41 00 00 00 00 00 00 
+Received UDP message (9 bytes, dump 9): 02 00 00 00 00 00 00 00 00 
+192.168.107.252 - - [14/Jun/2026 15:05:25] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:05:25] "GET /zipedMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:05:25] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:05:25] "GET /defultMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:05:27] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:05:27] "GET /zipedMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:05:27] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:05:27] "GET /defultMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:05:28] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:05:28] "GET /zipedMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:05:28] code 404, message File not found
+192.168.107.252 - - [14/Jun/2026 15:05:28] "GET /defultMap.txt HTTP/1.1" 404 -
+192.168.107.252 - - [14/Jun/2026 15:05:30] "GET /zipedMap.txt HTTP/1.1" 200 -
+192.168.107.251 - - [14/Jun/2026 15:07:03] "GET /zipedMap.txt HTTP/1.1" 200 -
+Save Map!
+NOW point: x: 61, y: 17, sita: 167
+Received UDP message (9 bytes, dump 9): 6b 00 00 00 42 00 18 00 00 
+Received diagonal point 1: (66, 24)
+Received UDP message (9 bytes, dump 9): 6c 00 00 00 1c ff fe 00 00 
+Received diagonal point 2: (28, -2)
+build FullRoad file for robot 0
+NOW point: x: 61, y: 18, sita: 166
+Publishing FullRoad path planning command (122)...
+Robot 0 start distributed path following
+Heartbeat coop status updated: robot=0 status=1 event=1
+Heartbeat coop status updated: robot=0 status=4 event=3

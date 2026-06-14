@@ -1,0 +1,786 @@
+Wheel serial port: /dev/ttyUSB1
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+Data 53 05 01 14 01 14 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 01 41 01 41 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 01 41 01 41 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 01 41 01 41 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 01 41 01 41 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 01 41 01 41 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 01 41 01 41 56 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+Data 53 05 02 15 01 15 55 wheelSend successfully!
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.392699 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.196350 rad/s
+Data 53 05 02 08 01 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: 0.392699
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.300000 m/s, w: 0.012802 rad/s
+Data 53 05 01 31 01 32 55 wheelSend successfully!
+curSpeed: 50, curOmega: 0.025605
+v: 0.300000 m/s, w: 0.032802 rad/s
+Data 53 05 01 30 01 33 55 wheelSend successfully!
+curSpeed: 50, curOmega: 0.065605
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.300000 m/s, w: 0.032802 rad/s
+Data 53 05 01 30 01 33 55 wheelSend successfully!
+curSpeed: 50, curOmega: 0.065605
+v: 0.300000 m/s, w: 0.032802 rad/s
+Data 53 05 01 30 01 33 55 wheelSend successfully!
+curSpeed: 50, curOmega: 0.065605
+v: 0.300000 m/s, w: 0.032802 rad/s
+Data 53 05 01 30 01 33 55 wheelSend successfully!
+curSpeed: 50, curOmega: 0.065605
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.300000 m/s, w: -0.025398 rad/s
+Data 53 05 01 33 01 30 55 wheelSend successfully!
+curSpeed: 50, curOmega: -0.050796
+v: 0.300000 m/s, w: -0.005398 rad/s
+Data 53 05 01 32 01 31 55 wheelSend successfully!
+curSpeed: 50, curOmega: -0.010796
+v: 0.300000 m/s, w: 0.054602 rad/s
+Data 53 05 01 2F 01 34 4D wheelSend successfully!
+curSpeed: 50, curOmega: 0.109204
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.300000 m/s, w: 0.094602 rad/s
+Data 53 05 01 2D 01 36 4D wheelSend successfully!
+curSpeed: 50, curOmega: 0.189204
+v: 0.300000 m/s, w: 0.254602 rad/s
+Data 53 05 01 2C 01 37 4D wheelSend successfully!
+curSpeed: 50, curOmega: 0.254602
+v: 0.200000 m/s, w: 0.234602 rad/s
+Data 53 05 01 1C 01 26 6C wheelSend successfully!
+curSpeed: 33, curOmega: 0.234602
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.200000 m/s, w: 0.274602 rad/s
+Data 53 05 01 1B 01 27 6A wheelSend successfully!
+curSpeed: 33, curOmega: 0.274602
+v: 0.180000 m/s, w: 0.194602 rad/s
+Data 53 05 01 15 01 26 65 wheelSend successfully!
+curSpeed: 30, curOmega: 0.389204
+v: 0.120000 m/s, w: 0.154602 rad/s
+Data 53 05 01 0D 01 1A 41 wheelSend successfully!
+curSpeed: 20, curOmega: 0.309204
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+v: 0.080000 m/s, w: -0.205398 rad/s
+Data 53 05 01 11 01 08 4F wheelSend successfully!
+curSpeed: 13, curOmega: -0.205398
+v: 0.000000 m/s, w: 0.000000 rad/s
+Data 53 05 00 00 00 00 56 wheelSend successfully!
+curSpeed: 0, curOmega: 0.000000
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55 wheelSend successfully!
+curSpeed: 0, curOmega: -0.392699
+v: 0.000000 m/s, w: -0.392699 rad/s
+Data 53 05 01 08 02 08 55

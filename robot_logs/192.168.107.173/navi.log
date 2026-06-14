@@ -1,0 +1,1580 @@
+pObject->fullCoverageAlg.algNum = clear generated map files on startup
+-1
+remove old generated file: /data/test/defultMap.txt
+remove old generated file: /data/test/defultMap.txt.txt
+remove old generated file: /data/test/zipedMap.txt
+remove old generated file: /data/test/unprobdefultMap.txt
+remove old generated file: /data/test/roadFile.txt
+remove old generated file: /data/test/pathplanmap.txt
+remove old generated file: /data/test/testmap_astar.txt
+map lifecycle state = 0
+version Debug V1.2.1.9 system begin
+call back set!
+Valid priority range for SCHED_RR: 1~99
+let's init lcm...
+udp group start
+COOP_AVOID port check ok: udp port 7668 available before LCM create
+set config 0.110000, 0.000000, 0.130000 ,max_range = 8.000000 , radius = 0.230000, width = 1.300000 ,search_x_m=0.200000,search_y_m = 0.200000,search_theta=0.261799
+create map 
+create map 0.050000
+map lifecycle state = 1
+save map
+error name use defult name
+map lifecycle state = 2
+save = /data/test/unprobdefultMap.txt
+map lifecycle state = 3
+map lifecycle state = 2
+save = /data/test/defultMap.txt
+***save ProbMap***
+map lifecycle state = 3
+save probmap done !
+error name use defult name
+load map
+map lifecycle state = 3
+initloc: x=3.050000,y=0.850000,t=2.914700
+initloc,mode = 0
+send wall****
+load map /data/test/defultMap.txt
+-------------------Receive A and B----------------------
+A.x = 3.3, A.y = 1.2
+B.x = 1.4, B.y = -0.1
+(CoverageThreadProc)Create BCD full path points=26 rect=(927,897)-(965,924) robot=(960,917) stride=7
+Create full path from (965, 924) to (927, 897) with robot at (960, 917), successfully
+algNum1 = 2
+g_NaviInterface.fullCoverageAlg.algNum = 2
+---------------------------2025.8.8---------------------------
+Robot 0 will follow full local coverage path with 26 points.
+Turn point count: 15 -> Reduced from 26
+[Turn 1/15] Navigating to Grid (3, 1) => World (3.00, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 3.000000, waypoints.y = 0.850000
+Waiting for current navigation to complete...
+Distance < 0.25 (from planPath)!
+[Turn 2/15] Navigating to Grid (3, 1) => World (3.25, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 3.250000, waypoints.y = 0.850000
+Waiting for current navigation to complete...
+Distance < 0.25 (from planPath)!
+[Turn 3/15] Navigating to Grid (3, 0) => World (3.25, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 3.250000, waypoints.y = 0.150000
+Waiting for current navigation to complete...
+gmapvalue = 0
+ix = 965, iy = 903, GMapWidth = 1800, GMapHeight = 1800
+target dynamic blocked in lasermap3
+fullpath_error=TARGET_DYNAMIC_BLOCKED_LASER(1004)
+Target point temporarily blocked by dynamic map, hold and retry.
+COOP_AVOID STATUS self=0 cmd=UNKNOWN(74) source=0 target=0 seq=0 state=NORMAL(0) retry=0 extra=257
+COOP_AVOID TRIGGER self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=0 extra=1
+gmapvalue = 0
+ix = 965, iy = 903, GMapWidth = 1800, GMapHeight = 1800
+COOP_AVOID RETRY self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=1 extra=0
+COOP_AVOID TX self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=1 extra=1
+COOP_AVOID RETRY self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=2 extra=0
+COOP_AVOID TX self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=2 extra=1
+COOP_AVOID RETRY self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=3 extra=0
+COOP_AVOID TX self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=3 extra=1
+COOP_AVOID RETRY self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=4 extra=0
+COOP_AVOID TX self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=4 extra=1
+COOP_AVOID TIMEOUT self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=1 state=WAIT_PEER_POSE(1) retry=4 extra=0
+COOP_AVOID STATUS self=0 cmd=UNKNOWN(74) source=0 target=0 seq=0 state=NORMAL(0) retry=0 extra=1027
+COOP_AVOID FALLBACK_LOCAL_DYNAMIC self=0 cmd=POSE_REQUEST(-40) source=0 target=1 seq=0 state=NORMAL(0) retry=4 extra=0
+ready for plan
+gmapvalue = 0
+ix = 965, iy = 903, GMapWidth = 1800, GMapHeight = 1800
+target error in astarmap
+fullpath_error=TARGET_STATIC_INVALID(1003)
+check for target : error , 2
+Previous target failed, skipping.
+[Turn 4/15] Navigating to Grid (3, 0) => World (3.10, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 3.100000, waypoints.y = 0.150000
+Waiting for current navigation to complete...
+gmapvalue = 0
+ix = 962, iy = 903, GMapWidth = 1800, GMapHeight = 1800
+target error in astarmap
+fullpath_error=TARGET_STATIC_INVALID(1003)
+Target point wrong: 2
+Previous target failed, skipping.
+[Turn 5/15] Navigating to Grid (3, 1) => World (3.10, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 3.100000, waypoints.y = 1.200000
+Waiting for current navigation to complete...
+gmapvalue = 0
+ix = 962, iy = 924, GMapWidth = 1800, GMapHeight = 1800
+target error in astarmap
+fullpath_error=TARGET_STATIC_INVALID(1003)
+Target point wrong: 2
+Previous target failed, skipping.
+[Turn 6/15] Navigating to Grid (3, 1) => World (2.75, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 2.750000, waypoints.y = 1.200000
+Waiting for current navigation to complete...
+gmapvalue = 0
+ix = 955, iy = 924, GMapWidth = 1800, GMapHeight = 1800
+target error in astarmap
+fullpath_error=TARGET_STATIC_INVALID(1003)
+Target point wrong: 2
+Previous target failed, skipping.
+[Turn 7/15] Navigating to Grid (3, 0) => World (2.75, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 2.750000, waypoints.y = 0.150000
+Waiting for current navigation to complete...
+gmapvalue = 0
+ix = 955, iy = 903, GMapWidth = 1800, GMapHeight = 1800
+target error in astarmap
+fullpath_error=TARGET_STATIC_INVALID(1003)
+Target point wrong: 2
+Previous target failed, skipping.
+[Turn 8/15] Navigating to Grid (2, -0) => World (2.40, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 2.400000, waypoints.y = -0.150000
+Waiting for current navigation to complete...
+gmapvalue = 0
+ix = 948, iy = 897, GMapWidth = 1800, GMapHeight = 1800
+ready for plan
+gmapvalue = 0
+ix = 948, iy = 897, GMapWidth = 1800, GMapHeight = 1800
+begin plan !
+Begin DStarSearch!
+astar planning succeed !
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=1 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=1 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=1 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=1 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=1 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1path changed
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=2 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=2 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=2 state=NORMAL(0) retry=0 extra=1
+gmapvalue = 0
+ix = 948, iy = 897, GMapWidth = 1800, GMapHeight = 1800
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=3 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=3 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=4 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=4 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=4 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=4 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=4 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=5 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=6 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=6 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=6 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=6 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=6 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=7 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=7 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=7 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=7 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=7 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=8 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=8 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=8 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=8 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=8 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=9 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=9 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=9 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=9 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=9 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=10 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=10 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=10 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=10 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=10 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=11 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=11 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=11 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=11 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=11 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=12 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=12 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=12 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=12 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=1
+ready for plan
+gmapvalue = 0
+ix = 948, iy = 897, GMapWidth = 1800, GMapHeight = 1800
+begin plan !
+Begin DStarSearch!
+astar planning succeed !
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=13 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=13 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=14 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=14 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=14 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=14 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=14 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=15 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=15 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=15 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=15 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=15 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=16 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=16 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=16 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=16 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=16 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=17 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=17 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=17 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=17 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=17 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=18 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=18 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=18 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=18 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=18 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=19 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=19 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=19 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=19 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=19 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=20 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=20 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=20 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=20 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=20 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=22 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=22 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=23 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=23 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=23 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=23 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=24 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=24 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=24 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=24 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=24 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=25 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=25 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=25 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=25 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=25 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=26 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=26 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=26 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=26 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=26 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1path changed
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=27 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=27 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=27 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=27 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=27 state=NORMAL(0) retry=0 extra=1
+gmapvalue = 0
+ix = 948, iy = 897, GMapWidth = 1800, GMapHeight = 1800
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=28 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=28 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=28 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=28 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=28 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=29 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=29 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=30 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=30 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=30 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=30 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=30 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=31 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=31 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=31 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=31 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=31 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=32 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=32 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=32 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=32 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=32 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=33 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=33 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=33 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=33 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=33 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=34 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=34 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=34 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=34 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=34 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=35 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=35 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=35 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=35 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=35 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=36 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=36 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=37 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=37 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=37 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=37 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=37 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=38 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=38 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=38 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=38 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=38 state=NORMAL(0) retry=0 extra=1
+ready for plan
+gmapvalue = 0
+ix = 948, iy = 897, GMapWidth = 1800, GMapHeight = 1800
+begin plan !
+Begin DStarSearch!
+astar planning succeed !
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=39 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=39 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=39 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=39 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=39 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=40 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=40 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=41 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=41 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=41 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=41 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=41 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=42 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=42 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=42 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=42 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=42 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=43 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=43 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=43 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=43 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=43 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=44 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=44 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=44 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=44 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=44 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=45 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=45 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=45 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=45 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=45 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=46 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=46 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=46 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=46 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=46 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=47 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=47 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=47 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=47 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=47 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=48 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=48 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=48 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=48 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=48 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=49 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=49 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=49 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=49 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=49 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=50 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=50 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=50 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=50 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=50 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=51 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=51 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=51 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=51 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=51 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=52 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=52 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=52 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=52 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=52 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=52 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=53 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=53 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=53 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=53 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=54 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=54 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=54 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=54 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=54 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=55 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=55 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=56 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=56 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=56 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=56 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=56 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=57 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=57 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=58 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=58 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=58 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=58 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=58 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=59 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=59 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=59 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=59 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=59 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=60 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=60 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=60 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=60 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=60 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=61 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=61 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=61 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=61 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=61 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=62 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=62 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=62 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=62 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=62 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=63 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=63 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=63 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=63 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=63 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=64 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=64 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=64 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=64 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=64 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=65 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=65 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=65 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=65 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=65 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=66 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=66 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=66 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=66 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=66 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=67 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=67 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=68 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=68 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=68 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=68 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=68 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=69 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=69 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=69 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=69 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=69 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=70 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=70 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=70 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=70 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=70 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=71 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=71 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=71 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=71 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=71 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=72 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=72 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=72 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=72 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=72 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=73 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=73 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=73 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=74 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=74 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=74 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=74 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=74 state=NORMAL(0) retry=0 extra=1
+Distance < 0.25 (from planPath)!
+[Turn 9/15] Navigating to Grid (2, 1) => World (2.40, 0.00)
+Set goal start!
+Set goal finished (case 2)!
+map lifecycle state = 4
+Set goal success!
+m_waypoints is 1
+waypoints.x = 2.400000, waypoints.y = 1.200000
+Waiting for current navigation to complete...
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=75 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=75 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=75 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=75 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=75 state=NORMAL(0) retry=0 extra=1
+gmapvalue = 0
+ix = 948, iy = 924, GMapWidth = 1800, GMapHeight = 1800
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=76 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=76 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=76 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=77 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=77 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=77 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=77 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=77 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=78 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=78 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=78 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=78 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=78 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=79 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=79 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=79 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=79 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=79 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=80 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=80 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=80 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=80 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=80 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=81 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=82 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=82 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=82 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=82 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=82 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=83 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=83 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=83 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=83 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=83 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=84 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=85 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=85 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=85 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=85 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=85 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=86 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=86 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=86 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=86 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=86 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=87 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=87 state=NORMAL(0) retry=0 extra=1
+ready for plan
+gmapvalue = 0
+ix = 948, iy = 924, GMapWidth = 1800, GMapHeight = 1800
+begin plan !
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=87 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=87 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=1
+Begin DStarSearch!
+astar planning succeed !
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=88 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=88 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=88 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=88 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=88 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=89 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=89 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=89 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=89 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=89 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=89 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=89 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=89 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=89 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=89 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=90 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=90 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=90 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=90 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=90 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=91 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=91 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=91 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=91 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=91 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=91 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=91 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=91 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=92 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=92 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=92 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=92 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=92 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=93 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=93 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=93 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=93 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=93 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=94 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=94 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=94 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=94 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=94 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=95 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=95 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=95 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=95 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=95 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=95 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=95 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=95 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=95 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=95 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=96 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=96 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=96 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=96 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=96 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=97 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=97 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=97 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=97 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=97 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=98 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=98 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=98 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=98 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=98 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=99 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=99 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=99 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=99 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=99 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=100 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=100 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=100 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=100 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=100 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=101 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=101 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=101 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=101 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=101 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=102 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=102 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=102 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=102 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=102 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=103 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=103 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=103 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=103 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=103 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=103 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=103 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=103 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=104 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=104 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=104 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=104 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=104 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=105 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=105 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=105 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=105 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=105 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=106 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=106 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=106 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=106 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=106 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=107 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=107 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=107 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=107 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=107 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=108 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=108 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=108 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=108 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=108 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=109 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=109 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=109 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=109 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=109 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=110 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=110 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=110 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=110 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=110 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=111 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=111 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=111 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=111 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=111 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=112 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=112 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=112 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=112 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=112 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=112 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=112 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=112 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=113 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=113 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=113 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=113 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=113 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=114 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=114 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=114 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=114 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=114 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=115 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=115 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=115 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=115 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=115 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=115 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=115 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=115 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=116 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=116 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=116 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=116 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=116 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=117 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=117 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=117 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=117 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=117 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=118 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=118 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=118 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=118 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=118 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=119 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=119 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=119 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=119 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=119 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=119 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=119 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=119 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=119 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=119 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=120 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=120 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=120 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=120 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=120 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=1 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=1 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=1 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=1 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=1 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=2 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=2 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=2 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=2 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=2 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=3 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=3 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=3 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=4 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=4 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=4 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=4 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=4 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=5 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=5 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=5 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=5 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=6 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=6 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=6 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=6 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=6 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=7 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=7 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=7 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=7 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=7 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=8 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=8 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=8 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=8 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=8 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=9 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=9 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=9 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=9 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=9 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=10 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=10 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=10 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=10 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=10 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=11 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=11 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=11 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=11 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=11 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=12 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=12 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=12 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=13 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=13 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=13 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=13 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=13 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=14 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=14 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=14 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=14 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=14 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=15 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=15 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=15 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=15 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=15 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=16 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=16 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=16 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=16 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=16 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=17 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=17 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=17 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=17 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=17 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=18 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=18 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=18 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=18 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=18 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=19 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=19 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=19 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=19 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=19 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=20 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=20 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=20 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=20 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=20 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=21 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=22 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=22 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=22 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=23 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=23 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=23 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=24 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=24 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=24 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=24 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=24 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=25 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=25 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=25 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=25 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=25 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=26 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=26 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=26 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=26 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=26 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=27 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=27 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=27 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=27 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=27 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=28 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=28 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=28 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=28 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=28 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=29 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=29 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=29 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=30 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=30 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=30 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=30 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=30 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=31 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=31 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=31 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=31 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=31 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=32 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=32 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=32 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=32 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=32 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=33 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=33 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=33 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=33 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=33 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=34 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=34 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=34 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=34 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=34 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=35 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=35 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=35 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=35 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=35 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=36 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=36 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=36 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=36 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=36 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=37 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=37 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=37 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=37 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=37 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=38 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=38 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=38 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=38 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=38 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=39 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=39 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=39 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=39 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=39 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=40 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=40 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=40 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=41 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=41 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=41 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=41 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=41 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=42 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=42 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=42 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=42 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=42 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=43 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=43 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=43 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=43 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=43 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=44 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=44 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=44 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=44 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=44 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=45 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=45 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=45 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=45 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=45 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=46 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=46 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=46 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=46 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=46 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=47 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=47 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=47 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=47 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=47 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=48 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=48 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=48 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=48 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=48 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=49 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=49 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=49 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=50 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=50 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=50 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=50 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=50 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=51 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=51 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=51 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=52 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=52 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=52 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=52 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=52 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=53 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=53 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=53 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=54 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=54 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=54 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=54 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=54 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=55 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=55 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=55 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=56 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=56 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=56 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=56 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=56 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=57 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=57 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=57 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=57 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=57 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=58 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=58 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=58 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=58 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=58 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=59 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=59 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=59 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=59 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=59 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=60 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=60 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=60 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=60 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=60 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=60 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=61 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=61 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=61 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=61 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=61 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=62 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=62 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=62 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=62 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=62 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=63 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=63 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=63 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=63 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=63 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=64 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=64 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=64 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=64 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=64 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=65 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=65 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=65 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=65 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=65 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=66 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=66 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=66 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=66 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=66 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=67 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=67 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=67 state=NORMAL(0) retry=0 extra=-40
+ready for dwa
+cant arv1COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=67 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=67 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=68 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=68 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=68 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=68 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=68 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=69 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=69 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=69 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=70 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=70 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=70 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=70 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=70 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=71 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=71 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=71 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=71 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=71 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=72 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=72 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=72 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=72 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=72 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=73 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=73 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=73 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=73 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=73 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=74 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=74 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=74 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=74 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=74 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=75 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=75 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=75 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=75 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=75 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=76 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=76 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=76 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=76 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=76 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=77 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=77 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=77 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=77 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=77 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=78 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=78 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=78 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=78 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=78 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=79 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=79 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=79 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=79 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=79 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=80 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=80 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=80 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=80 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=80 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=81 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=81 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=81 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=82 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=82 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=82 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=82 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=82 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=83 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=83 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=83 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=83 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=83 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=84 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=84 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=84 state=NORMAL(0) retry=0 extra=0
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=85 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=85 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=85 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=85 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=85 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=86 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=86 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=86 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=86 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=86 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=87 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=87 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=87 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=POSE_REQUEST(-40) source=1 target=0 seq=88 state=NORMAL(0) retry=0 extra=1
+COOP_AVOID TX self=0 cmd=ACK(-34) source=0 target=1 seq=88 state=NORMAL(0) retry=0 extra=-40
+COOP_AVOID TX self=0 cmd=POSE_RESPONSE(-39) source=0 target=1 seq=88 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1COOP_AVOID RX self=0 cmd=ACK(-34) source=1 target=0 seq=88 state=NORMAL(0) retry=0 extra=0
+COOP_AVOID ACK_STALE self=0 cmd=POSE_RESPONSE(-39) source=1 target=0 seq=88 state=NORMAL(0) retry=0 extra=1
+ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1ready for dwa
+cant arv1
