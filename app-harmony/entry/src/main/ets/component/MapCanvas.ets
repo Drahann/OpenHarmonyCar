@@ -23,7 +23,7 @@
 import { MapService, ParsedMap } from '../service/MapService';
 import { Point, MapTransform, mapToCanvas, canvasToMap } from '../model/geometry';
 import { Contour, CoarseGrid, extractContours } from '../model/mapContour';
-import { RobotRuntime, EndPoint, Assignment, Rect, RobotStatus } from '../model/mission';
+import { RobotRuntime, EndPoint, Assignment, Rect, RobotStatus, RobotTrail } from '../model/mission';
 import { MapTheme } from '../constants/theme';
 import { getScreen } from '../utils/screen';
 
@@ -40,6 +40,12 @@ const HEAD_TIP: number = 9;            // 朝向三角尖端伸出（圆点外�
 const HEAD_BASE: number = 5;           // 朝向三角底半宽
 const ACTIVE_PULSE: number = 10;       // 活动车（覆盖/扫描）脉冲环外扩
 const LABEL_FONT: number = 11;         // 车号字号
+// ── 行走轨迹（彗尾观感：软辉光底 + 淡历史 + 渐亮头部；品牌色、低透明、非霓虹）──────
+const TRAIL_GLOW_W: number = 7;      // 软辉光底笔宽（极淡，纸面轻盈光晕）
+const TRAIL_HIST_W: number = 2.2;    // 历史全程笔宽（细淡痕迹）
+const TRAIL_CORE_W: number = 3.4;    // 头部彗尾笔宽（渐亮 → 运动感）
+const TRAIL_HEAD_LEN: number = 60;   // 头部高亮的最近点数
+const TRAIL_HEAD_DOT: number = 3;    // 头点柔光圆半径
 // ── 目标 pin（屏幕空间 vp）────────────────────────────────────────────────────
 const PIN_R: number = 8;               // 泪滴 pin 头半径
 const PIN_H: number = 22;              // pin 尖端到头心距离
@@ -82,6 +88,8 @@ export struct MapCanvas {
   @Prop assignments: Assignment[] = [];
   /** master 大区域边界（对角矩形），无则不画。 */
   @Prop area: Rect | null = null;
+  /** 各车行走轨迹（导航/覆盖均用）：折线，按车号配色。 */
+  @Prop trails: RobotTrail[] = [];
   /** 是否允许点选取点。 */
   @Prop enablePick: boolean = true;
   /** 点选回调：返回真实世界坐标（栅格索引）。 */
@@ -396,6 +404,11 @@ export struct MapCanvas {
       this.drawRegion(ctx, this.worldToScreen(a.corner1, t, half), this.worldToScreen(a.corner2, t, half), true);
     }
 
+    // 1.5) 机器人行走轨迹（折线，世界坐标→屏幕；画在区域之上、标记之下）
+    for (const tr of this.trails) {
+      this.drawTrail(ctx, tr, t, half);
+    }
+
     // 2) 目标点（Maps 泪滴 pin + 地面脉冲）
     for (const e of this.endPoints) {
       if (e.x !== null && e.y !== null) {
@@ -429,6 +442,77 @@ export struct MapCanvas {
   }
 
   // ── overlay 绘制子程序（均屏幕空间、恒定 vp 尺寸）─────────────────────────────
+  /**
+   * 一条机器人轨迹——**彗尾观感**（品牌色、低透明、非霓虹，搭暖纸墨绿主题）：
+   *  ① 软辉光底（宽而极淡）→ 纸面上的轻盈光晕、给路径体积感；
+   *  ② 历史全程（细而淡）→ 走过的痕迹安静留底；
+   *  ③ 头部彗尾（最近一段，沿走向渐亮渐显）→ 运动方向感，引到车体；
+   *  ④ 头点柔光圆 → 路径"活"的端点（紧贴车体后方）。
+   * 颜色取该车状态色（online 墨绿 / covering 蓝），与主题/标记同源。
+   */
+  private drawTrail(ctx: CanvasRenderingContext2D, tr: RobotTrail, t: MapTransform, half: number): void {
+    const n: number = tr.pts.length;
+    if (n < 2) {
+      return;
+    }
+    const robot: RobotRuntime | undefined = this.robots.find((r: RobotRuntime): boolean => r.index === tr.index);
+    const base: string = robot !== undefined ? this.statusColor(robot.status) : MapTheme.robotOnline;
+    // 预算屏幕坐标（一次），多笔复用
+    const sp: Point[] = [];
+    for (let i = 0; i < n; i++) {
+      sp.push(this.worldToScreen(tr.pts[i], t, half));
+    }
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // ① 软辉光底（宽·极淡）
+    ctx.strokeStyle = rgba(base, 0.10);
+    ctx.lineWidth = TRAIL_GLOW_W;
+    this.strokePolyline(ctx, sp, 0, n);
+
+    // ② 历史全程（细·淡）
+    ctx.strokeStyle = rgba(base, 0.30);
+    ctx.lineWidth = TRAIL_HIST_W;
+    this.strokePolyline(ctx, sp, 0, n);
+
+    // ③ 头部彗尾（最近 TRAIL_HEAD_LEN 点，沿走向 0.30→0.95 渐亮）
+    const headStart: number = Math.max(0, n - TRAIL_HEAD_LEN);
+    if (n - headStart >= 2) {
+      const tail: Point = sp[headStart];
+      const head: Point = sp[n - 1];
+      const grad: CanvasGradient = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
+      grad.addColorStop(0, rgba(base, 0.30));
+      grad.addColorStop(1, rgba(base, 0.95));
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = TRAIL_CORE_W;
+      this.strokePolyline(ctx, sp, headStart, n);
+    }
+
+    // ④ 头点柔光圆（紧贴车体后方）
+    const h: Point = sp[n - 1];
+    ctx.save();
+    ctx.shadowColor = rgba(base, 0.5);
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = rgba(base, 0.9);
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, TRAIL_HEAD_DOT, 0, TWO_PI);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** 描一段折线（sp[from..to)）。round join/cap 由调用方先设好。 */
+  private strokePolyline(ctx: CanvasRenderingContext2D, sp: Point[], from: number, to: number): void {
+    if (to - from < 2) {
+      return;
+    }
+    ctx.beginPath();
+    ctx.moveTo(sp[from].x, sp[from].y);
+    for (let i = from + 1; i < to; i++) {
+      ctx.lineTo(sp[i].x, sp[i].y);
+    }
+    ctx.stroke();
+  }
+
   private drawRegion(ctx: CanvasRenderingContext2D, aS: Point, bS: Point, filled: boolean): void {
     const color: string = MapTheme.region;
     const x: number = Math.min(aS.x, bS.x);

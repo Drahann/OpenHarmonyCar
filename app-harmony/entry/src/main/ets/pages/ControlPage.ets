@@ -13,7 +13,7 @@
 
 import { router, promptAction } from '@kit.ArkUI';
 import { Mission, ControlMode, MissionPhase, RobotRuntime, RobotRuntimeDTO, MissionSnapshot,
-  EndPoint, Assignment, RobotStatus } from '../model/mission';
+  EndPoint, Assignment, RobotStatus, RobotTrail } from '../model/mission';
 import { Point } from '../model/geometry';
 import { RobotCommand, MoveDirection, UdpSendData, UdpReceiveData, encodePullMap } from '../model/protocol';
 import { FleetMissionService, MissionSyncListener } from '../service/FleetMissionService';
@@ -32,6 +32,7 @@ import { MapCanvas } from '../component/MapCanvas';
 import { Joystick } from '../component/Joystick';
 import { DeviceList } from '../component/DeviceList';
 import { Log, Logger } from '../utils/log';
+import { getScreen } from '../utils/screen';
 
 const log: Logger = Log.scoped('ControlPage');
 
@@ -49,6 +50,11 @@ const SLAVE_PULL_DELAY_MS: number = 8000;
 // A* 到达判定：机器人位姿与终点的**栅格距离平方** ≤ 此值即判定到达（对照旧 App distributedsecondPage 的 calcArriveDistance）。
 // 旧 App：arriveDistance=4 → (4²)<<1 = 32（cell²），即半径 √32≈5.66 格 ≈ 28cm（1 格 = 5cm）。
 const ASTAR_ARRIVE_DIST2_CELLS: number = 32;
+// ── 轨迹 / 覆盖面积可视化 ──────────────────────────────────────────────────────
+const TRAIL_MIN_STEP_CELLS: number = 2;    // 位姿移动 ≥ 此格数才记一个轨迹点（去重；1 格=5cm）
+const TRAIL_MAX_POINTS: number = 1500;     // 单车轨迹点上限（超出丢最旧，限内存/@Prop 深拷贝开销）
+const COVER_RADIUS_CELLS: number = 4;      // 覆盖刷半径（格）：盖住车体足迹，4 格≈20cm 半径 ≈40cm 刷宽（可调）
+const CELL_AREA_M2: number = 0.05 * 0.05;  // 单格面积 = (5cm)² = 0.0025 m²
 
 @Entry
 @Component
@@ -71,6 +77,12 @@ struct ControlPage {
   @State private astarNavigating: boolean = false;  // astar：已下发目标、导航中（分步引导用）
   @State private astarArrived: boolean = false;     // astar：本轮已判定到达终点（引导文案用；选新点/重导航即清）
   @State private connState: ConnState = ConnState.discovered;  // 本车实时连接状态（心跳新鲜度派生，驱动命令门控）
+  // 地图选点「武装」：仅当 true 时点地图才选点；默认 false → 触碰地图不会误选（用户反馈）。
+  // 点操作卡的「选点」按钮武装；选满一组（astar 1 点 / fullpath 4 顶点 / distributed 2 对角点）后自动解除。
+  @State private picking: boolean = false;
+  // 底部卡：默认收起(peek)——只占一行(摘要+主操作+把手)，地图最大化；点把手展开完整控件(可滚动、封顶)。
+  // 根治「操作卡向上长、遮挡地图」（分布式内容尤多）——用户反馈。
+  @State private sheetExpanded: boolean = false;
 
   private ip: string = '';
   private mode: ControlMode = ControlMode.astar;
@@ -81,6 +93,11 @@ struct ControlPage {
   private viewNonce: number = 0;
   private connRefreshTimer: number = -1;  // 周期刷新连接状态，使"心跳丢失"能及时反映到命令门控/TopBar
   private distCorners: Point[] = [];
+  // 轨迹（ip→世界坐标点序列）+ 覆盖足迹（ip→已覆盖格 key 集）+ 正在覆盖的车 ip 集。
+  private trails: Map<string, Point[]> = new Map<string, Point[]>();
+  private covered: Map<string, Set<string>> = new Map<string, Set<string>>();
+  private coveringIps: Set<string> = new Set<string>();
+  @State private trailProp: RobotTrail[] = [];  // 由 trails 派生，传给 MapCanvas 画轨迹
   // 分布式：FleetMission 软总线黑板（平板写 assignments → 各车 agent 读自己的）
   private fleet: FleetMissionService = FleetMissionService.getInstance();
   private remoteListener: MissionSyncListener | null = null;
@@ -199,6 +216,7 @@ struct ControlPage {
       r.x = data.x;
       r.y = data.y;
       r.r = data.r;
+      this.recordPose(from, data.x, data.y);  // 累积轨迹 +（覆盖中则）盖印覆盖足迹
       this.checkAstarArrival(r, from);  // A* 导航中→看是否已接近终点（到达判定）
     }
     this.refreshConn();  // 收到心跳即时刷新连接状态（连接中→已连接）
@@ -313,50 +331,156 @@ struct ControlPage {
     }
   }
 
-  // ── 地图点选（按 mode 语义不同）────────────────────────────────────────────
+  // ── 地图点选（按 mode 语义不同）──────────────────────────────────────────────
+  // 任务五·1：选点期间**只暂存、不发送**；点【结束选点】(finishPicking) 才统一下发。
+  // 好处：中途可任意重选/微调，未提交前不会污染紫派状态（不发 cmd104/107/108）。
+  // 与紫派 9 字节 UDP 协议、建图命令('m'/0x6d)一致——本改动纯属 App 侧"下发时机"，命令字节/语义全不变。
   private onPick(p: Point): void {
+    if (!this.picking) {
+      return;  // 未武装：忽略地图点击（enablePick 已挡住，这里双保险）
+    }
     if (this.mode === ControlMode.astar) {
+      // 暂存单个目标点（不下发）；保持武装，便于重选/微调。实际下发在「结束选点」后由「开始导航」(cmd3) 完成。
       this.mission.endPoints = [new EndPoint(p.x, p.y)];
       this.astarNavigating = false;  // 新目标 → 回到"待开始导航"
       this.astarArrived = false;     // 选了新点 → 清除上轮"已到达"
       this.bump();
     } else if (this.mode === ControlMode.distributed) {
-      this.distCorners.push(p);
+      // 暂存对角点（不下发 cmd107/108）。已满 2 点再点 → 重新开始一对，方便中途重选。
       if (this.distCorners.length >= 2) {
-        const c1: Point = this.distCorners[0];
-        const c2: Point = this.distCorners[1];
         this.distCorners = [];
-        this.assignArea(c1, c2);
-        this.bump();
       }
+      this.distCorners.push(p);
+      this.mission.endPoints = this.distCorners.map((c: Point): EndPoint => new EndPoint(c.x, c.y)); // 预览暂存的对角点
+      this.bump();
     } else if (this.mode === ControlMode.fullpath) {
-      this.selectVertex(p);
+      this.stageVertex(p);  // 暂存顶点（不下发 cmd104），满 4 个后点「结束选点」统一下发
     }
   }
 
-  /** 全路径选顶点（4 个：左下→右下→右上→左上）。每点发 cmd104(byte1=序号)；满 4 个自动启动 cmd102(byte1=算法)。 */
-  private selectVertex(p: Point): void {
+  /** 暂存一个全路径顶点（不下发）。满 4 个忽略后续点（用「重选顶点」清空重选）。 */
+  private stageVertex(p: Point): void {
     if (this.fpVertices.length >= 4) {
-      return; // 已满，需先「重选顶点」
+      this.toast('已选满 4 个顶点，点「重选顶点」可重选');
+      return;
     }
     const idx: number = this.fpVertices.length;
     this.fpVertices = this.fpVertices.concat(p);
-    this.mission.endPoints = this.fpVertices.map((v: Point): EndPoint => new EndPoint(v.x, v.y)); // 地图上显示已选顶点
-    this.sendTo(this.ip, RobotCommand.fullpathSelect, idx, p.x, p.y); // cmd104：byte1=顶点序号
+    this.mission.endPoints = this.fpVertices.map((v: Point): EndPoint => new EndPoint(v.x, v.y)); // 地图上预览已选顶点
     this.toast(`已选第 ${idx + 1}/4 个顶点（${this.fpCornerName(idx)}）`);
-    if (this.fpVertices.length >= 4) {
-      this.toast('4 个顶点已选，全路径覆盖启动中…');
-      // 等 4 个顶点(104)都被紫派处理完再启动(102)——对照旧 App 启动前留 1s
-      setTimeout(() => {
-        this.sendTo(this.ip, RobotCommand.fullpathStartRoute, this.fpAlg); // cmd102：byte1=算法号
-      }, FULLPATH_START_DELAY_MS);
+    this.bump();
+  }
+
+  /** 武装「地图选点」（开始选点）：清掉本 mode 上一轮暂存，干净开始；收起底卡便于点选。 */
+  private startPicking(): void {
+    this.picking = true;
+    this.sheetExpanded = false;  // 武装即收起底卡，地图全可见，方便点选（不被卡片挡住）
+    this.distCorners = [];
+    this.mission.endPoints = [];           // 清掉旧选点预览
+    if (this.mode === ControlMode.fullpath) {
+      this.fpVertices = [];
+      this.coveringIps.delete(this.ip);    // 重新选点 → 停止旧覆盖面积累计
     }
     this.bump();
+  }
+
+  /** 取消选点：放弃本轮暂存（不下发），解除武装。 */
+  private cancelPicking(): void {
+    this.picking = false;
+    this.distCorners = [];
+    this.bump();
+  }
+
+  /**
+   * 「结束选点」：把本轮暂存的选点**统一下发**（选点期间不下发，便于中途重选）。按 mode 提交：
+   *  - astar：仅校验已选目标并解除武装（实际下发仍由「开始导航」cmd3 触发，保留显式起步一步、更安全）；
+   *  - fullpath：顺序下发 4×cmd104 + 延时 cmd102（牛耕/最小生成树）；
+   *  - distributed：据 2 对角点 assignArea（cmd107 暂存 + 延时 cmd108）。
+   */
+  private finishPicking(): void {
+    if (!this.picking) {
+      return;
+    }
+    if (this.mode === ControlMode.astar) {
+      if (!this.hasTarget()) {
+        this.toast('请先在地图上点选目标点');
+        return;
+      }
+      this.picking = false;
+      this.toast('已选目标点 · 点「开始导航」下发');
+      this.bump();
+    } else if (this.mode === ControlMode.fullpath) {
+      this.commitFullpath();
+    } else {
+      this.commitDistArea();
+    }
+  }
+
+  /** 选点是否可「结束」（暂存数量达标：astar 1 点 / fullpath 4 顶点 / distributed 2 对角点）。 */
+  private canFinishPicking(): boolean {
+    if (this.mode === ControlMode.astar) {
+      return this.hasTarget();
+    }
+    if (this.mode === ControlMode.fullpath) {
+      return this.fpVertices.length >= 4;
+    }
+    return this.distCorners.length >= 2;
+  }
+
+  /** 提交全路径覆盖：4 顶点已选 → 顺序下发 cmd104(byte1=序号) + 全部发完后延时 cmd102(byte1=算法)。 */
+  private commitFullpath(): void {
+    if (this.fpVertices.length < 4) {
+      this.toast(`请先选满 4 个顶点（已选 ${this.fpVertices.length} 个）`);
+      return;
+    }
+    this.picking = false;
+    // 顺序发：每个顶点间隔 CMD_SEQ_GAP_MS（紫派 iparams 逐个暂存，避免 UDP 乱序/未处理完）；
+    // 4 个发完再延时启动(102)，对照旧 App"选点到启动留间隔"。
+    const verts: Point[] = this.fpVertices.slice();
+    verts.forEach((v: Point, i: number) => {
+      setTimeout(() => {
+        this.sendTo(this.ip, RobotCommand.fullpathSelect, i, v.x, v.y); // cmd104：byte1=顶点序号
+      }, CMD_SEQ_GAP_MS * i);
+    });
+    this.covered.set(this.ip, new Set<string>());  // 覆盖开始 → 面积清零重计
+    this.coveringIps.add(this.ip);
+    setTimeout(() => {
+      this.sendTo(this.ip, RobotCommand.fullpathStartRoute, this.fpAlg); // cmd102：byte1=算法号
+    }, CMD_SEQ_GAP_MS * verts.length + FULLPATH_START_DELAY_MS);
+    this.toast('4 顶点已下发，全路径覆盖启动中…');
+    this.bump();
+  }
+
+  /** 提交分布式子区域：2 对角点已选 → assignArea（cmd107 暂存 + 延时 cmd108）。 */
+  private commitDistArea(): void {
+    if (this.distCorners.length < 2) {
+      this.toast(`请先点选 2 个对角点（已选 ${this.distCorners.length} 个）`);
+      return;
+    }
+    const c1: Point = this.distCorners[0];
+    const c2: Point = this.distCorners[1];
+    this.distCorners = [];
+    this.mission.endPoints = [];   // 清掉对角点预览（改由 assignment 矩形显示）
+    this.picking = false;
+    this.assignArea(c1, c2);
+    this.bump();
+  }
+
+  /** 「选点」按钮文案（按 mode 区分选什么）。 */
+  private pickButtonLabel(): string {
+    if (this.mode === ControlMode.astar) {
+      return '选目标点';
+    }
+    if (this.mode === ControlMode.fullpath) {
+      return '选顶点';
+    }
+    return '选点划区域';
   }
 
   private resetVertices(): void {
     this.fpVertices = [];
     this.mission.endPoints = [];
+    this.coveringIps.delete(this.ip);  // 重选顶点 → 停止面积累计
     this.bump();
   }
 
@@ -371,8 +495,11 @@ struct ControlPage {
       return;
     }
     this.sendTo(this.ip, RobotCommand.startRoute, undefined, e.x, e.y);
+    this.picking = false;          // 开始导航即解除选点武装（若仍在选点态）
     this.astarNavigating = true;
     this.astarArrived = false;
+    this.trails.set(this.ip, []);  // 新一段导航 → 轨迹从当前重画
+    this.rebuildTrailProp();
     this.toast('已下发目标点，开始导航');
   }
 
@@ -408,6 +535,7 @@ struct ControlPage {
 
   private stopFullpath(): void {
     this.sendTo(this.ip, RobotCommand.fullpathStartover);
+    this.coveringIps.delete(this.ip);  // 停止覆盖 → 停止面积累计（保留已覆盖结果显示）
     this.toast('已停止全路径覆盖');
   }
 
@@ -424,6 +552,7 @@ struct ControlPage {
     // 用 'm'/0x6d **强制重新建图**：A 的 cmd0「有图时只当心跳」会被 Navi.createMap 忽略（→ 旧图不变 + 定位漂移，
     // 真机实证），必须 forceCreateMap(forceNewMap=true) 才会清空旧图从头建。见 contracts/udp-protocol.md。
     this.sendTo(this.ip, RobotCommand.forceCreateMap);
+    this.resetTrailsAndCoverage();  // 新图 → 旧轨迹/覆盖足迹作废
     animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
       this.mapText = '';
       this.mission.mapReady = false;
@@ -475,6 +604,8 @@ struct ControlPage {
       const target: RobotRuntime | undefined = this.mission.robots.find((rr: RobotRuntime): boolean => rr.index === carId);
       const ip: string = (target !== undefined && target.ip.length > 0) ? target.ip : this.ip;
       this.sendDistArea(ip, c1, c2, robotId);
+      this.covered.set(ip, new Set<string>());  // 新区域 → 该车覆盖面积清零重计
+      this.coveringIps.add(ip);
     }
     this.toast(this.distUseAgent ? `已写入黑板：车${carId} 区域 → 各车 agent 执行` : `已下发车${carId} 覆盖区域（平板直发）`);
   }
@@ -484,6 +615,12 @@ struct ControlPage {
     const carId: number = this.distActiveCarId;
     this.mission.assignments = this.mission.assignments.filter((a: Assignment): boolean => a.carId !== carId);
     this.distCorners = [];  // 清掉半选的对角点
+    const cleared: RobotRuntime | undefined =
+      this.mission.robots.find((rr: RobotRuntime): boolean => rr.index === carId);
+    if (cleared !== undefined) {
+      this.coveringIps.delete(cleared.ip);   // 停止该车面积累计
+      this.covered.delete(cleared.ip);       // 清掉其覆盖足迹
+    }
     if (this.distUseAgent) {
       this.fleet.publishMission(this.mission);  // 同步黑板：该车 agent 看到自己的块没了即可停领
     }
@@ -604,6 +741,90 @@ struct ControlPage {
     }
   }
 
+  // ── 轨迹 / 覆盖面积 ───────────────────────────────────────────────────────────
+  /** 累积某车轨迹点（位移去重）+ 若在覆盖中则盖印覆盖足迹格；轨迹更新即重建 trailProp 供地图重画。 */
+  private recordPose(ip: string, x: number, y: number): void {
+    let trail: Point[] | undefined = this.trails.get(ip);
+    if (trail === undefined) {
+      trail = [];
+      this.trails.set(ip, trail);
+    }
+    const last: Point | undefined = trail.length > 0 ? trail[trail.length - 1] : undefined;
+    const moved: boolean = last === undefined ||
+      Math.abs(x - last.x) >= TRAIL_MIN_STEP_CELLS || Math.abs(y - last.y) >= TRAIL_MIN_STEP_CELLS;
+    if (moved) {
+      trail.push({ x: x, y: y });
+      if (trail.length > TRAIL_MAX_POINTS) {
+        trail.shift();
+      }
+      this.rebuildTrailProp();
+    }
+    if (this.coveringIps.has(ip)) {
+      this.stampCovered(ip, x, y);
+    }
+  }
+
+  /** 在 (x,y) 周围 COVER_RADIUS_CELLS 半径圆盘内盖印覆盖格（按 ip 累积），用于面积/进度估算。 */
+  private stampCovered(ip: string, x: number, y: number): void {
+    let cells: Set<string> | undefined = this.covered.get(ip);
+    if (cells === undefined) {
+      cells = new Set<string>();
+      this.covered.set(ip, cells);
+    }
+    const gx: number = Math.round(x);
+    const gy: number = Math.round(y);
+    const r: number = COVER_RADIUS_CELLS;
+    const r2: number = r * r;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy <= r2) {
+          cells.add(`${gx + dx},${gy + dy}`);
+        }
+      }
+    }
+  }
+
+  /** 由 trails(Map) 派生 trailProp(数组) 传给 MapCanvas；只取当前 robots、按车号配色。 */
+  private rebuildTrailProp(): void {
+    const out: RobotTrail[] = [];
+    for (const robot of this.mission.robots) {
+      const pts: Point[] | undefined = this.trails.get(robot.ip);
+      if (pts !== undefined && pts.length >= 2) {
+        out.push({ index: robot.index, pts: pts });
+      }
+    }
+    this.trailProp = out;
+  }
+
+  /** 某车已覆盖面积（m²）= 覆盖足迹格数 × 单格面积。 */
+  private coveredAreaM2(ip: string): number {
+    const cells: Set<string> | undefined = this.covered.get(ip);
+    return cells === undefined ? 0 : cells.size * CELL_AREA_M2;
+  }
+
+  /** 某车覆盖进度 0..1 = 已覆盖面积 / 其子区域矩形面积（近似：含墙体故实际封顶 <100%）。无区域→0。 */
+  private coverageProgress(carId: number, ip: string): number {
+    const a: Assignment | undefined = this.mission.assignments.find((x: Assignment): boolean => x.carId === carId);
+    if (a === undefined) {
+      return 0;
+    }
+    const rectCells: number = Math.abs(a.corner2.x - a.corner1.x) * Math.abs(a.corner2.y - a.corner1.y);
+    if (rectCells <= 0) {
+      return 0;
+    }
+    const cells: Set<string> | undefined = this.covered.get(ip);
+    const coveredCount: number = cells === undefined ? 0 : cells.size;
+    return Math.min(1, coveredCount / rectCells);
+  }
+
+  /** 清空所有车的轨迹与覆盖足迹（换图/重建图时调用）。 */
+  private resetTrailsAndCoverage(): void {
+    this.trails.clear();
+    this.covered.clear();
+    this.coveringIps.clear();
+    this.trailProp = [];
+  }
+
   private bump(): void {
     this.renderVersion++;
   }
@@ -686,7 +907,8 @@ struct ControlPage {
         endPoints: this.mission.endPoints,
         assignments: this.mission.assignments,
         area: this.mission.area,
-        enablePick: this.mission.mapReady && this.liveConnected(),
+        trails: this.trailProp,
+        enablePick: this.mission.mapReady && this.liveConnected() && this.picking,
         onPickPoint: (p: Point) => this.onPick(p)
       })
 
@@ -695,6 +917,9 @@ struct ControlPage {
 
       // 右下缩放 FAB
       this.ZoomFabs()
+
+      // 覆盖进度 HUD（任务五·2）：把"覆盖进度"从底部控制栏摘出、与地图同屏浮在右上角，边覆盖边一眼可见（不与地图/底卡重叠）。
+      this.CoverageHud()
 
       // 仪表识别 PiP 小窗（形态B：边导航边瞥仪表）。绝对定位在左上，避开 TopBar/摇杆/FAB/底卡；
       // 收起态=小胶囊，展开态=小视频卡（可放大进全屏 VisionPage）。独立 WS，不打扰导航。
@@ -802,31 +1027,51 @@ struct ControlPage {
     .transition(TransitionEffect.OPACITY)
   }
 
-  // 底部操作/建图 sheet —— **bottom-docked**（docked 到底部、内容向上生长，**永不超出界面**：修复旧 `.position(y:80%/84%)`
-  // 在全覆盖/多机等高内容时溢出屏幕底部）。全屏透明包裹层 `hitTestBehavior=None`：空白区把触摸透传给底层地图
-  // （缩放/平移/选点不被挡），仅卡片本体拦截。顶部小抓手 + 圆角 + 软阴影 → 像 Maps/iOS 底部卡，消除旧版浮在半空的"突兀"感。
+  // 底部操作/建图 sheet —— **bottom-docked + 可收起 peek**（用户反馈：操作卡向上长遮挡地图，分布式尤甚）：
+  //  收起态(默认)=一行 peek（▴ + 当前步摘要 + 主操作按钮），地图最大化；点 peek 展开完整控件（可滚动、按屏高封顶 46%）。
+  //  武装选点时自动收起，便于点选不被挡。全屏透明包裹层 `hitTestBehavior=None`：空白区触摸透传给底层地图，仅卡片本体拦截。
   @Builder
   BottomSheet() {
     Column() {
       Column({ space: Space.sm }) {
-        // 抓手（暗示这是底部卡）
-        Row()
-          .width(40)
-          .height(4)
-          .borderRadius(2)
-          .backgroundColor(AppColor.border)
-        // 内容：有完整地图且非建图/非载入 → 操作卡；否则建图卡（建图中 / 尚无地图）
-        if (this.mission.mapReady && !this.mapping && !this.mapLoading) {
-          this.OpCardContent()
-        } else {
-          this.BuildCardContent()
+        // —— Peek 行：把手(▴/▾)+当前步摘要(点这块展开/收起) + 主操作 —— 收起态只占一行，地图最大化。
+        Row({ space: Space.sm }) {
+          Row({ space: Space.xs }) {
+            Text(this.sheetExpanded ? '▾' : '▴')
+              .fontSize(FontSize.body)
+              .fontColor(AppColor.textSecondary)
+            Text(this.sheetSummary())
+              .fontSize(FontSize.bodySm)
+              .fontColor(AppColor.textBody)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+          }
+          .layoutWeight(1)
+          .onClick(() => this.toggleSheet())
+          this.PeekAction()
+        }
+        .width('100%')
+        // —— 展开体：完整控件，可滚动、按屏高封顶 —— 仅展开时渲染（收起时不占地图空间）。
+        if (this.sheetExpanded) {
+          Scroll() {
+            Column() {
+              if (this.mission.mapReady && !this.mapping && !this.mapLoading) {
+                this.OpCardContent()
+              } else {
+                this.BuildCardContent()
+              }
+            }
+            .width('100%')
+          }
+          .constraintSize({ maxHeight: this.sheetMaxBodyVp() })
+          .scrollBar(BarState.Auto)
         }
       }
       .width('92%')
       .padding({ left: Space.md, right: Space.md, top: Space.sm, bottom: Space.md })
       .backgroundColor(AppColor.surface)
       .borderRadius(Radius.lg)
-      .constraintSize({ maxHeight: '62%' }) // 兜底封顶（极端高内容也不顶到屏幕外），常规内容按需自适应
       .shadow({
         radius: Elevation.cardRadius,
         color: Elevation.cardColor,
@@ -839,6 +1084,88 @@ struct ControlPage {
     .justifyContent(FlexAlign.End)
     .padding({ bottom: Space.lg })
     .hitTestBehavior(HitTestMode.None)
+  }
+
+  /** 展开体的高度封顶（vp）= 屏高 46%，超出滚动；收起时不渲染本体。 */
+  private sheetMaxBodyVp(): number {
+    return getScreen().heightVp * 0.46;
+  }
+
+  /** 收起↔展开（带过渡）。 */
+  private toggleSheet(): void {
+    animateTo({ duration: Motion.base, curve: Motion.curveStd }, () => {
+      this.sheetExpanded = !this.sheetExpanded;
+    });
+  }
+
+  /** Peek 行的一句话摘要（当前该做什么）；展开体里是完整控件。 */
+  private sheetSummary(): string {
+    if (this.mapLoading) {
+      return '正在载入地图…';
+    }
+    if (this.mapping) {
+      return '建图中 · 摇杆探索，完成点「结束建图」';
+    }
+    if (!this.mission.mapReady) {
+      return '还没有地图 · 先点「开始建图」';
+    }
+    if (this.mode === ControlMode.astar) {
+      return this.astarHint();
+    }
+    if (this.mode === ControlMode.fullpath) {
+      return this.fpHint();
+    }
+    return this.distHint();
+  }
+
+  /** Peek 行的主操作按钮：按当前状态给「最该点的那一个」；其余控件在展开体里。 */
+  @Builder
+  PeekAction() {
+    if (!this.mapLoading) {
+      if (this.mapping) {
+        this.PeekButton('结束建图', true, this.liveConnected(), 'finishBuild')
+      } else if (!this.mission.mapReady) {
+        this.PeekButton('开始建图', true, this.liveConnected(), 'startBuild')
+      } else if (this.picking) {
+        // 选点中：主操作 = 结束选点（把暂存的选点统一下发）；需暂存数量达标 + 已连接才可点。
+        this.PeekButton('结束选点', true, this.canFinishPicking() && this.liveConnected(), 'finishPick')
+      } else if (this.mode === ControlMode.astar && this.hasTarget() && !this.astarNavigating) {
+        this.PeekButton('开始导航', true, this.liveConnected(), 'startAstar')
+      } else {
+        // 未武装：主操作 = 开始选点（点亮后才可在地图点选）。
+        this.PeekButton(this.pickButtonLabel(), false, this.mission.mapReady && this.liveConnected(), 'startPick')
+      }
+    }
+  }
+
+  /** Peek 主操作按钮样式（紧凑 pill；filled=实心主色 / 否则描边）；click 经 action 键派发，避免 @Builder 闭包参数。 */
+  @Builder
+  PeekButton(label: string, filled: boolean, enabled: boolean, action: string) {
+    Button(label)
+      .fontSize(FontSize.bodySm)
+      .fontColor(filled ? AppColor.onPrimary : AppColor.primary)
+      .backgroundColor(filled ? AppColor.primary : AppColor.surface)
+      .border(filled ? undefined : { width: 1, color: AppColor.primary })
+      .borderRadius(Radius.pill)
+      .height(36)
+      .padding({ left: Space.md, right: Space.md })
+      .enabled(enabled)
+      .onClick(() => this.peekDo(action))
+  }
+
+  /** Peek 主操作派发。 */
+  private peekDo(action: string): void {
+    if (action === 'finishBuild') {
+      this.finishBuild();
+    } else if (action === 'startBuild') {
+      this.startBuild();
+    } else if (action === 'startAstar') {
+      this.startAstar();
+    } else if (action === 'startPick') {
+      this.startPicking();
+    } else if (action === 'finishPick') {
+      this.finishPicking();
+    }
   }
 
   // 建图卡内容（三态：建图中 / 尚无地图；载入中由 MapLoadOverlay 阻塞遮罩接管）。仅内容、不自带定位/卡片 chrome（由 BottomSheet 提供）。
@@ -1093,6 +1420,108 @@ struct ControlPage {
     .position({ x: '88%', y: '40%' })
   }
 
+  // 覆盖进度 HUD —— 与地图同屏、浮于右上角（任务五·2：从底部控制栏摘出，便于边覆盖边一眼可见，不与地图内容/缩放FAB/底卡重叠）。
+  // 仅【全路径覆盖】与【多机协同】模式、地图就绪且非建图、且已有覆盖/已划区域时显示（避免空卡）。
+  @Builder
+  CoverageHud() {
+    if ((this.mode === ControlMode.fullpath || this.mode === ControlMode.distributed)
+      && this.mission.mapReady && !this.mapping && !this.mapLoading && this.showCoverageHud()) {
+      Column({ space: Space.xs }) {
+        Text('覆盖进度')
+          .fontSize(FontSize.caption)
+          .fontColor(AppColor.textSecondary)
+          .fontWeight(FontWeight.Bold)
+          .width('100%')
+        if (this.mode === ControlMode.fullpath) {
+          // 单车：进度（相对已选 4 顶点区域；不足 4 顶点时进度为 0 只看面积）+ 已覆盖面积。
+          Row({ space: Space.sm }) {
+            Progress({ value: Math.round(this.fullpathProgress() * 100), total: 100, type: ProgressType.Linear })
+              .layoutWeight(1)
+              .color(AppColor.primary)
+            Text(`${Math.round(this.fullpathProgress() * 100)}%`)
+              .fontSize(FontSize.dataSm)
+              .fontFamily(FontFamily.mono)
+              .fontColor(AppColor.textBody)
+              .width(40)
+              .textAlign(TextAlign.End)
+          }
+          .width('100%')
+          Text(`已覆盖 ≈ ${this.coveredAreaM2(this.ip).toFixed(1)} m²`)
+            .fontSize(FontSize.caption)
+            .fontColor(AppColor.textSecondary)
+            .width('100%')
+        } else {
+          // 多机：每车一行（车号 + 进度条 + 百分比·面积）。
+          ForEach(this.mission.robots, (r: RobotRuntime) => {
+            Row({ space: Space.xs }) {
+              Text(`车${r.index}`)
+                .fontSize(FontSize.caption)
+                .fontColor(AppColor.textBody)
+                .width(32)
+              Progress({ value: Math.round(this.coverageProgress(r.index, r.ip) * 100), total: 100, type: ProgressType.Linear })
+                .layoutWeight(1)
+                .color(AppColor.primary)
+              Text(`${Math.round(this.coverageProgress(r.index, r.ip) * 100)}%·${this.coveredAreaM2(r.ip).toFixed(1)}m²`)
+                .fontSize(FontSize.dataSm)
+                .fontFamily(FontFamily.mono)
+                .fontColor(AppColor.textSecondary)
+                .width(94)
+                .textAlign(TextAlign.End)
+            }
+            .width('100%')
+          }, (r: RobotRuntime) => `${r.index}`)
+        }
+      }
+      .width('38%')
+      .padding(Space.sm)
+      .backgroundColor(AppColor.surface)
+      .borderRadius(Radius.md)
+      .shadow({
+        radius: Elevation.cardRadius,
+        color: Elevation.cardColor,
+        offsetX: 0,
+        offsetY: Elevation.cardOffsetY
+      })
+      .position({ x: '59%', y: '11%' })
+      .transition(TransitionEffect.OPACITY.combine(TransitionEffect.scale({ x: 0.95, y: 0.95 })))
+    }
+  }
+
+  /** 覆盖 HUD 是否有内容可显示（避免空卡）：fullpath 已开始覆盖 / distributed 已划任一区域。 */
+  private showCoverageHud(): boolean {
+    if (this.mode === ControlMode.fullpath) {
+      return this.coveringIps.has(this.ip) || this.coveredAreaM2(this.ip) > 0;
+    }
+    return this.mission.assignments.length > 0;
+  }
+
+  /** 全路径已选区域面积（m²）：4 顶点包围盒 × 单格面积；不足 4 顶点返回 0。 */
+  private fullpathRegionAreaM2(): number {
+    if (this.fpVertices.length < 4) {
+      return 0;
+    }
+    let minX: number = this.fpVertices[0].x;
+    let maxX: number = minX;
+    let minY: number = this.fpVertices[0].y;
+    let maxY: number = minY;
+    for (const v of this.fpVertices) {
+      minX = Math.min(minX, v.x);
+      maxX = Math.max(maxX, v.x);
+      minY = Math.min(minY, v.y);
+      maxY = Math.max(maxY, v.y);
+    }
+    return Math.abs(maxX - minX) * Math.abs(maxY - minY) * CELL_AREA_M2;
+  }
+
+  /** 全路径覆盖进度 0..1 = 已覆盖面积 / 已选区域面积（含墙体故实际封顶 <100%）。无完整区域→0。 */
+  private fullpathProgress(): number {
+    const region: number = this.fullpathRegionAreaM2();
+    if (region <= 0) {
+      return 0;
+    }
+    return Math.min(1, this.coveredAreaM2(this.ip) / region);
+  }
+
   // 操作卡内容（按 mode 变体）。仅内容、不自带定位/卡片 chrome（由 BottomSheet 提供）。
   @Builder
   OpCardContent() {
@@ -1109,14 +1538,58 @@ struct ControlPage {
     .transition(TransitionEffect.OPACITY.combine(TransitionEffect.translate({ y: 12 })))
   }
 
+  /**
+   * 「选点」控件（共用）：未武装=「开始选点」(描边)，点亮后才能在地图上选点（避免误触）。
+   * 武装中=左「取消」(放弃暂存) + 右「结束选点」(把本轮暂存的选点统一下发)。选点期间只暂存不下发，
+   * 中途可任意在地图重选；点「结束选点」才提交（fullpath 4 顶点 / distributed 2 对角点齐备才可点）。
+   */
+  @Builder
+  PickButton() {
+    if (this.picking) {
+      Row({ space: Space.sm }) {
+        Button('取消')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.primary)
+          .backgroundColor(AppColor.surface)
+          .border({ width: 1, color: AppColor.primary })
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .layoutWeight(1)
+          .onClick(() => this.cancelPicking())
+        Button('结束选点')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(AppColor.primary)
+          .borderRadius(Radius.pill)
+          .height(TOUCH_MIN)
+          .layoutWeight(2)
+          .enabled(this.canFinishPicking() && this.liveConnected())
+          .onClick(() => this.finishPicking())
+      }
+      .width('100%')
+    } else {
+      Button(this.pickButtonLabel())
+        .fontSize(FontSize.bodySm)
+        .fontColor(AppColor.primary)
+        .backgroundColor(AppColor.surface)
+        .border({ width: 1, color: AppColor.primary })
+        .borderRadius(Radius.pill)
+        .height(TOUCH_MIN)
+        .width('100%')
+        .enabled(this.mission.mapReady && this.liveConnected())
+        .onClick(() => this.startPicking())
+    }
+  }
+
   @Builder
   AstarOps() {
     Column({ space: Space.sm }) {
-      // 分步指示：① 点图选点 → ② 开始导航（导航中提示取消/重选）
+      // 分步指示：① 选点 → ② 开始导航（导航中提示取消/重选）
       Text(this.astarHint())
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textBody)
         .width('100%')
+      this.PickButton()
       Row() {
         Column() {
           Text('目标点')
@@ -1164,11 +1637,12 @@ struct ControlPage {
         this.AlgChip('最小生成树', 1)
       }
       .width('100%')
-      // ② 点地图选 4 个顶点（左下→右下→右上→左上 → cmd104），满 4 个自动启动
+      // ② 选顶点（点「选顶点」武装后，点地图选 4 个：左下→右下→右上→左上 → cmd104，满 4 个自动启动）
       Text(this.fpHint())
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textBody)
         .width('100%')
+      this.PickButton()
       Row() {
         Button('重选顶点')
           .fontColor(AppColor.primary)
@@ -1187,6 +1661,7 @@ struct ControlPage {
           .onClick(() => this.stopFullpath())
       }
       .width('100%')
+      // ④ 覆盖进度/面积已移到地图旁的「覆盖进度」HUD（CoverageHud），不再占用底部控制栏（任务五·2）。
     }
     .width('100%')
   }
@@ -1240,7 +1715,10 @@ struct ControlPage {
     if (n >= 4) {
       return '③ 4 顶点已选，全路径覆盖已启动（点「停止」结束）';
     }
-    return `② 点地图选第 ${n + 1}/4 个顶点（${this.fpCornerName(n)}）`;
+    if (this.picking) {
+      return `② 选点中…点地图选第 ${n + 1}/4 个顶点（${this.fpCornerName(n)}）`;
+    }
+    return `② 点「选顶点」再点地图选第 ${n + 1}/4 个顶点（${this.fpCornerName(n)}）`;
   }
 
   private fpCornerName(i: number): string {
@@ -1318,28 +1796,8 @@ struct ControlPage {
         .fontSize(FontSize.bodySm)
         .fontColor(AppColor.textSecondary)
         .width('100%')
-      Text('④ 各车覆盖进度')
-        .fontSize(FontSize.caption)
-        .fontColor(AppColor.textSecondary)
-        .width('100%')
-      ForEach(this.mission.robots, (r: RobotRuntime) => {
-        Row() {
-          Text(`车${r.index}`)
-            .fontSize(FontSize.bodySm)
-            .fontColor(AppColor.textBody)
-            .width(48)
-          Progress({ value: Math.round(r.progress * 100), total: 100, type: ProgressType.Linear })
-            .layoutWeight(1)
-            .color(AppColor.primary)
-          Text(`${Math.round(r.progress * 100)}%`)
-            .fontSize(FontSize.dataSm)
-            .fontFamily(FontFamily.mono)
-            .fontColor(AppColor.textSecondary)
-            .width(48)
-            .textAlign(TextAlign.End)
-        }
-        .width('100%')
-      }, (r: RobotRuntime) => `${r.index}`)
+      this.PickButton()
+      // ④ 各车覆盖进度已移到地图旁的「覆盖进度」HUD（CoverageHud），不再占用底部控制栏（任务五·2）。
     }
     .width('100%')
   }
@@ -1414,15 +1872,18 @@ struct ControlPage {
   /** astar 分步引导文案：未选点 → 已选点待导航 → 导航中。 */
   private astarHint(): string {
     if (this.astarArrived) {
-      return '已到达终点 · 点地图可重新选目标';
+      return '已到达终点 · 点「选目标点」可重新选目标';
     }
     if (this.astarNavigating) {
       return '导航中…（点「取消」停止；接近终点会自动判定到达）';
     }
+    if (this.picking) {
+      return '选点中…点地图选目标点（点按钮可取消）';
+    }
     if (this.hasTarget()) {
       return `目标已选 ${this.targetText()} · 点「开始导航」`;
     }
-    return '① 点地图选目标点 → ② 点「开始导航」';
+    return '① 点「选目标点」再点地图选点 → ② 点「开始导航」';
   }
 
   private distHint(): string {
@@ -1430,7 +1891,10 @@ struct ControlPage {
     if (this.distCorners.length === 1) {
       return `③ 为${who}：已选对角点1，再点第二个对角点完成子区域`;
     }
-    return `③ 为${who}：点地图选两个对角点划分覆盖子区域（对角矩形）`;
+    if (this.picking) {
+      return `③ 选点中…为${who} 点两个对角点划区域（点按钮可取消）`;
+    }
+    return `③ 为${who}：点「选点划区域」再点地图选两个对角点（对角矩形）`;
   }
 
   /** 已分配区域速览（哪些车已有子区域）。 */

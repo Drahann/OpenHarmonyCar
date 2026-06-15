@@ -1,19 +1,21 @@
 {
   "app": {
-    // 签名配置：DevEco 自动签名生成的本机调试证书（沿用 bundle com.example.carapp）。回退 LAN 时曾误删
-    // （6425f0b），导致 HAP "no signature file" 装机失败，故恢复。路径/口令为本机调试材料，仅本机可用。
+    // 签名配置：复用 car-agent 的 com.example.carapp 调试证书（**完整含 .p7b profile、有效至 2027-06-11**）。
+    // 背景：app-harmony 自己的 24NLQE 证书集**缺 .p7b**（DevEco 自动签名未完成生成 profile）→ hvigor 00303107
+    // "Invalid profile value"。car-agent 与本应用 bundle 同为 com.example.carapp，profile 可通用，故指向它。
+    // 若装机报"设备不在 profile"，在 DevEco「File→Project Structure→Signing Configs」勾自动签名重登记本机设备。
     "signingConfigs": [
       {
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\draha\\.ohos\\config\\default_app-harmony_24NLQE5BfD15MlLIQLuBmFq-W-oIxwOqgPYZJOoX7Ho=.cer",
+          "certpath": "C:\\Users\\draha\\.ohos\\config\\default_car-agent_W100yLNFI9Lux3ilt4v8miJb7eO20kFY6rayvMiDVxU=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001BCF812DA6A155860D42E7AD39B0C9A405E675CE4EDFDAF7D5184FE0B240FF6C8C8CB3E7F336671D",
-          "profile": "C:\\Users\\draha\\.ohos\\config\\default_app-harmony_24NLQE5BfD15MlLIQLuBmFq-W-oIxwOqgPYZJOoX7Ho=.p7b",
+          "keyPassword": "0000001B205B50DF15F23A43B719090CE5D012BEF7A7D5BC34779C36DD4078A86FE01E2A6E27742559A71C",
+          "profile": "C:\\Users\\draha\\.ohos\\config\\default_car-agent_W100yLNFI9Lux3ilt4v8miJb7eO20kFY6rayvMiDVxU=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\draha\\.ohos\\config\\default_app-harmony_24NLQE5BfD15MlLIQLuBmFq-W-oIxwOqgPYZJOoX7Ho=.p12",
-          "storePassword": "0000001BAEA1851EA7C630F625B3E89B708754317F67DEF718010B93D7F2E3D363A88A7E9680A997052297"
+          "storeFile": "C:\\Users\\draha\\.ohos\\config\\default_car-agent_W100yLNFI9Lux3ilt4v8miJb7eO20kFY6rayvMiDVxU=.p12",
+          "storePassword": "0000001B27F7D3121B7C97943C2B26A2699FF329F15BCCEDA9528A515536739B8C58EE87A36EEA260CCB3D"
         }
       }
     ],

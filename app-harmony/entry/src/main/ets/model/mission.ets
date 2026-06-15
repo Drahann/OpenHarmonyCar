@@ -74,6 +74,12 @@ export interface Rect {
   corner2: Point;
 }
 
+/** 一条机器人行走轨迹（按车号 + 世界坐标点序列）。供 MapCanvas 画轨迹折线（导航/覆盖均用）。 */
+export interface RobotTrail {
+  index: number;
+  pts: Point[];
+}
+
 // ── 终点选点 ────────────────────────────────────────────────────────────────
 export interface EndPointDTO {
   x: number | null;
