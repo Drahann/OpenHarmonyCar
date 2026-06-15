@@ -1,0 +1,10 @@
+# 构建产物：film.html 由 build.sh 从 film.css + engine.js + scenes*.js + vendor 组装生成，
+# 可一键复现（bash build.sh），按 CLAUDE.md「不提交构建产物」忽略，只版本化源文件。
+film.html
+
+# 依赖与生成目录（根 .gitignore 已覆盖 node_modules，此处显式重申）
+node_modules/
+
+# 逐帧导出的图片产物（如有）
+stills/*.png
+stills/*.jpg
