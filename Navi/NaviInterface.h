@@ -29,6 +29,8 @@
 #define COOP_AVOID_CMD_RESUME_REQUEST -36
 #define COOP_AVOID_CMD_RESUME_ACK    -35
 #define COOP_AVOID_CMD_ACK           -34
+#define COOP_AVOID_CMD_LOCAL_FALLBACK -33
+#define COOP_AVOID_CMD_PEER_COVERAGE_DONE -32
 #define COOP_AVOID_STATUS_COMMAND     74
 
 enum CoopAvoidState
@@ -63,7 +65,8 @@ enum CoopAvoidHeartbeatEvent
 	COOP_HEARTBEAT_EVENT_MATCH_JUMP = 2,
 	COOP_HEARTBEAT_EVENT_TIMEOUT = 3,
 	COOP_HEARTBEAT_EVENT_RESUME = 4,
-	COOP_HEARTBEAT_EVENT_NO_LCM = 5
+	COOP_HEARTBEAT_EVENT_NO_LCM = 5,
+	COOP_HEARTBEAT_EVENT_PEER_DONE = 6
 };
 
 enum MapLifecycleState
@@ -418,6 +421,9 @@ public:
 	long m_coopLastTxTimeMs;
 	int m_coopLastTxRetryCount;
 	bool m_coopLastTxAcked;
+	bool m_localDynamicFallbackActive;
+	bool m_coverageCompletedIdle;
+	bool m_coopPeerCoverageDone;
 	bool m_localDynamicBlockGoalValid;
 	Pose m_localDynamicBlockGoal;
 	int m_localDynamicBlockCount;
@@ -558,6 +564,9 @@ public:
 	bool	isPeerPausedByMe(void);
 	void	markCoverageIndex(int index);
 	void	resetCoverageState(void);
+	void	markCoverageStarted(void);
+	void	markCoverageCompletedIdle(void);
+	bool	isCoverageCompletedIdle(void);
 	void	respondCoopPoseRequest(int sourceRobotId, int seq);
 	void	sendCoopPoseRequest(int seq, int reason);
 	void	sendCoopStopRequest(int targetRobotId, int seq, int reason);
@@ -565,6 +574,10 @@ public:
 	void	sendCoopResumeRequest(int targetRobotId, int seq);
 	void	sendCoopResumeAck(int targetRobotId, int seq);
 	void	sendCoopAck(int targetRobotId, int seq, int ackedCommandId);
+	void	sendCoopLocalFallbackNotice(int targetRobotId, int seq,
+										int originalCommandId);
+	void	sendCoopCoverageDoneNotice(int targetRobotId, int seq,
+									   int originalCommandId);
 	void	beginCoopReliableTxLocked(int commandId, int targetRobotId, int seq, int reason);
 	void	clearCoopReliableTxLocked(void);
 	void	publishCoopHeartbeatStatus(int status, int event);

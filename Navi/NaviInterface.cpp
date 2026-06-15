@@ -260,6 +260,9 @@ static const double kLocalDynamicBlockSameGoalDistance = 0.12;
 static const long kLocalDynamicBlockCoopDelayMs = 2500;
 static const long kLocalDynamicBlockCoopCooldownMs = 5000;
 static const int kLocalDynamicBlockCoopThreshold = 6;
+static const double kNormalArriveDistance = 0.25;
+static const double kCoverageArriveDistance = 0.10;
+static const int kCoverageTargetRepairRadius = 5;
 
 static const char *coopCommandName(int commandId)
 {
@@ -278,6 +281,10 @@ static const char *coopCommandName(int commandId)
         return "RESUME_ACK";
     case COOP_AVOID_CMD_ACK:
         return "ACK";
+    case COOP_AVOID_CMD_LOCAL_FALLBACK:
+        return "LOCAL_FALLBACK";
+    case COOP_AVOID_CMD_PEER_COVERAGE_DONE:
+        return "PEER_COVERAGE_DONE";
     default:
         return "UNKNOWN";
     }
@@ -319,6 +326,169 @@ static long coopNowMs()
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+static bool gridStatePassable(int value)
+{
+    return value == FreeSpace || value == heighcost;
+}
+
+static int staticGridStateAt(CNaviInterface *nav, int gx, int gy)
+{
+    if (nav == NULL || nav->astarPlanner.m_pGridState == NULL ||
+        gx < 0 || gy < 0 ||
+        gx >= nav->astarPlanner.GMapWidth ||
+        gy >= nav->astarPlanner.GMapLength) {
+        return -1;
+    }
+    return nav->astarPlanner
+        .m_pGridState[gy * nav->astarPlanner.GMapWidth + gx]
+        .CurrentState;
+}
+
+static bool coverageGridPassable(CNaviInterface *nav, int gx, int gy)
+{
+    return gridStatePassable(staticGridStateAt(nav, gx, gy));
+}
+
+static bool findNearestCoverageGrid(CNaviInterface *nav,
+                                    const IPoint &requested,
+                                    IPoint &repaired,
+                                    int maxRadius)
+{
+    if (nav == NULL || nav->astarPlanner.m_pGridState == NULL) {
+        return false;
+    }
+
+    int bestDist2 = maxRadius * maxRadius + 1;
+    bool found = false;
+    for (int radius = 0; radius <= maxRadius; ++radius) {
+        for (int dy = -radius; dy <= radius; ++dy) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                if (dx * dx + dy * dy > radius * radius) {
+                    continue;
+                }
+                int gx = requested.x + dx;
+                int gy = requested.y + dy;
+                if (!coverageGridPassable(nav, gx, gy)) {
+                    continue;
+                }
+                int dist2 = dx * dx + dy * dy;
+                if (!found || dist2 < bestDist2) {
+                    repaired.x = gx;
+                    repaired.y = gy;
+                    found = true;
+                    bestDist2 = dist2;
+                }
+            }
+        }
+        if (found) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int dynamicGridStateAt(GridState *state, const GridMap &map,
+                              double wx, double wy, int *outX, int *outY)
+{
+    if (state == NULL || map.width <= 0 || map.height <= 0 ||
+        map.metersPerPixel <= 0) {
+        if (outX != NULL) *outX = -1;
+        if (outY != NULL) *outY = -1;
+        return -1;
+    }
+    int gx = (int)((wx - map.x0) / map.metersPerPixel);
+    int gy = (int)((wy - map.y0) / map.metersPerPixel);
+    if (outX != NULL) *outX = gx;
+    if (outY != NULL) *outY = gy;
+    if (gx < 0 || gy < 0 || gx >= map.width || gy >= map.height) {
+        return -1;
+    }
+    return state[gy * map.width + gx].CurrentState;
+}
+
+static int countBlockedAround(GridState *state, int width, int height,
+                              int cx, int cy, int radius)
+{
+    if (state == NULL || cx < 0 || cy < 0 ||
+        cx >= width || cy >= height) {
+        return -1;
+    }
+    int count = 0;
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            int gx = cx + dx;
+            int gy = cy + dy;
+            if (gx < 0 || gy < 0 || gx >= width || gy >= height) {
+                continue;
+            }
+            if (!gridStatePassable(state[gy * width + gx].CurrentState)) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+static void logAstarNoPathContext(CNaviInterface *nav, const Pose &cur,
+                                  const Pose &goal, const char *context)
+{
+    if (nav == NULL || nav->m_pms == NULL) {
+        printf("ASTAR_NO_PATH_CONTEXT context=%s map_server_null=1\n",
+               context ? context : "unknown");
+        fflush(stdout);
+        return;
+    }
+
+    IPoint startGrid = nav->astarPlanner.GlobalToGrid(cur.x, cur.y);
+    IPoint goalGrid = nav->astarPlanner.GlobalToGrid(goal.x, goal.y);
+    int startState = staticGridStateAt(nav, startGrid.x, startGrid.y);
+    int goalState = staticGridStateAt(nav, goalGrid.x, goalGrid.y);
+    int laserStartX = -1, laserStartY = -1, laserGoalX = -1, laserGoalY = -1;
+    int visionStartX = -1, visionStartY = -1, visionGoalX = -1, visionGoalY = -1;
+    int laserStartState = dynamicGridStateAt(nav->astarPlanner.m_plaserGridState,
+                                             nav->m_pms->laserMap, cur.x, cur.y,
+                                             &laserStartX, &laserStartY);
+    int laserGoalState = dynamicGridStateAt(nav->astarPlanner.m_plaserGridState,
+                                            nav->m_pms->laserMap, goal.x, goal.y,
+                                            &laserGoalX, &laserGoalY);
+    int visionStartState = dynamicGridStateAt(nav->astarPlanner.m_pvisionGridState,
+                                              nav->m_pms->visionMap, cur.x, cur.y,
+                                              &visionStartX, &visionStartY);
+    int visionGoalState = dynamicGridStateAt(nav->astarPlanner.m_pvisionGridState,
+                                             nav->m_pms->visionMap, goal.x, goal.y,
+                                             &visionGoalX, &visionGoalY);
+
+    printf("ASTAR_NO_PATH_CONTEXT context=%s cur=(%.3f,%.3f,%.3f) goal=(%.3f,%.3f,%.3f) dist=%.3f\n",
+           context ? context : "unknown", cur.x, cur.y, cur.theta,
+           goal.x, goal.y, goal.theta, LinAlg::DistancePose(cur, goal));
+    printf("ASTAR_NO_PATH_STATIC start=(%d,%d) state=%d blocked_r2=%d goal=(%d,%d) state=%d blocked_r2=%d map=(%d,%d)\n",
+           startGrid.x, startGrid.y, startState,
+           countBlockedAround(nav->astarPlanner.m_pGridState,
+                              nav->astarPlanner.GMapWidth,
+                              nav->astarPlanner.GMapLength,
+                              startGrid.x, startGrid.y, 2),
+           goalGrid.x, goalGrid.y, goalState,
+           countBlockedAround(nav->astarPlanner.m_pGridState,
+                              nav->astarPlanner.GMapWidth,
+                              nav->astarPlanner.GMapLength,
+                              goalGrid.x, goalGrid.y, 2),
+           nav->astarPlanner.GMapWidth, nav->astarPlanner.GMapLength);
+    printf("ASTAR_NO_PATH_DYNAMIC laser_start=(%d,%d) state=%d blocked_r2=%d laser_goal=(%d,%d) state=%d blocked_r2=%d vision_start=(%d,%d) state=%d vision_goal=(%d,%d) state=%d\n",
+           laserStartX, laserStartY, laserStartState,
+           countBlockedAround(nav->astarPlanner.m_plaserGridState,
+                              nav->m_pms->laserMap.width,
+                              nav->m_pms->laserMap.height,
+                              laserStartX, laserStartY, 2),
+           laserGoalX, laserGoalY, laserGoalState,
+           countBlockedAround(nav->astarPlanner.m_plaserGridState,
+                              nav->m_pms->laserMap.width,
+                              nav->m_pms->laserMap.height,
+                              laserGoalX, laserGoalY, 2),
+           visionStartX, visionStartY, visionStartState,
+           visionGoalX, visionGoalY, visionGoalState);
+    fflush(stdout);
 }
 
 static double coopDist2(double ax, double ay, double bx, double by)
@@ -697,6 +867,9 @@ CNaviInterface::CNaviInterface(void) {
     m_coopLastTxTimeMs = 0;
     m_coopLastTxRetryCount = 0;
     m_coopLastTxAcked = false;
+    m_localDynamicFallbackActive = false;
+    m_coverageCompletedIdle = false;
+    m_coopPeerCoverageDone = false;
     m_localDynamicBlockGoalValid = false;
     m_localDynamicBlockGoal.x = 0;
     m_localDynamicBlockGoal.y = 0;
@@ -2595,8 +2768,13 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
 
         goal = m_waypoints.front();
 
-        if (0.25 > LinAlg::DistancePose(cur, goal)) {
-            printf("Distance < 0.25 (from planPath)!\n");fflush(stdout);
+        double arriveDistance = m_coverageActive ?
+                                kCoverageArriveDistance :
+                                kNormalArriveDistance;
+        if (arriveDistance > LinAlg::DistancePose(cur, goal)) {
+            printf("Distance < %.2f (from planPath, coverage=%d)!\n",
+                   arriveDistance, m_coverageActive ? 1 : 0);
+            fflush(stdout);
             m_waypoints.pop();
 
             double *pathdot = new double[4];
@@ -2843,6 +3021,7 @@ void CNaviInterface::planPath(ProbMap &map, Pose cur, int type, int ratio) {
         }
         if (num <= 0) {
             printf("astar planning failure !\n");fflush(stdout);
+            logAstarNoPathContext(this, cur, goal, "astar_no_path");
             setLastFullPathError(ASTAR_NO_PATH);
             if (holdLocalDynamicBlockBeforeCoop(goal, COOP_AVOID_TRIGGER_NOPATH,
                                                 "astar_no_path")) {
@@ -4950,6 +5129,9 @@ void CNaviInterface::resetMappingRuntimeState(void) {
     m_coopLastTxTimeMs = 0;
     m_coopLastTxRetryCount = 0;
     m_coopLastTxAcked = false;
+    m_localDynamicFallbackActive = false;
+    m_coverageCompletedIdle = false;
+    m_coopPeerCoverageDone = false;
     m_coverageActive = false;
     m_coverageTurnIndex = -1;
     m_localDynamicBlockGoalValid = false;
@@ -4957,6 +5139,7 @@ void CNaviInterface::resetMappingRuntimeState(void) {
     m_localDynamicBlockCount = 0;
     m_localDynamicBlockFirstMs = 0;
     m_localDynamicLastCoopMs = 0;
+    m_localDynamicFallbackActive = false;
     pthread_mutex_unlock(&m_coop_mutex);
 }
 
@@ -5400,11 +5583,17 @@ void CNaviInterface::fallbackToLocalDynamicAvoidance(int failedCommand,
     }
     pthread_mutex_unlock(&m_goal_mutex);
 
+    pthread_mutex_lock(&m_coop_mutex);
+    m_localDynamicFallbackActive = true;
+    pthread_mutex_unlock(&m_coop_mutex);
+
     int event = COOP_HEARTBEAT_EVENT_TIMEOUT;
     if (reason == COOP_AVOID_TRIGGER_MATCH_JUMP) {
         event = COOP_HEARTBEAT_EVENT_MATCH_JUMP;
     } else if (reason == COOP_HEARTBEAT_EVENT_NO_LCM) {
         event = COOP_HEARTBEAT_EVENT_NO_LCM;
+    } else if (reason == COOP_HEARTBEAT_EVENT_PEER_DONE) {
+        event = COOP_HEARTBEAT_EVENT_PEER_DONE;
     }
     publishCoopHeartbeatStatus(COOP_HEARTBEAT_LOCAL_DYNAMIC_FALLBACK, event);
     coopLogMessage("FALLBACK_LOCAL_DYNAMIC", robotId, failedCommand, robotId,
@@ -5442,6 +5631,65 @@ void CNaviInterface::sendCoopAck(int targetRobotId, int seq, int ackedCommandId)
     robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
     coopLogMessage("TX", robotId, COOP_AVOID_CMD_ACK, robotId,
                    targetRobotId, seq, stateSnapshot, 0, ackedCommandId);
+}
+
+void CNaviInterface::sendCoopLocalFallbackNotice(int targetRobotId, int seq,
+                                                 int originalCommandId) {
+    if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId, COOP_AVOID_CMD_LOCAL_FALLBACK,
+                       robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0,
+                       originalCommandId);
+        return;
+    }
+
+    int8_t iparams[3] = {(int8_t)robotId, (int8_t)seq,
+                         (int8_t)originalCommandId};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_LOCAL_FALLBACK;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 3;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_LOCAL_FALLBACK, robotId,
+                   targetRobotId, seq, COOP_AVOID_NORMAL, 0,
+                   originalCommandId);
+}
+
+void CNaviInterface::sendCoopCoverageDoneNotice(int targetRobotId, int seq,
+                                                int originalCommandId) {
+    if (coop_lcm == NULL) {
+        coopLogMessage("TX_FAIL_NO_LCM", robotId,
+                       COOP_AVOID_CMD_PEER_COVERAGE_DONE, robotId,
+                       targetRobotId, seq, COOP_AVOID_NORMAL, 0,
+                       originalCommandId);
+        return;
+    }
+
+    int8_t iparams[3] = {(int8_t)robotId, (int8_t)seq,
+                         (int8_t)originalCommandId};
+    robot_control_t cmd;
+    cmd.utime = coopNowMs();
+    cmd.commandid = COOP_AVOID_CMD_PEER_COVERAGE_DONE;
+    cmd.robotid = (int8_t)targetRobotId;
+    cmd.ndparams = 0;
+    cmd.dparams = NULL;
+    cmd.niparams = 3;
+    cmd.iparams = iparams;
+    cmd.nsparams = 0;
+    cmd.sparams = NULL;
+    cmd.nbparams = 0;
+    cmd.bparams = NULL;
+    robot_control_t_publish(coop_lcm, COOP_AVOID_CHANNEL, &cmd);
+    coopLogMessage("TX", robotId, COOP_AVOID_CMD_PEER_COVERAGE_DONE,
+                   robotId, targetRobotId, seq, COOP_AVOID_NORMAL, 0,
+                   originalCommandId);
 }
 
 void CNaviInterface::sendCoopPoseRequest(int seq, int reason) {
@@ -5669,6 +5917,7 @@ void CNaviInterface::markCoverageIndex(int index) {
     pthread_mutex_lock(&m_coop_mutex);
     m_coverageActive = true;
     m_coverageTurnIndex = index;
+    m_coverageCompletedIdle = false;
     pthread_mutex_unlock(&m_coop_mutex);
 }
 
@@ -5676,7 +5925,37 @@ void CNaviInterface::resetCoverageState(void) {
     pthread_mutex_lock(&m_coop_mutex);
     m_coverageActive = false;
     m_coverageTurnIndex = -1;
+    m_coverageCompletedIdle = false;
     pthread_mutex_unlock(&m_coop_mutex);
+}
+
+void CNaviInterface::markCoverageStarted(void) {
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coverageActive = false;
+    m_coverageTurnIndex = -1;
+    m_coverageCompletedIdle = false;
+    m_coopPeerCoverageDone = false;
+    pthread_mutex_unlock(&m_coop_mutex);
+}
+
+void CNaviInterface::markCoverageCompletedIdle(void) {
+    pthread_mutex_lock(&m_coop_mutex);
+    m_coverageActive = false;
+    m_coverageTurnIndex = -1;
+    m_coverageCompletedIdle = true;
+    pthread_mutex_unlock(&m_coop_mutex);
+    publishCoopHeartbeatStatus(COOP_HEARTBEAT_NORMAL,
+                               COOP_HEARTBEAT_EVENT_NONE);
+    printf("Coverage completed and robot is idle; coop requests will receive PEER_COVERAGE_DONE.\n");
+    fflush(stdout);
+}
+
+bool CNaviInterface::isCoverageCompletedIdle(void) {
+    bool ret;
+    pthread_mutex_lock(&m_coop_mutex);
+    ret = m_coverageCompletedIdle;
+    pthread_mutex_unlock(&m_coop_mutex);
+    return ret;
 }
 
 void CNaviInterface::resetLocalDynamicBlockState(void) {
@@ -5749,6 +6028,19 @@ bool CNaviInterface::holdLocalDynamicBlockBeforeCoop(const Pose &goal,
 
 void CNaviInterface::triggerCoopAvoidance(int reason) {
     if (robotId < 0 || robotId > 1) {
+        return;
+    }
+    bool peerCoverageDone = false;
+    pthread_mutex_lock(&m_coop_mutex);
+    peerCoverageDone = m_coopPeerCoverageDone;
+    pthread_mutex_unlock(&m_coop_mutex);
+    if (peerCoverageDone) {
+        coopLogMessage("SKIP_PEER_COVERAGE_DONE", robotId,
+                       COOP_AVOID_CMD_POSE_REQUEST, robotId, 1 - robotId,
+                       0, COOP_AVOID_NORMAL, 0, reason);
+        fallbackToLocalDynamicAvoidance(COOP_AVOID_CMD_POSE_REQUEST,
+                                        COOP_HEARTBEAT_EVENT_PEER_DONE,
+                                        true, 0);
         return;
     }
     if (coop_lcm == NULL) {
@@ -6095,7 +6387,96 @@ void CNaviInterface::handleCoopAvoidMessage(int commandId, int targetRobotId,
 
     sendCoopAck(sourceRobotId, seq, commandId);
 
+    bool suppressForCoverageDone = false;
+    bool suppressForLocalFallback = false;
+    pthread_mutex_lock(&m_coop_mutex);
+    suppressForCoverageDone =
+        m_coverageCompletedIdle &&
+        m_coopState == COOP_AVOID_NORMAL &&
+        commandId != COOP_AVOID_CMD_LOCAL_FALLBACK &&
+        commandId != COOP_AVOID_CMD_PEER_COVERAGE_DONE;
+    suppressForLocalFallback =
+        m_localDynamicFallbackActive &&
+        m_coopState == COOP_AVOID_NORMAL &&
+        commandId != COOP_AVOID_CMD_LOCAL_FALLBACK &&
+        commandId != COOP_AVOID_CMD_PEER_COVERAGE_DONE;
+    stateSnapshot = m_coopState;
+    pthread_mutex_unlock(&m_coop_mutex);
+
+    if (suppressForCoverageDone) {
+        coopLogMessage("RX_SUPPRESS_COVERAGE_DONE", robotId, commandId,
+                       sourceRobotId, targetRobotId, seq, stateSnapshot, 0, 0);
+        sendCoopCoverageDoneNotice(sourceRobotId, seq, commandId);
+        return;
+    }
+
+    if (suppressForLocalFallback) {
+        coopLogMessage("RX_SUPPRESS_LOCAL_FALLBACK", robotId, commandId,
+                       sourceRobotId, targetRobotId, seq, stateSnapshot, 0, 0);
+        sendCoopLocalFallbackNotice(sourceRobotId, seq, commandId);
+        return;
+    }
+
     switch (commandId) {
+    case COOP_AVOID_CMD_LOCAL_FALLBACK:
+    {
+        int originalCommandId = (niparams >= 3 && iparams != NULL) ?
+                                iparams[2] : 0;
+        bool matched = false;
+        int retryCount = 0;
+        pthread_mutex_lock(&m_coop_mutex);
+        if (m_coopActivePeer == sourceRobotId &&
+            (m_coopActiveSeq == seq || m_coopLastTxSeq == seq)) {
+            matched = true;
+            retryCount = m_coopLastTxRetryCount;
+            m_coopState = COOP_AVOID_NORMAL;
+            m_coopActivePeer = -1;
+            m_coopPendingStopRequest = false;
+            clearCoopReliableTxLocked();
+        }
+        stateSnapshot = m_coopState;
+        pthread_mutex_unlock(&m_coop_mutex);
+        coopLogMessage(matched ? "LOCAL_FALLBACK_MATCH" :
+                       "LOCAL_FALLBACK_STALE",
+                       robotId, originalCommandId, sourceRobotId,
+                       targetRobotId, seq, stateSnapshot, retryCount, 0);
+        if (matched) {
+            fallbackToLocalDynamicAvoidance(originalCommandId,
+                                           COOP_HEARTBEAT_EVENT_TIMEOUT,
+                                           true, retryCount);
+        }
+        break;
+    }
+    case COOP_AVOID_CMD_PEER_COVERAGE_DONE:
+    {
+        int originalCommandId = (niparams >= 3 && iparams != NULL) ?
+                                iparams[2] : 0;
+        bool matched = false;
+        int retryCount = 0;
+        pthread_mutex_lock(&m_coop_mutex);
+        m_coopPeerCoverageDone = true;
+        if (m_coopActivePeer == sourceRobotId &&
+            (m_coopActiveSeq == seq || m_coopLastTxSeq == seq)) {
+            matched = true;
+            retryCount = m_coopLastTxRetryCount;
+            m_coopState = COOP_AVOID_NORMAL;
+            m_coopActivePeer = -1;
+            m_coopPendingStopRequest = false;
+            clearCoopReliableTxLocked();
+        }
+        stateSnapshot = m_coopState;
+        pthread_mutex_unlock(&m_coop_mutex);
+        coopLogMessage(matched ? "PEER_COVERAGE_DONE_MATCH" :
+                       "PEER_COVERAGE_DONE_STALE",
+                       robotId, originalCommandId, sourceRobotId,
+                       targetRobotId, seq, stateSnapshot, retryCount, 0);
+        if (matched) {
+            fallbackToLocalDynamicAvoidance(originalCommandId,
+                                           COOP_HEARTBEAT_EVENT_PEER_DONE,
+                                           true, retryCount);
+        }
+        break;
+    }
     case COOP_AVOID_CMD_POSE_REQUEST:
         respondCoopPoseRequest(sourceRobotId, seq);
         break;
@@ -6801,10 +7182,12 @@ void CNaviInterface::setPlanFullPath(int algNum) {
     g_NaviInterface.fullCoverageAlg.algNum = algNum;
     cout << "algNum1 = " << algNum << endl;
     cout << "g_NaviInterface.fullCoverageAlg.algNum = " << g_NaviInterface.fullCoverageAlg.algNum << endl;
+    g_NaviInterface.markCoverageStarted();
     g_NaviInterface.enableCoverage = true;
 }
 void CNaviInterface::cancelPlanFullPath(void) {
     g_NaviInterface.enableCoverage = false;
+    g_NaviInterface.resetCoverageState();
     while (m_waypoints.size() > 0)
     {
         m_waypoints.pop();
@@ -7385,6 +7768,7 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
              while (pObject->m_bRunning) {
                 // 执行全覆盖路径规划
                 if (pObject->enableCoverage) {
+                    pObject->markCoverageStarted();
                     printf("---------------------------2025.8.8---------------------------\n");fflush(stdout);
                     int robotId = pObject->robotId;
                     string filepath = "/data/test/roadFile.txt";
@@ -7441,6 +7825,8 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
 
                     // 导航到每个拐点（逐个下发）
                     size_t turnIndex = 0;
+                    bool coverageHadSkippedTarget = false;
+                    bool coverageReturnSucceeded = false;
                     while (turnIndex < turnPoints.size())
                     {
                         pObject->updateCoopAvoidance();
@@ -7450,7 +7836,10 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         }
 
                         if (pObject->targetErr) {
-                            printf("Previous target failed, skipping.\n");fflush(stdout);
+                            printf("Previous target failed, skipping coverage turn %lu.\n",
+                                   turnIndex + 1);
+                            fflush(stdout);
+                            coverageHadSkippedTarget = true;
                             pObject->targetErr = false;
                             if (!pObject->m_waypoints.empty()) pObject->m_waypoints.pop();
                             turnIndex++;
@@ -7458,7 +7847,45 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         }
 
                         if (pObject->m_waypoints.size() == 0) {
-                            IPoint p_grid = turnPoints[turnIndex];
+                            IPoint requested_grid = turnPoints[turnIndex];
+                            IPoint p_grid = requested_grid;
+                            int targetState = staticGridStateAt(pObject,
+                                                                (int)p_grid.x,
+                                                                (int)p_grid.y);
+                            if (!gridStatePassable(targetState)) {
+                                IPoint repaired_grid;
+                                if (findNearestCoverageGrid(pObject,
+                                                            requested_grid,
+                                                            repaired_grid,
+                                                            kCoverageTargetRepairRadius)) {
+                                    int repairedState = staticGridStateAt(pObject,
+                                                                         (int)repaired_grid.x,
+                                                                         (int)repaired_grid.y);
+                                    printf("COVERAGE_TARGET_REPAIR turn=%lu requested=(%d,%d) state=%d repaired=(%d,%d) state=%d radius=%d\n",
+                                           turnIndex + 1,
+                                           (int)requested_grid.x,
+                                           (int)requested_grid.y,
+                                           targetState,
+                                           (int)repaired_grid.x,
+                                           (int)repaired_grid.y,
+                                           repairedState,
+                                           kCoverageTargetRepairRadius);
+                                    fflush(stdout);
+                                    p_grid = repaired_grid;
+                                } else {
+                                    printf("COVERAGE_TARGET_UNREPAIRABLE turn=%lu grid=(%d,%d) state=%d radius=%d, skipping.\n",
+                                           turnIndex + 1,
+                                           (int)requested_grid.x,
+                                           (int)requested_grid.y,
+                                           targetState,
+                                           kCoverageTargetRepairRadius);
+                                    fflush(stdout);
+                                    pObject->setLastFullPathError(TARGET_STATIC_INVALID);
+                                    coverageHadSkippedTarget = true;
+                                    turnIndex++;
+                                    continue;
+                                }
+                            }
                             Pose p_real = pObject->astarPlanner.GridToGlobal((int)p_grid.x, (int)p_grid.y);
 
                             printf("[Turn %lu/%lu] Grid (%d, %d) -> World (%.2f, %.2f)\n",
@@ -7507,11 +7934,21 @@ void *CNaviInterface::CoverageThreadProc(LPVOID pPara) {
                         if (pObject->targetErr) {
                             printf("Return to start point failed, stopping coverage.\n");
                             fflush(stdout);
+                        } else if (pObject->m_waypoints.size() == 0) {
+                            coverageReturnSucceeded = true;
                         }
                     }
 
                     pObject->clearNavigationStateAndStop();
-                    pObject->resetCoverageState();
+                    if (coverageReturnSucceeded) {
+                        if (coverageHadSkippedTarget) {
+                            printf("Coverage task ended with skipped targets; robot is idle but coverage is incomplete.\n");
+                            fflush(stdout);
+                        }
+                        pObject->markCoverageCompletedIdle();
+                    } else {
+                        pObject->resetCoverageState();
+                    }
                     pObject->enableCoverage = false;
                 }
             }

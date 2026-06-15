@@ -16,6 +16,7 @@
 
 #define MAX_BUFFER_SIZE 1024
 #define DEFAULT_SPEED 0x15 // 默认速度，百分比
+#define MIN_NONZERO_WHEEL_PERCENT 12
 // TODO: 两个待测数据
 #define RADIUS 0.13    // 两轮之间的距离的一半，米
 #define FULLSPEED 0.60 // 轮子全速，m/s

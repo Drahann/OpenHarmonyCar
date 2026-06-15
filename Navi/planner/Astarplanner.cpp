@@ -1392,6 +1392,16 @@ bool CAstar::plan(Pose thegoal, ProbMap &visMap, Pose curpose,
     {
         return false;
     }
+    if (ret == 1) {
+        vector<double> finalGoal;
+        finalGoal.push_back(thegoal.x);
+        finalGoal.push_back(thegoal.y);
+        path.push_back(finalGoal);
+        printf("astar planner near goal: direct final segment to (%.3f, %.3f)\n",
+               thegoal.x, thegoal.y);
+        fflush(stdout);
+        return true;
+    }
 
     if (!vtPlanPath.empty()) {
 
