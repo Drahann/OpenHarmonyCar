@@ -7,6 +7,7 @@
   const centerOf = F.centerOf, camTo = F.camTo, camReset = F.camReset,
     cursorShow = F.cursorShow, cursorHide = F.cursorHide, cursorTapAt = F.cursorTapAt,
     tapEl = F.tapEl, caption = F.caption, addCSS = F.addCSS, I = F.I;
+  const MK = window.MAPKIT;  // 共享地图工具箱（朝向机器人 + 拖尾 + 真实运动）
 
   addCSS(
     '.bc-title{font-size:25px;font-weight:700;color:var(--text-body);margin-bottom:6px;}' +
@@ -63,7 +64,7 @@
       '<path class="wp" pathLength="1"' + wd + ' d="M345 470 L520 470"/></g>' +
       '<path class="trail" d="M470 300 L560 300 L560 560 L820 560" fill="none" stroke="#357a41" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/>' +
       '<g class="pinG" opacity="0"><path d="M0 0 Q-9 -14 -9 -23 A9 9 0 0 1 9 -23 Q9 -14 0 0 Z" fill="#d9503f"/><circle cx="0" cy="-23" r="3.6" fill="#fff"/></g>' +
-      '<g class="robot" opacity="' + (ready ? 1 : 0) + '"><polygon points="0,-30 11,-12 -11,-12" fill="#357a41"/><circle r="16" fill="#357a41"/><circle r="16" fill="none" stroke="#fff" stroke-width="3"/><text y="1" fill="#fff" font-size="17" font-weight="700" text-anchor="middle" dominant-baseline="middle">1</text></g></g></svg>';
+      MK.robotSVG('robot', '#357a41', '1', 16) + '</g></svg>';
     const opInit = ready ? 1 : 0, nomapInit = ready ? 0 : 1;
     am.innerHTML = svg +
       '<div class="map-hint" data-hint><span class="minispin"></span>建图中…</div>' +
@@ -100,6 +101,7 @@
     const a = s.start, r = s.refs;
     tl.fromTo(r.T, { opacity: 0, scale: 0.965, y: 24, filter: 'blur(10px)' }, { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', duration: 1.0, ease: 'power4.out' }, a + 0.2);
     caption(tl, a + 0.5, 2.6, '<b>先建一张图</b>', '开始建图 → 摇杆探索一圈 → 结束建图');
+    tl.set(r.robot, { opacity: 0 }, a);   // MK 机器人默认可见 → 建图前先藏，开始建图再现
     cursorShow(tl, a + 1.4, svgPt(r, 760, 760).x, svgPt(r, 760, 760).y);
     // ① 开始建图（唯一一次轻放大）
     let t = a + 2.4;
@@ -124,11 +126,8 @@
     tl.to(r.knob, { y: 0, duration: 0.4, ease: 'power3.out' }, t + 3.0);
     tl.to(r.knob, { x: 30, duration: 0.5, ease: 'power2.out' }, t + 3.4);
     tl.to(r.knob, { x: 0, duration: 0.4, ease: 'power3.out' }, t + 5.0);
-    tl.to(r.robot, { x: 600, y: 200, duration: 1.6, ease: 'power1.inOut' }, t + 0.6);
-    tl.to(r.robot, { x: 820, y: 240, duration: 1.4, ease: 'power1.inOut' }, t + 2.2);
-    tl.to(r.robot, { x: 820, y: 520, duration: 1.6, ease: 'power1.inOut' }, t + 3.6);
-    tl.to(r.robot, { x: 470, y: 470, duration: 1.8, ease: 'power1.inOut' }, t + 5.2);
-    tl.to(r.robot, { x: 470, y: 300, duration: 1.2, ease: 'power1.inOut' }, t + 7.0);
+    // 真实运动：先转向后行驶（车头随走向转）+ 加减速；探索一圈回原点（替代僵硬的纯平滑位移）
+    MK.driveRobot({ tl: tl, robot: r.robot, trail: null, pts: [[470, 300], [600, 200], [820, 240], [820, 520], [470, 470], [470, 300]], t0: t + 0.6, segDur: 1.18, turnDur: 0.28 });
     r.walls.forEach(function (w, i) { tl.to(w, { attr: { 'stroke-dashoffset': 0 }, duration: 1.6, ease: 'power1.out' }, t + 1.0 + i * 1.4); });
     // ③ 结束建图：底栏滑回 → 点结束（无放大）→ 载入 → 成图
     t = a + 16.5;

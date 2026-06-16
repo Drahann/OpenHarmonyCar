@@ -58,8 +58,8 @@
   }
   function animUIHome(tl, s) {
     const a = s.start, r = s.refs; enterIn(tl, r.T, a);
-    caption(tl, a + 0.5, 8.5, '<b>界面总览 · 首页「巡检控制」</b>', '发现车辆 → 选作业模式 → 进入控制');
-    calloutsAll(tl, a + 1.4, 7.5, [
+    caption(tl, a + 0.5, 5.5, '<b>界面总览 · 首页「巡检控制」</b>', '发现车辆 → 选作业模式 → 进入控制');
+    calloutsAll(tl, a + 1.4, 4.4, [
       [r.title, '标题 / 状态副行', '巡检控制 · 发现 N 台车辆', { dx: -320, dy: -70 }],
       [r.trust, '设备互信', '多机前一次性配对', { dx: -30, dy: -150 }],
       [r.discover, '发现设备', '局域网广播自动发现', { dx: 70, dy: -150 }],
@@ -95,8 +95,8 @@
   }
   function animUIControl(tl, s) {
     const a = s.start, r = s.refs; enterIn(tl, r.T, a);
-    caption(tl, a + 0.5, 9.5, '<b>控制页 ControlPage</b>', '全屏地图打底，操作以浮层叠加（Google Maps 范式）');
-    calloutsAll(tl, a + 1.4, 8.5, [
+    caption(tl, a + 0.5, 6.0, '<b>控制页 ControlPage</b>', '全屏地图打底，操作以浮层叠加（Google Maps 范式）');
+    calloutsAll(tl, a + 1.4, 5.0, [
       [r.pill, '顶栏状态胶囊', '连接点 · IP · 模式', { dx: 80, dy: -130 }],
       [r.fab, '缩放 FAB', '＋ / − / ⊙ 回中', { dx: -240, dy: -20 }],
       [r.robot, '机器人位姿', 'SLAM 实时 · 朝向+车号', { dx: -340, dy: -50 }],
@@ -122,8 +122,8 @@
   }
   function animUIVision(tl, s) {
     const a = s.start, r = s.refs; enterIn(tl, r.T, a);
-    caption(tl, a + 0.5, 8.5, '<b>仪表识别页 VisionPage</b>', '独立 WS 连香橙派，实时帧 + 读数（与导航解耦）');
-    calloutsAll(tl, a + 1.4, 7.5, [
+    caption(tl, a + 0.5, 5.3, '<b>仪表识别页 VisionPage</b>', '独立 WS 连香橙派，实时帧 + 读数（与导航解耦）');
+    calloutsAll(tl, a + 1.4, 4.3, [
       [r.top, '顶栏', '标题 · host:port · 连接点', { dx: 300, dy: -2 }],
       [r.video, '视频区', '实时帧 + 检测框 + 4 关键点', { dx: -330, dy: -30 }],
       [r.readings, '读数面板', 'fps / 推理ms / 检测数 + 各表读数·告警', { dx: 330, dy: -8 }],
@@ -147,8 +147,8 @@
   }
   function animUITrust(tl, s) {
     const a = s.start, r = s.refs; enterIn(tl, r.T, a);
-    caption(tl, a + 0.5, 8.5, '<b>设备互信页 DeviceTrustPage</b>', '多机前一次性软总线配对，配对一次跨重启持久');
-    calloutsAll(tl, a + 1.4, 7.5, [
+    caption(tl, a + 0.5, 5.3, '<b>设备互信页 DeviceTrustPage</b>', '多机前一次性软总线配对，配对一次跨重启持久');
+    calloutsAll(tl, a + 1.4, 4.3, [
       [r.title, '顶栏', '设备互信 · 重新搜索', { dx: 300, dy: -2 }],
       [r.note, '配对步骤', '同网 → 接屏 → 配对输 PIN', { dx: 340, dy: -8 }],
       [r.tslot, '已信任设备', '配对成功的车在此（持久）', { dx: -330, dy: 0 }],
@@ -179,10 +179,10 @@
     ]);
   }
 
-  F.addScene({ id: 'ui-home', dur: 11, build: buildUIHome, anim: animUIHome });
-  F.addScene({ id: 'ui-control', dur: 12, build: buildUIControl, anim: animUIControl });
-  F.addScene({ id: 'ui-vision', dur: 11, build: buildUIVision, anim: animUIVision });
-  F.addScene({ id: 'ui-trust', dur: 11, build: buildUITrust, anim: animUITrust });
+  F.addScene({ id: 'ui-home', dur: 7.0, build: buildUIHome, anim: animUIHome });
+  F.addScene({ id: 'ui-control', dur: 7.6, build: buildUIControl, anim: animUIControl });
+  F.addScene({ id: 'ui-vision', dur: 7.0, build: buildUIVision, anim: animUIVision });
+  F.addScene({ id: 'ui-trust', dur: 7.0, build: buildUITrust, anim: animUITrust });
   F.addScene({ id: 'ui-setip', dur: 10, build: buildUISetIP, anim: animUISetIP });
   function animHomeEnter(tl, s) {
     const a = s.start, r = s.refs; enterIn(tl, r.T, a);
@@ -194,14 +194,20 @@
   }
   F.addScene({ id: 'home-enter', dur: 5.5, build: buildUIHome, anim: animHomeEnter });
 
-  /* 去掉 02-ctrl（控制台总览已并入界面总览的 ui-control）。 */
+  /* 顺序（本轮改版）：
+     - 移出原理演示段 09-arch / 09-proto / 09-nums（保留代码，后续重构后再加入）；
+     - 删结尾页 09-outro；
+     - 取消独立手填 IP 章（ui-setip / 08-setip）——改为发现设备页旁的小窗顺带演示；
+     - 控制 UI 之后用三平板并排同时演示 A* · 全覆盖 · 多机（见 Phase F，本阶段先保留单平板顺序）。
+     去掉 02-ctrl（控制台总览已并入界面总览的 ui-control）。 */
   F.setOrder([
-    '00-title', '09-arch', '09-proto',
+    '00-title',
     'ui-home', '01-home',
     'ui-trust', '08-trust', 'home-enter',
-    'ui-control', '03-build', '04-nav', '05-cover', '06-fleet',
-    'ui-vision', '07-vision',
-    'ui-setip', '08-setip',
-    '09-nums', '09-outro'
+    'ui-control', '03-build', 'algo-trio',
+    '07-vision'
   ]);
+  // 注：04-nav/05-cover/06-fleet 的单平板演示已并入 algo-trio（三平板同时演示），其代码保留备用；
+  // ui-vision（仪表页界面总览）移出——仪表页改由 algo-trio 末尾"摄像头→放大"手势直接进入实时页，
+  // 中间再插静态标注总览会打断该连贯转场。如需恢复，把 'ui-vision' 加回 '07-vision' 前即可。
 })();

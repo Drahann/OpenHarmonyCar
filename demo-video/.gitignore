@@ -8,3 +8,14 @@ node_modules/
 # 逐帧导出的图片产物（如有）
 stills/*.png
 stills/*.jpg
+
+# 校验脚本的临时截图（shot.mjs 输出）
+_tmpframes/
+
+# 资源素材：只版本化演示片实际引用的三个素材（meter.mp4 / pi-board.png / monitor.png），
+# 其余原始截图、参考图与 ASCII/中文同名重复副本留作本地工作件，不进 git
+# （遵 CLAUDE.md「不提交大文件、大段录制视频走外部存储」）。
+assets/*
+!assets/meter.mp4
+!assets/pi-board.png
+!assets/monitor.png

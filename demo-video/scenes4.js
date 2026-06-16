@@ -15,6 +15,7 @@
     '.v-conn{display:flex;align-items:center;gap:8px;font-size:18px;color:var(--text-secondary);}' +
     '.v-conn .dot{width:11px;height:11px;border-radius:50%;background:var(--success);}' +
     '.v-video{margin-top:16px;height:392px;border-radius:16px;background:radial-gradient(120% 120% at 50% 40%,#2a2d22,#16180f);position:relative;overflow:hidden;}' +
+    '.v-video .vmeter{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}' +
     '.v-pct{position:absolute;left:24px;top:20px;font-family:var(--font-mono);font-size:30px;font-weight:700;color:#fff;}' +
     '.v-pct small{font-size:16px;color:rgba(255,255,255,.7);font-weight:400;}' +
     '.v-stats{display:flex;gap:30px;margin-top:16px;}' +
@@ -42,6 +43,14 @@
 
   function setText(tl, at, el, txt, prev) { tl.to(el, { duration: 0.01, onComplete: function () { el.textContent = txt; }, onReverseComplete: function () { el.textContent = prev; } }, at); }
   function setClass(tl, at, el, cls, add) { tl.to(el, { duration: 0.01, onComplete: function () { el.classList[add ? 'add' : 'remove'](cls); }, onReverseComplete: function () { el.classList[add ? 'remove' : 'add'](cls); } }, at); }
+  /* 实机视频：把 currentTime 绑定到时间轴（确定性、可 seek、循环 [from,to] 段，不用 play() 以保证逐帧可复现）。 */
+  function bindVid(tl, at, dur, video, from, to) {
+    if (!video) return;
+    try { video.muted = true; video.currentTime = from; } catch (e) {}
+    const seg = Math.max(0.1, to - from), n = Math.max(1, Math.round(dur / seg)), o = { t: from };
+    tl.to(o, { t: to, duration: seg, ease: 'none', repeat: n - 1,
+      onUpdate: function () { try { video.currentTime = o.t; } catch (e) {} } }, at);
+  }
 
   function gaugeSVG() {
     const cx = 616, cy = 196, R = 132; let ticks = '';
@@ -70,13 +79,13 @@
     const vis = document.createElement('div'); vis.className = 'app-v';
     vis.innerHTML =
       '<div class="v-top"><div class="ctl-back" style="box-shadow:none;background:transparent">' + I.back + '</div><div style="margin-left:10px"><div class="v-title">仪表识别</div><div class="v-host">192.168.43.66:8000</div></div><div style="flex:1"></div><div class="v-conn"><span class="dot"></span>已连接</div></div>' +
-      '<div class="v-video"><div class="v-pct">65.0 <small>%</small></div>' + gaugeSVG() + '</div>' +
+      '<div class="v-video"><video class="vmeter" autoplay loop muted playsinline src="assets/meter.mp4"></video></div>' +
       '<div class="v-stats"><div class="v-stat"><div class="sv"><span data-fps>0</span> <small>fps</small></div><div class="sl">帧率</div></div><div class="v-stat"><div class="sv"><span data-inf>0</span> <small>ms</small></div><div class="sl">端到端推理</div></div><div class="v-stat"><div class="sv"><span data-det>0</span></div><div class="sl">检测数</div></div></div>' +
       '<div class="v-readings"><div class="rd"><div class="rl">表 1</div><div class="rv">0.62 MPa</div><div class="rs">仪表 1 · 正常</div></div><div class="rd alarm" data-alarm style="outline-color:transparent"><div class="rl">表 2</div><div class="rv">0.86 MPa</div><div class="rs">仪表 2 · 超上限告警</div></div></div>' +
       '<div class="v-report"><div class="v-rtop"><div class="v-rtitle">分析报告</div><div class="v-rbtn" data-rbtn>生成报告</div></div><div class="v-rnote" data-rnote>基于最近 24h 读数生成趋势 / 异常分析（调用香橙派 DeepSeek）。</div><div class="v-rtext" data-rtext>表2 压力 0.86MPa 超上限 0.80，近 6h 持续上行，建议巡检阀门 V-12；其余仪表读数平稳，处正常区间。</div></div>';
     screen.appendChild(vis); T.appendChild(screen); cam.appendChild(T);
     const q = function (s) { return vis.querySelector(s); };
-    return { cam: cam, T: T, detbox: q('.detbox'), detlabel: q('.detlabel'), kps: Array.prototype.slice.call(vis.querySelectorAll('.kpg')), fps: q('[data-fps]'), inf: q('[data-inf]'), det: q('[data-det]'), alarm: q('[data-alarm]'), readings: q('.v-readings'), rbtn: q('[data-rbtn]'), rnote: q('[data-rnote]'), rtext: q('[data-rtext]') };
+    return { cam: cam, T: T, vid: q('[data-vid]'), fps: q('[data-fps]'), inf: q('[data-inf]'), det: q('[data-det]'), alarm: q('[data-alarm]'), readings: q('.v-readings'), rbtn: q('[data-rbtn]'), rnote: q('[data-rnote]'), rtext: q('[data-rtext]') };
   }
 
   function animVision(tl, s) {
@@ -84,15 +93,12 @@
     tl.fromTo(r.T, { opacity: 0, scale: 0.965, y: 24, filter: 'blur(10px)' }, { opacity: 1, scale: 1, y: 0, filter: 'blur(0px)', duration: 1.0, ease: 'power4.out' }, a + 0.2);
     cursorHide(tl, a + 0.2);
     caption(tl, a + 0.6, 3.2, '<b>YOLOv5s ＋ 关键点 · 昇腾 NPU</b>', '端到端 ~40ms · ~15FPS（上一章点 PiP「放大」进入）');
-    // 检测框 + 4 关键点 + 统计 count-up
+    // 实机视频（已内嵌检测框 + 4 关键点 + 读数）：autoplay loop 自然播放（预览稳定渲染，不靠 currentTime 抓帧）
     let t = a + 1.8;
-    tl.to(r.detbox, { opacity: 1, duration: 0.5 }, t);
-    tl.to(r.detlabel, { opacity: 1, duration: 0.5 }, t + 0.2);
-    r.kps.forEach(function (k, i) { tl.fromTo(k, { opacity: 0 }, { opacity: 1, duration: 0.3, ease: 'power2.out' }, t + 0.6 + i * 0.25); });
-    caption(tl, t + 0.4, 3.0, '<b>4 关键点</b>', '表盘中心 · 指针尖 · 量程 min / max → 反算指针角度');
+    caption(tl, t + 0.4, 3.0, '<b>检测框 + 4 关键点</b>', '表盘中心 · 指针尖 · 量程 min / max → 反算指针角度（实机推理画面）');
     tl.to(r.fps, { duration: 1.2, innerText: 15, snap: { innerText: 1 }, ease: 'power2.out' }, t + 0.6);
     tl.to(r.inf, { duration: 1.2, innerText: 38, snap: { innerText: 1 }, ease: 'power2.out' }, t + 0.6);
-    tl.to(r.det, { duration: 1.2, innerText: 2, snap: { innerText: 1 }, ease: 'power2.out' }, t + 0.6);
+    tl.to(r.det, { duration: 1.2, innerText: 1, snap: { innerText: 1 }, ease: 'power2.out' }, t + 0.6);
     // 读数 + 告警
     t = a + 5.6;
     caption(tl, t + 0.3, 3.0, '<b>实时读数 ＋ 告警</b>', '表2 超上限，卡片描红');

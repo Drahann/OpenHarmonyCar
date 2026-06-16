@@ -10,6 +10,20 @@
     cursorShow = F.cursorShow, cursorHide = F.cursorHide, cursorMove = F.cursorMove,
     cursorTapAt = F.cursorTapAt, tapEl = F.tapEl, caption = F.caption, I = F.I, STAGE_W = F.STAGE_W;
 
+  /* 手填 IP 兜底小窗（发现设备页旁的"顺带演示"）样式 + 打字机 */
+  F.addCSS(
+    '.ipside{position:absolute;right:24px;top:332px;width:270px;background:var(--surface);border-radius:20px;box-shadow:var(--card-shadow);padding:22px 22px 24px;z-index:30;opacity:0;}' +
+    '.ipside .ips-badge{display:inline-block;font-size:14px;font-weight:600;color:var(--primary);background:var(--primary-soft);border-radius:999px;padding:4px 12px;}' +
+    '.ipside .ips-title{font-size:25px;font-weight:700;color:var(--text-title);margin-top:12px;}' +
+    '.ipside .ips-sub{font-size:14px;color:var(--text-secondary);margin-top:6px;line-height:1.5;}' +
+    '.ipside .ips-label{font-size:14px;color:var(--text-secondary);margin-top:18px;}' +
+    '.ipside .ips-input{height:52px;border-radius:12px;background:var(--page-bg);border:1.5px solid var(--border);display:flex;align-items:center;padding:0 16px;margin-top:8px;}' +
+    '.ipside .ips-val{font-family:var(--font-mono);font-size:20px;color:var(--text-body);white-space:pre;}' +
+    '.ipside .ips-caret{width:2px;height:23px;background:var(--primary);margin-left:1px;}' +
+    '.ipside .ips-save{height:50px;border-radius:999px;background:var(--surface-muted);color:var(--text-caption);font-size:18px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:16px;}'
+  );
+  function typeIP(tl, at, dur, el, full) { const o = { n: 0 }; tl.to(o, { n: full.length, duration: dur, ease: 'none', onUpdate: function () { el.textContent = full.substring(0, Math.round(o.n)); }, onReverseComplete: function () { el.textContent = ''; } }, at); }
+
   /* ===================== 00 标题 ===================== */
   function buildTitle(root) {
     root.classList.add('paper');
@@ -28,7 +42,7 @@
     rise(tl, r.kick, a + 0.4, { y: 14, dur: 0.9 });
     tl.fromTo(r.chars, { opacity: 0, y: 40, filter: 'blur(14px)' },
       { opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.0, ease: 'power4.out', stagger: 0.045 }, a + 0.7);
-    rise(tl, r.sub, a + 2.0, { y: 18, dur: 0.9 });
+    rise(tl, r.sub, a + 1.5, { y: 18, dur: 0.9 });
     tl.fromTo(r.col, { scale: 1.0 }, { scale: 1.03, duration: s.dur, ease: 'none' }, a);
   }
 
@@ -102,8 +116,14 @@
     const c2 = mkCard('192.168.43.27', '已发现 · 未连接');
     cards.appendChild(c1); cards.appendChild(c2);
 
+    // 顺带演示：手填 IP 兜底小窗（挂在 root 上 → 不随相机缩放移动，固定在平板右侧）
+    const ipside = document.createElement('div'); ipside.className = 'ipside';
+    ipside.innerHTML = '<div class="ips-badge">兜底</div><div class="ips-title">手动连接</div><div class="ips-sub">发现不可用时（客户端隔离 / 固定 IP / 调试）手填车辆 IP。</div><div class="ips-label">车辆 IP</div><div class="ips-input"><span class="ips-val" data-ipval></span><span class="ips-caret"></span></div><div class="ips-save" data-ipsave>保存并连接</div>';
+    root.appendChild(ipside);
+
     return {
       cam: cam, T: T,
+      ipside: ipside, ipval: ipside.querySelector('[data-ipval]'), ipsave: ipside.querySelector('[data-ipsave]'),
       sub: app.querySelector('[data-sub]'),
       discover: app.querySelector('[data-discover]'),
       trust: app.querySelector('[data-trust]'),
@@ -142,6 +162,11 @@
     });
     tl.to(r.sub, { duration: 0.01, onComplete: function () { r.sub.textContent = '发现 2 台车辆'; }, onReverseComplete: function () { r.sub.textContent = '正在搜索同网络车辆…'; } }, t + 0.4);
     caption(tl, t + 0.6, 2.8, '<b>局域网广播发现</b>', '免手填 IP · 列表整体重建，绝不累积重复');
+    // 旁开「手动连接」小窗：顺带演示手填 IP 兜底（与发现并列，发现可用时不需要它）
+    tl.fromTo(r.ipside, { opacity: 0, x: 28, filter: 'blur(8px)' }, { opacity: 1, x: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power3.out' }, t + 0.2);
+    typeIP(tl, t + 0.9, 1.0, r.ipval, '192.168.43.12');
+    tl.to(r.ipsave, { backgroundColor: '#485c11', color: '#ffffff', duration: 0.4 }, t + 2.0);
+    tl.to(r.ipside, { opacity: 0, x: 22, filter: 'blur(6px)', duration: 0.45, ease: 'power2.in' }, t + 2.9);
 
     // ③ 连接状态机 ⚪→🟡→🟢
     t = a + 9.6;
@@ -158,20 +183,18 @@
     tl.to(r.c1.detail, { duration: 0.01, onComplete: function () { r.c1.detail.textContent = '已连接 · 心跳正常 · 刚刚'; }, onReverseComplete: function () { r.c1.detail.textContent = '连接中…（等待心跳）'; } }, t + 3.1);
     camReset(tl, r.cam, t + 4.2, 1.0);
 
-    // ④ 模式 chip 巡游
+    // ④ 模式 chip 自动轮播高亮（不模拟点击，更快——避免拖沓）
     t = a + 15.2;
-    caption(tl, t + 0.5, 3.0, '<b>三种作业模式</b>', '单机导航 · 全路径覆盖 · 多机协同');
+    caption(tl, t + 0.4, 2.4, '<b>三种作业模式</b>', '单机导航 · 全路径覆盖 · 多机协同');
     function selChip(at, idx) {
       r.chips.forEach(function (ch, i) {
-        tl.to(ch, { backgroundColor: i === idx ? '#485c11' : '#ffffff', color: i === idx ? '#ffffff' : '#485c11', duration: 0.35, ease: 'power2.out' }, at);
+        tl.to(ch, { backgroundColor: i === idx ? '#485c11' : '#ffffff', color: i === idx ? '#ffffff' : '#485c11', duration: 0.3, ease: 'power2.out' }, at);
       });
     }
-    tapEl(tl, t + 0.8, r.chips[1], 0.5); selChip(t + 1.0, 1);
-    tapEl(tl, t + 2.0, r.chips[2], 0.5); selChip(t + 2.2, 2);
-    tapEl(tl, t + 3.2, r.chips[0], 0.5); selChip(t + 3.4, 0);
+    selChip(t + 0.5, 1); selChip(t + 1.05, 2); selChip(t + 1.6, 0);
 
     // ⑥ 点「设备互信」→ 进入互信章节（多机协同前一次性配对）
-    t = a + 20.4;
+    t = a + 17.6;
     camTo(tl, r.cam, t, pTrust.x, pTrust.y, 1.7, 1.0);
     tapEl(tl, t + 0.9, r.trust, 0.6);
     caption(tl, t + 0.8, 2.4, '点 <b>设备互信</b>', '多机协同前，先一次性配对');
@@ -283,9 +306,9 @@
   }
 
   /* ===================== 注册 ===================== */
-  F.addScene({ id: '00-title', dur: 11, build: buildTitle, anim: animTitle });
+  F.addScene({ id: '00-title', dur: 4.5, build: buildTitle, anim: animTitle });
   F.addScene(Object.assign({ id: '01-sec', dur: 4.2 }, makeSection('01', '发现你的巡检车', '同一热点，一键找到它')));
-  F.addScene({ id: '01-home', dur: 24, build: buildHome, anim: animHome });
+  F.addScene({ id: '01-home', dur: 21, build: buildHome, anim: animHome });
   F.addScene(Object.assign({ id: '02-sec', dur: 4.2 }, makeSection('02', '一张地图，掌控全局', 'Google Maps 范式的控制台')));
   F.addScene({ id: '02-ctrl', dur: 23, build: function (root) { return buildControl(root, { mode: 'astar' }); }, anim: animControlOverview });
 })();

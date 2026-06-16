@@ -2,7 +2,7 @@
    注意：本挂载 file-tool Edit 会截断——只用 Write/bash 整文件覆盖；新增场景另建 scenesN.js。 */
 window.FILM = (function () {
   "use strict";
-  const STAGE_W = 1920, STAGE_H = 1080, TRANS = 0.6, SPEED = 2; // SPEED：全片整体加速（2=时长减半，不改内容）
+  const STAGE_W = 1920, STAGE_H = 1080, TRANS = 0.6, SPEED = 1; // SPEED：全片整体倍速（1=原速/作者意图节奏；2=时长减半）。用户要求回到 1×。
   let stage, scenesEl, captionEl, cursor, ripple, tl, TOTAL = 0;
   let curCam = null, orderIds = null;
   const scenes = [];
