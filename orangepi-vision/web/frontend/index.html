@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>仪表监控系统 | SimpleBaselines</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="stylesheet" href="/static/styles.css?v=20251003c" />
+  </head>
+  <body>
+    <div class="layout">
+      <!-- 实时视频流面板 -->
+      <div class="panel video">
+        <header>
+          <h3>实时视频流</h3>
+          <span id="hud-a" class="hud"></span>
+        </header>
+        <div class="video-info">
+          <div class="info-content">
+            <div><strong>YOLO:</strong> <code>yolov5s_gauge_nchw_aipp.om</code></div>
+            <div><strong>Pose:</strong> <code>simple_baselines_256x192_bs1_fp32.om</code></div>
+          </div>
+        </div>
+        <div class="video-grid">
+          <figure>
+            <img id="stream-a" alt="实时视频流" />
+            <figcaption>摄像头 / 检测叠加层</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <!-- DeepSeek AI 问答面板 -->
+      <section class="panel deepseek">
+        <header>
+          <h3>DeepSeek-R1 智能问答</h3>
+          <span id="llm-status" class="llm-status">加载中...</span>
+        </header>
+        <div id="msgs-deepseek" class="chat-messages"></div>
+        <div class="chat-input">
+          <textarea id="prompt-deepseek" placeholder="输入您的问题... (Ctrl/Cmd + Enter 发送)"></textarea>
+          <button id="ask">发送</button>
+        </div>
+      </section>
+
+      <!-- 性能指标与监控面板 -->
+      <div class="panel metrics">
+        <section>
+          <h3>实时性能</h3>
+          <dl id="metrics"></dl>
+        </section>
+        
+        <section>
+          <h3>仪表读数</h3>
+          <div id="reading">--</div>
+          <div class="meta">
+            <span id="scale"></span>
+            <span id="status">等待数据</span>
+          </div>
+          <div class="help-text">显示检测到的仪表指针角度百分比 (0-100%)</div>
+        </section>
+        
+        <section>
+          <h3>报警阈值</h3>
+          <div class="thresholds">
+            <label>
+              最低值 (%)
+              <input id="low" type="number" step="1" value="0" min="0" max="100" />
+            </label>
+            <label>
+              最高值 (%)
+              <input id="high" type="number" step="1" value="100" min="0" max="100" />
+            </label>
+            <button id="save">应用设置</button>
+          </div>
+          <div class="help-text">当仪表读数超出设定范围时，状态将显示为 ALARM</div>
+        </section>
+        
+        <section>
+          <h3>事件时间线</h3>
+          <ul id="timeline"></ul>
+        </section>
+      </div>
+
+      <!-- 数据统计与分析面板 -->
+      <section class="panel data-analysis-panel">
+        <header>
+          <h2>数据统计与分析</h2>
+          <div class="panel-controls">
+            <select id="time-range" class="time-range-selector">
+              <option value="1">最近1小时</option>
+              <option value="24" selected>最近24小时</option>
+              <option value="168">最近7天</option>
+            </select>
+            <button onclick="refreshStats()" class="refresh-btn">刷新统计</button>
+            <button onclick="generateReport()" id="generate-report-btn" class="primary-btn">生成分析报告</button>
+            <button onclick="showReportList()" class="secondary-btn">历史报告</button>
+            <button onclick="confirmClearAllData()" class="btn-danger-outline">清空所有数据</button>
+          </div>
+        </header>
+        
+        <div class="stats-content" id="stats-content">
+          <!-- 动态生成卡片 -->
+          <div class="stat-card">
+            <h3>总读数</h3>
+            <p class="stat-value" id="total-readings">--</p>
+            <p class="stat-label">数据点</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 加载遮罩层 -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p class="loading-text">正在生成报告，请稍候...</p>
+        <p class="loading-tip">AI 分析大约需要 10-30 秒</p>
+      </div>
+    </div>
+
+    <!-- Modal 对话框 -->
+    <div id="modal-overlay" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">标题</h2>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+          内容
+        </div>
+      </div>
+    </div>
+
+    <!-- 仪表配置对话框 -->
+    <div id="gauge-config-overlay" class="modal-overlay">
+      <div class="modal-content gauge-config-modal">
+        <div class="modal-header">
+          <h2 id="gauge-config-title">仪表配置</h2>
+          <button class="modal-close" onclick="closeGaugeConfig()">✕</button>
+        </div>
+        <div class="modal-body">
+          <form id="gauge-config-form" class="gauge-config-form">
+            <div class="form-group">
+              <label>显示名称</label>
+              <input type="text" id="config-display-name" placeholder="如: 主压力表" />
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>量程最小值</label>
+                <input type="number" step="any" id="config-min-range" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label>量程最大值</label>
+                <input type="number" step="any" id="config-max-range" placeholder="100" />
+              </div>
+              <div class="form-group">
+                <label>单位</label>
+                <input type="text" id="config-unit" placeholder="如: MPa, °C" />
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>低阈值（报警）</label>
+                <input type="number" step="any" id="config-low-threshold" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label>高阈值（报警）</label>
+                <input type="number" step="any" id="config-high-threshold" placeholder="100" />
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="button" onclick="saveGaugeConfig()" class="primary-btn">保存配置</button>
+              <button type="button" onclick="resetGaugeConfig()" class="secondary-btn">重置为默认</button>
+              <button type="button" onclick="closeGaugeConfig()" class="btn-secondary">取消</button>
+            </div>
+            
+            <div class="danger-zone">
+              <h4>危险操作</h4>
+              <button type="button" onclick="deleteGaugeData()" class="btn-danger">删除此仪表的所有数据</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/app.js?v=20251003c"></script>
+  </body>
+</html>
+
+

@@ -1,0 +1,16 @@
+# 占位符 —— 实际权重未纳入 git
+
+此处应放 YOLOv5s 仪表检测模型（昇腾 NPU OM，含 AIPP，NCHW）。
+权重本体**不进 git**（见根 `.gitignore`；账号 Git LFS 额度已用尽，暂不走 LFS）。
+
+| 字段 | 值 |
+|---|---|
+| 文件名 | `yolov5s_gauge_nchw_aipp.om` |
+| 大小 | 15257108 bytes (≈14.5 MB) |
+| sha256 | `216e2321c412aa26ab0777ae2f7a90b83c68d7b1069613c4413e73d8c9ce772e` |
+| 来源 | 香橙派 `~/simple_baselines/deployment_bundle/yolo/yolov5s_gauge_nchw_aipp.om` |
+| 输入 | `[1,3,640,640]` NCHW，AIPP 内置归一化 |
+
+## 获取方式
+从香橙派（`192.168.1.5`，用户 `HwHiAiUser`）拷贝，或经 ATC 由 ONNX 重新转换。
+放回本目录、文件名与上表一致即可运行 `../../test_gauge_reading_multi.py`。
