@@ -28,21 +28,18 @@
   function buildTitle(root) {
     root.classList.add('paper');
     const col = document.createElement('div'); col.className = 'center-col';
-    const kick = document.createElement('div'); kick.className = 'kicker'; kick.textContent = 'OpenHarmony · Ascend YOLO';
-    const title = document.createElement('div'); title.className = 'bigtitle'; title.style.margin = '26px 0 30px';
-    'OpenHarmony 工业巡检机器人'.split('').forEach(function (c) {
+    const title = document.createElement('div'); title.className = 'bigtitle';
+    title.style.cssText = 'font-size:66px;line-height:1.28;letter-spacing:-.01em;max-width:1560px;margin:0 auto;';
+    '基于 OpenHarmony 分布式软总线与昇腾边缘智能的自主巡检与工业仪表读数分析机器人'.split('').forEach(function (c) {
       const s = document.createElement('span'); s.className = 'ch'; s.textContent = (c === ' ' ? ' ' : c); title.appendChild(s);
     });
-    const sub = document.createElement('div'); sub.className = 'subtitle'; sub.textContent = '让巡检自己跑起来。';
-    col.appendChild(kick); col.appendChild(title); col.appendChild(sub); root.appendChild(col);
-    return { kick: kick, chars: Array.prototype.slice.call(title.querySelectorAll('.ch')), sub: sub, col: col };
+    col.appendChild(title); root.appendChild(col);
+    return { chars: Array.prototype.slice.call(title.querySelectorAll('.ch')), col: col };
   }
   function animTitle(tl, s) {
     const a = s.start, r = s.refs;
-    rise(tl, r.kick, a + 0.4, { y: 14, dur: 0.9 });
-    tl.fromTo(r.chars, { opacity: 0, y: 40, filter: 'blur(14px)' },
-      { opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.0, ease: 'power4.out', stagger: 0.045 }, a + 0.7);
-    rise(tl, r.sub, a + 1.5, { y: 18, dur: 0.9 });
+    tl.fromTo(r.chars, { opacity: 0, y: 36, filter: 'blur(12px)' },
+      { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.9, ease: 'power4.out', stagger: 0.026 }, a + 0.5);
     tl.fromTo(r.col, { scale: 1.0 }, { scale: 1.03, duration: s.dur, ease: 'none' }, a);
   }
 

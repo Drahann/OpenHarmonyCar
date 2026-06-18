@@ -4,6 +4,7 @@ window.FILM = (function () {
   "use strict";
   const STAGE_W = 1920, STAGE_H = 1080, TRANS = 0.6, SPEED = 1; // SPEED：全片整体倍速（1=原速/作者意图节奏；2=时长减半）。用户要求回到 1×。
   let stage, scenesEl, captionEl, cursor, ripple, tl, TOTAL = 0;
+  let _lastCap = null, _lastCapEnd = 0;   // 字幕单条不重叠：新字幕出现即清掉仍在显示的上一条
   let curCam = null, orderIds = null;
   const scenes = [];
 
@@ -66,11 +67,14 @@ window.FILM = (function () {
   }
 
   function caption(tl, pos, dur, mainHtml, subHtml) {
+    // 单条不重叠：新字幕出现前，强制上一条在本条升起前淡出完（含其仍在进行的淡出尾巴，避免两条在屏上交叠）
+    if (_lastCap && pos < _lastCapEnd + 0.55) tl.to(_lastCap, { opacity: 0, y: -10, filter: 'blur(6px)', duration: 0.3, ease: 'power2.in' }, Math.max(0, pos - 0.3));
     const d = document.createElement('div'); d.className = 'cap';
     d.innerHTML = '<div class="cap-main">' + mainHtml + '</div>' + (subHtml ? '<div class="cap-sub">' + subHtml + '</div>' : '');
     captionEl.appendChild(d);
     tl.fromTo(d, { opacity: 0, y: 16, filter: 'blur(8px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power3.out' }, pos);
     tl.to(d, { opacity: 0, y: -10, filter: 'blur(6px)', duration: 0.5, ease: 'power2.in' }, pos + dur);
+    _lastCap = d; _lastCapEnd = pos + dur;
   }
 
   /* 屏上标注：标签 + 引线指向某元素/舞台点（callout）；屏角信息板（infoPanel）。

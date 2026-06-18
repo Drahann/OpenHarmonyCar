@@ -13,6 +13,13 @@ Thumbs.db
 .vscode/
 *.swp
 
+# Qwen Code 本机缓存（运行态/记忆，不进 git）
+.qwen/
+
+# 本机临时/实验产物（demo-remotion 已被 demo-video/ HTML 方案取代；demo-video.zip 为打包快照）
+demo-remotion/
+demo-video.zip
+
 # ===== 鸿蒙 App (app-harmony) =====
 # 详细规则见 app-harmony/.gitignore
 oh_modules/

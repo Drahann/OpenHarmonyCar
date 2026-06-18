@@ -12,10 +12,30 @@ stills/*.jpg
 # 校验脚本的临时截图（shot.mjs 输出）
 _tmpframes/
 
-# 资源素材：只版本化演示片实际引用的三个素材（meter.mp4 / pi-board.png / monitor.png），
-# 其余原始截图、参考图与 ASCII/中文同名重复副本留作本地工作件，不进 git
-# （遵 CLAUDE.md「不提交大文件、大段录制视频走外部存储」）。
+# 资源素材：只版本化演示片实际引用的素材，其余原始截图、参考图与中文同名重复副本留作本地工作件，
+# 不进 git（遵 CLAUDE.md「不提交大文件、大段录制视频走外部存储」）。
 assets/*
 !assets/meter.mp4
 !assets/pi-board.png
 !assets/monitor.png
+# 硬件章（hw-overview/hw-explode）引用：整车全貌(已压至 ~128KB) + 16 张透明底部件图（均较小）
+!assets/car_full.jpg
+!assets/01_camera.png
+!assets/02_gray_top_shell.png
+!assets/03_orange_pi_ai_pro.png
+!assets/04_lidar_module.png
+!assets/05_white_upper_cover.png
+!assets/06_main_power_assembly.png
+!assets/07_purple_pi_oh_pro.png
+!assets/08_custom_control_board.png
+!assets/09_12v_converter.png
+!assets/10_5v_converter.png
+!assets/11_cable_harness.png
+!assets/12_motor_driver_board.png
+!assets/13_dual_wheel_motors.png
+!assets/14_wheel.png
+!assets/15_caster_wheel.png
+!assets/16_black_base.png
+# pr-discover 心跳章用真车(透明抠图) + pr-vision 仪表章用真表盘(圆形抠图)
+!assets/car_node.png
+!assets/gauge_real.png
