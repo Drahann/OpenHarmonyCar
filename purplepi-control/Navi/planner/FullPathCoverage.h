@@ -3,6 +3,7 @@
 #include "Astarplanner.h"
 #include "ZigzagCoverage.h"
 #include "STCCoverage.h"
+#include "BCDCoverage.h"
 
 #include <stdio.h>
 #include <cstdlib>
@@ -56,6 +57,8 @@ public:
     ZigzagCoverage zigzagCoverage;
     // 最小生成树算法类
     STCCoverage stcCoverage;
+    // BCD 牛耕分解覆盖算法类
+    BCDCoverage bcdCoverage;
 
     // 凸包算法类
     Graham graham;

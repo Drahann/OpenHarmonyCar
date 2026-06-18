@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <sstream>
 #include <fstream>
+#include <unordered_map>
+#include <utility>
 
 // 自定义哈希函数
 struct PointHash {
@@ -47,7 +49,7 @@ public:
 
     // 构建最小生成树
     void generateSTCPath(int* coverageGridMap, int gridMapLength, int gridMapWidth, IPoint startIPoint);
-    // 以深度优先算法递归遍历生成树
+    // 兼容旧接口；当前遍历入口使用显式栈，避免大地图递归栈溢出。
     void traverseTreeDFS(IPoint currentNode, std::unordered_map<IPoint, std::vector<IPoint>, PointHash, PointEqual>& adjList, std::unordered_map<IPoint, bool, PointHash, PointEqual>& visited);
     // 开始以深度优先算法遍历生成树
     void startDFSTraversal();
