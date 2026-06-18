@@ -1,0 +1,369 @@
+/**
+ * VisionPage —— 全屏仪表识别页（形态A，主推）：实时视频 + 读数面板。
+ *
+ * 🔴 **不打扰导航**：本页只连/断**自己的** VisionService（香橙派 WS），不碰 RobotTransport（紫派 UDP 保活）。
+ *   从 ControlPage `router.pushUrl` 进来时 ControlPage **不被销毁**（其 aboutToDisappear/stopHeartbeat 仅在 pop 时触发），
+ *   导航保活留在 RobotTransport 单例里继续跑——进出视频页，导航控制/建图/地图照常。
+ *
+ * **WS 生命周期 = 视图可见**：aboutToAppear → connect + subscribe；aboutToDisappear → unsubscribe + disconnect
+ *   （省平板流量/电；香橙派常驻推理不受连断影响）。**只读订阅**，不向香橙派发任何控制。
+ *
+ * 帧显示交 VideoView（自订阅帧流 + 丢帧解码）；本页订阅 meta/state/error 驱动 ReadingPanel（节流刷新）。
+ * ⚠️ 未经 DevEco 验证；路由需在 main_pages.json 注册。
+ */
+
+import { router, promptAction } from '@kit.ArkUI';
+import { VisionService, VisionStreamListener, VisionConnState } from '../service/VisionService';
+import { FrameMeta, Detection, Summary, Reading } from '../model/vision';
+import { Storage } from '../service/storage';
+import { VideoView } from '../component/VideoView';
+import { ReadingPanel, GaugeReadingVM } from '../component/ReadingPanel';
+import { AppColor, FontSize, FontFamily, Space, Radius, Elevation } from '../constants/theme';
+import { Motion } from '../constants/motion';
+import { Icons } from '../constants/icons';
+import { IconButton } from '../component/IconButton';
+import { Log, Logger } from '../utils/log';
+
+const log: Logger = Log.scoped('VisionPage');
+/** 读数面板刷新节流（ms）：视频可 15fps，但面板文字无需每帧重排，约 4/s 足够。 */
+const PANEL_REFRESH_MS: number = 250;
+/** /api/summary 轮询间隔（ms）：拿服务器算好的 status/unit（带告警），比逐帧 gauge_angles 更丰富。 */
+const SUMMARY_POLL_MS: number = 3000;
+
+/** 订阅适配器：把 VisionService 回调转发到页面方法（帧流由 VideoView 自管，这里 onFrame no-op）。 */
+class VisionPageSink implements VisionStreamListener {
+  private readonly onMetaCb: (meta: FrameMeta) => void;
+  private readonly onStateCb: (state: VisionConnState) => void;
+  private readonly onErrorCb: (message: string) => void;
+
+  constructor(onMetaCb: (meta: FrameMeta) => void, onStateCb: (state: VisionConnState) => void,
+    onErrorCb: (message: string) => void) {
+    this.onMetaCb = onMetaCb;
+    this.onStateCb = onStateCb;
+    this.onErrorCb = onErrorCb;
+  }
+
+  onFrame(_jpeg: ArrayBuffer): void {
+  }
+
+  onMeta(meta: FrameMeta): void {
+    this.onMetaCb(meta);
+  }
+
+  onStateChange(state: VisionConnState): void {
+    this.onStateCb(state);
+  }
+
+  onStreamError(message: string): void {
+    this.onErrorCb(message);
+  }
+}
+
+@Entry
+@Component
+struct VisionPage {
+  private service: VisionService = VisionService.getInstance();
+  private sink: VisionPageSink | null = null;
+  private host: string = Storage.getVisionHost();
+  private port: number = Storage.getVisionPort();
+  private lastPanelAt: number = 0;
+
+  @State private connState: VisionConnState = VisionConnState.idle;
+  @State private fps: number = 0;
+  @State private inferenceMs: number = 0;
+  @State private numDetections: number = 0;
+  @State private readings: GaugeReadingVM[] = [];          // 逐帧 gauge_angles 派生（百分比）
+  @State private summaryReadings: GaugeReadingVM[] = [];    // /api/summary 派生（带 unit/status，优先用）
+  @State private errorMessage: string = '';
+  @State private reportBusy: boolean = false;
+  @State private reportResult: string = '';
+  private summaryTimer: number = -1;
+
+  aboutToAppear(): void {
+    this.sink = new VisionPageSink(
+      (meta: FrameMeta) => this.onMeta(meta),
+      (state: VisionConnState) => this.onState(state),
+      (message: string) => this.onError(message)
+    );
+    this.service.subscribe(this.sink);
+    this.service.acquire(this.host, this.port);  // WS 随视图打开而连（引用计数，与 PiP 共享同一条流）
+    this.summaryTimer = setInterval(() => this.pollSummary(), SUMMARY_POLL_MS);
+    this.pollSummary();
+    log.i(`open vision ${this.host}:${this.port}`);
+  }
+
+  aboutToDisappear(): void {
+    if (this.summaryTimer !== -1) {
+      clearInterval(this.summaryTimer);
+      this.summaryTimer = -1;
+    }
+    if (this.sink !== null) {
+      this.service.unsubscribe(this.sink);
+      this.sink = null;
+    }
+    this.service.release();  // 计数归零才真正断；从 PiP 放大再返回时不会误断 PiP 的流。香橙派/导航毫不相干
+    log.i('close vision');
+  }
+
+  /** 页面转场（docs/ui-polish-plan.md §3）：进场右移淡入，返场淡出。 */
+  pageTransition() {
+    PageTransitionEnter({ duration: Motion.slow, curve: Motion.curveStd })
+      .translate({ x: 24 })
+      .opacity(0)
+    PageTransitionExit({ duration: Motion.base, curve: Motion.curveStd })
+      .opacity(0)
+  }
+
+  build() {
+    Column() {
+      // —— 顶栏 ——
+      Row() {
+        IconButton({ icon: Icons.back, onTap: () => router.back() })
+        Column() {
+          Text('仪表识别')
+            .fontSize(FontSize.h2)
+            .fontColor(AppColor.textTitle)
+            .fontWeight(FontWeight.Bold)
+          Text(`${this.host}:${this.port}`)
+            .fontSize(FontSize.caption)
+            .fontFamily(FontFamily.mono)
+            .fontColor(AppColor.textSecondary)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: Space.md })
+        Blank()
+        Row() {
+          Circle({ width: 10, height: 10 }).fill(this.stateColor()).margin({ right: Space.xs })
+          Text(this.stateLabel())
+            .fontSize(FontSize.bodySm)
+            .fontColor(AppColor.textSecondary)
+        }
+      }
+      .width('100%')
+      .padding({ top: Space.md, bottom: Space.md })
+
+      // —— 视频区（占主空间）——
+      Stack() {
+        VideoView({ placeholder: this.videoPlaceholder() })
+        // 未连接/重连时的轻提示浮层（不挡画面，仅在无帧态有意义；VideoView 自身也有占位）
+        if (this.connState === VisionConnState.connecting || this.connState === VisionConnState.reconnecting) {
+          Row() {
+            LoadingProgress().width(20).height(20).color(AppColor.onPrimary)
+            Text(this.stateLabel())
+              .fontSize(FontSize.bodySm)
+              .fontColor(AppColor.onPrimary)
+              .margin({ left: Space.xs })
+          }
+          .padding({ left: Space.md, right: Space.md, top: Space.sm, bottom: Space.sm })
+          .backgroundColor('rgba(0,0,0,0.45)')
+          .borderRadius(Radius.pill)
+        }
+      }
+      .width('100%')
+      .layoutWeight(3)
+      .borderRadius(Radius.md)
+      .clip(true)
+
+      // —— 读数面板 + 报告 ——
+      Scroll() {
+        Column({ space: Space.md }) {
+          ReadingPanel({
+            connLabel: this.stateLabel(),
+            connColor: this.stateColor(),
+            fps: this.fps,
+            inferenceMs: this.inferenceMs,
+            numDetections: this.numDetections,
+            readings: this.effectiveReadings(),
+            errorMessage: this.errorMessage
+          })
+          this.ReportCard()
+        }
+      }
+      .width('100%')
+      .layoutWeight(2)
+      .margin({ top: Space.md })
+      .align(Alignment.Top)
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: Space.lg, right: Space.lg })
+    .backgroundColor(AppColor.pageBg)
+  }
+
+  // ── 回调 ────────────────────────────────────────────────────────────────────
+  private onMeta(meta: FrameMeta): void {
+    const now: number = Date.now();
+    if (now - this.lastPanelAt < PANEL_REFRESH_MS) {
+      return;  // 节流：面板无需每帧重排
+    }
+    this.lastPanelAt = now;
+    this.fps = meta.fps;
+    this.inferenceMs = meta.inferenceTimeMs;
+    this.numDetections = meta.numDetections;
+    this.readings = this.buildReadings(meta);
+  }
+
+  private onState(state: VisionConnState): void {
+    // 状态点/标签变色带过渡（ui-polish-plan §3）
+    animateTo({ duration: 200, curve: Motion.curveStd }, () => {
+      this.connState = state;
+    });
+    if (state === VisionConnState.connected) {
+      this.errorMessage = '';  // 连上即清旧错误
+    }
+  }
+
+  private onError(message: string): void {
+    this.errorMessage = message;
+  }
+
+  /** FrameMeta → 读数 VM 列表（V3：百分比 + 检测置信度；物理量纲/告警阈值留 V4 接 REST 富化）。 */
+  private buildReadings(meta: FrameMeta): GaugeReadingVM[] {
+    const list: GaugeReadingVM[] = [];
+    for (let i = 0; i < meta.gaugeAngles.length; i++) {
+      const percent: number = meta.gaugeAngles[i];
+      const det: Detection | undefined = i < meta.detections.length ? meta.detections[i] : undefined;
+      const isUnknown: boolean = Number.isNaN(percent);
+      list.push({
+        label: `表 ${i + 1}`,
+        valueText: Number.isFinite(percent) ? `${percent.toFixed(1)} %` : '— %',
+        sub: (det !== undefined && Number.isFinite(det.score)) ? `score ${det.score.toFixed(2)}` : '',
+        alarm: false,
+        unknown: isUnknown
+      });
+    }
+    return list;
+  }
+
+  // ── REST：summary 轮询 + 报告 ───────────────────────────────────────────────
+  /** 面板优先用 /api/summary（带 unit/status/告警）；无则回退逐帧 gauge_angles 百分比。 */
+  private effectiveReadings(): GaugeReadingVM[] {
+    return this.summaryReadings.length > 0 ? this.summaryReadings : this.readings;
+  }
+
+  private pollSummary(): void {
+    this.service.getSummary().then((s: Summary | null) => {
+      if (s === null) {
+        return;
+      }
+      this.summaryReadings = s.readings.map((r: Reading) => this.readingToVM(r));
+    }).catch((e: Error) => {
+      log.w(`summary poll fail: ${e.message}`);  // 失败静默（保留旧值），WS 视频不受影响
+    });
+  }
+
+  private readingToVM(r: Reading): GaugeReadingVM {
+    const isUnknown: boolean = Number.isNaN(r.value);
+    return {
+      label: r.label.length > 0 ? r.label : `表 ${r.gaugeId}`,
+      valueText: `${r.value.toFixed(1)} ${r.unit}`,
+      sub: `仪表 ${r.gaugeId}`,
+      alarm: r.isAlarm(),
+      unknown: isUnknown
+    };
+  }
+
+  /** 生成 DeepSeek 报告。⚠️ 香橙派生成期间暂停摄像头释放 NPU——明确提示用户"视频暂停"。 */
+  private generateReport(): void {
+    if (this.reportBusy) {
+      return;
+    }
+    this.reportBusy = true;
+    this.reportResult = '';
+    promptAction.showToast({ message: '正在生成报告，期间香橙派暂停摄像头、视频会停（释放 NPU）…', duration: 3000 });
+    this.service.generateReportRaw(24).then((text: string) => {
+      this.reportBusy = false;
+      this.reportResult = text.length > 240 ? `${text.substring(0, 240)}…` : text;
+      promptAction.showToast({ message: '报告已生成', duration: 2000 });
+    }).catch((e: Error) => {
+      this.reportBusy = false;
+      promptAction.showToast({ message: `报告生成失败：${e.message}`, duration: 3000 });
+    });
+  }
+
+  @Builder
+  ReportCard() {
+    Column({ space: Space.sm }) {
+      Row() {
+        Text('分析报告')
+          .fontSize(FontSize.h3)
+          .fontColor(AppColor.textTitle)
+          .layoutWeight(1)
+        Button(this.reportBusy ? '生成中…' : '生成报告')
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.onPrimary)
+          .backgroundColor(this.reportBusy ? AppColor.textCaption : AppColor.primary)
+          .borderRadius(Radius.pill)
+          .height(40)
+          .padding({ left: Space.md, right: Space.md })
+          .enabled(!this.reportBusy)
+          .onClick(() => this.generateReport())
+      }
+      .width('100%')
+
+      Text(this.reportBusy
+        ? '生成中：DeepSeek 推理占用 NPU，香橙派暂停摄像头，视频与读数会短时停顿，完成后自动恢复。'
+        : '基于最近 24h 读数生成趋势/异常分析（调用香橙派 DeepSeek）。')
+        .fontSize(FontSize.caption)
+        .fontColor(this.reportBusy ? AppColor.warning : AppColor.textSecondary)
+        .width('100%')
+
+      if (this.reportResult.length > 0) {
+        Text(this.reportResult)
+          .fontSize(FontSize.bodySm)
+          .fontColor(AppColor.textBody)
+          .width('100%')
+          .padding(Space.sm)
+          .backgroundColor(AppColor.surfaceMuted)
+          .borderRadius(Radius.sm)
+      }
+    }
+    .width('100%')
+    .padding(Space.md)
+    .backgroundColor(AppColor.surface)
+    .borderRadius(Radius.md)
+    .shadow({
+      radius: Elevation.cardRadius,
+      color: Elevation.cardColor,
+      offsetX: 0,
+      offsetY: Elevation.cardOffsetY
+    })
+  }
+
+  // ── 连接态展示 ────────────────────────────────────────────────────────────
+  private stateLabel(): string {
+    switch (this.connState) {
+      case VisionConnState.connecting:
+        return '连接中…';
+      case VisionConnState.connected:
+        return '已连接';
+      case VisionConnState.reconnecting:
+        return '重连中…';
+      case VisionConnState.closed:
+        return '已断开';
+      default:
+        return '未连接';
+    }
+  }
+
+  private stateColor(): string {
+    switch (this.connState) {
+      case VisionConnState.connected:
+        return AppColor.success;
+      case VisionConnState.connecting:
+      case VisionConnState.reconnecting:
+        return AppColor.warning;
+      case VisionConnState.closed:
+        return AppColor.danger;
+      default:
+        return AppColor.textCaption;
+    }
+  }
+
+  private videoPlaceholder(): string {
+    if (this.connState === VisionConnState.connected) {
+      return '等待视频帧…';
+    }
+    return `${this.stateLabel()}（香橙派 ${this.host}:${this.port}）`;
+  }
+}

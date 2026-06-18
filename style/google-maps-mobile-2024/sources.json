@@ -1,0 +1,13 @@
+{
+  "figmaFileKey": "2wvWwS1Oz3ypGEWaES7EBZ",
+  "nodes": [
+    {
+      "nodeId": "2:7",
+      "url": "https://www.figma.com/design/2wvWwS1Oz3ypGEWaES7EBZ/Google-Maps-UI-Views-for-Mobile-2024--Community-?node-id=2-7&m=dev",
+      "output": "index.html",
+      "reference": "references/reference-2-7.png",
+      "note": "MCP returned this node as a sparse Section, so the implementation reconstructs the visible board from the Figma screenshot."
+    }
+  ],
+  "shared": ["styles.css", "asset-manifest.generated.json"]
+}

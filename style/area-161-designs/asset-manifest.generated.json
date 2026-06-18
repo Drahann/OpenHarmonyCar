@@ -1,0 +1,163 @@
+[
+  {
+    "group": "assets",
+    "name": "screen-home",
+    "file": "assets/screen-home.png",
+    "contentType": "image/png",
+    "bytes": 3217146
+  },
+  {
+    "group": "assets",
+    "name": "screen-hero-component",
+    "file": "assets/screen-hero-component.png",
+    "contentType": "image/png",
+    "bytes": 3217146
+  },
+  {
+    "group": "assets",
+    "name": "thumbnail",
+    "file": "assets/thumbnail.png",
+    "contentType": "image/png",
+    "bytes": 1859383
+  },
+  {
+    "group": "assets",
+    "name": "landscape-brown",
+    "file": "assets/landscape-brown.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 9135703
+  },
+  {
+    "group": "assets",
+    "name": "columns",
+    "file": "assets/columns.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 620729
+  },
+  {
+    "group": "assets",
+    "name": "spheres",
+    "file": "assets/spheres.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 4185006
+  },
+  {
+    "group": "assets",
+    "name": "landscape-green",
+    "file": "assets/landscape-green.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 12019782
+  },
+  {
+    "group": "assets",
+    "name": "style-photo-1",
+    "file": "assets/style-photo-1.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 9135703
+  },
+  {
+    "group": "assets",
+    "name": "style-photo-2",
+    "file": "assets/style-photo-2.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 12019782
+  },
+  {
+    "group": "assets",
+    "name": "style-photo-3",
+    "file": "assets/style-photo-3.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 4185006
+  },
+  {
+    "group": "assets",
+    "name": "style-photo-4",
+    "file": "assets/style-photo-4.jpg",
+    "contentType": "image/jpeg",
+    "bytes": 620729
+  },
+  {
+    "group": "assets",
+    "name": "color-strip",
+    "file": "assets/color-strip.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 770
+  },
+  {
+    "group": "assets",
+    "name": "logo-1",
+    "file": "assets/logo-1.png",
+    "contentType": "image/png",
+    "bytes": 1349
+  },
+  {
+    "group": "assets",
+    "name": "logo-2",
+    "file": "assets/logo-2.png",
+    "contentType": "image/png",
+    "bytes": 3840
+  },
+  {
+    "group": "assets",
+    "name": "logo-3",
+    "file": "assets/logo-3.png",
+    "contentType": "image/png",
+    "bytes": 3497
+  },
+  {
+    "group": "assets",
+    "name": "logo-4",
+    "file": "assets/logo-4.png",
+    "contentType": "image/png",
+    "bytes": 3552
+  },
+  {
+    "group": "assets",
+    "name": "logo-5",
+    "file": "assets/logo-5.png",
+    "contentType": "image/png",
+    "bytes": 8664
+  },
+  {
+    "group": "assets",
+    "name": "logo-6",
+    "file": "assets/logo-6.png",
+    "contentType": "image/png",
+    "bytes": 3763
+  },
+  {
+    "group": "assets",
+    "name": "logo-mark",
+    "file": "assets/logo-mark.svg",
+    "contentType": "image/svg+xml",
+    "bytes": 509
+  },
+  {
+    "group": "references",
+    "name": "reference-161-251",
+    "file": "references/reference-161-251.png",
+    "contentType": "image/png",
+    "bytes": 858324
+  },
+  {
+    "group": "references",
+    "name": "reference-161-721",
+    "file": "references/reference-161-721.png",
+    "contentType": "image/png",
+    "bytes": 830722
+  },
+  {
+    "group": "references",
+    "name": "reference-161-871",
+    "file": "references/reference-161-871.png",
+    "contentType": "image/png",
+    "bytes": 476331
+  },
+  {
+    "group": "references",
+    "name": "reference-161-722",
+    "file": "references/reference-161-722.png",
+    "contentType": "image/png",
+    "bytes": 372416
+  }
+]

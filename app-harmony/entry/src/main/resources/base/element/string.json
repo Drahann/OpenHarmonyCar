@@ -15,14 +15,6 @@
     {
       "name": "permissionReason",
       "value": "用于多机器人分布式协同"
-    },
-    {
-      "name": "robotRunAbility_desc",
-      "value": "跨端协同控制入口"
-    },
-    {
-      "name": "robotRunAbility_label",
-      "value": "机器人控制"
     }
   ]
 }

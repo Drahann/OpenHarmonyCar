@@ -1,11 +1,28 @@
 {
   "app": {
-    // 签名配置留空：请在 DevEco Studio 中用「自动签名」生成（沿用 bundle com.example.carapp 的调试证书）。
-    // 不在仓库提交签名密钥/口令。
-    "signingConfigs": [],
+    // 签名配置：复用 car-agent 的 com.example.carapp 调试证书（**完整含 .p7b profile、有效至 2027-06-11**）。
+    // 背景：app-harmony 自己的 24NLQE 证书集**缺 .p7b**（DevEco 自动签名未完成生成 profile）→ hvigor 00303107
+    // "Invalid profile value"。car-agent 与本应用 bundle 同为 com.example.carapp，profile 可通用，故指向它。
+    // 若装机报"设备不在 profile"，在 DevEco「File→Project Structure→Signing Configs」勾自动签名重登记本机设备。
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\draha\\.ohos\\config\\default_car-agent_W100yLNFI9Lux3ilt4v8miJb7eO20kFY6rayvMiDVxU=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B205B50DF15F23A43B719090CE5D012BEF7A7D5BC34779C36DD4078A86FE01E2A6E27742559A71C",
+          "profile": "C:\\Users\\draha\\.ohos\\config\\default_car-agent_W100yLNFI9Lux3ilt4v8miJb7eO20kFY6rayvMiDVxU=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\draha\\.ohos\\config\\default_car-agent_W100yLNFI9Lux3ilt4v8miJb7eO20kFY6rayvMiDVxU=.p12",
+          "storePassword": "0000001B27F7D3121B7C97943C2B26A2699FF329F15BCCEDA9528A515536739B8C58EE87A36EEA260CCB3D"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",
+        "signingConfig": "default",
         "compatibleSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",
         "buildOption": {
@@ -13,7 +30,8 @@
             "caseSensitiveCheck": true,
             "useNormalizedOHMUrl": true
           }
-        }
+        },
+        "targetSdkVersion": "5.0.0(12)"
       }
     ],
     "buildModeSet": [

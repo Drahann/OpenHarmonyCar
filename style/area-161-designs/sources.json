@@ -1,0 +1,35 @@
+{
+  "figmaFileKey": "65CMrCi7opIqi80NPrKFxu",
+  "createdFor": "Area website design extraction",
+  "nodes": [
+    {
+      "nodeId": "161:251",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=161-251&m=dev",
+      "output": "hero-image.html",
+      "reference": "references/reference-161-251.png"
+    },
+    {
+      "nodeId": "161:721",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=161-721&m=dev",
+      "output": "index.html",
+      "reference": "references/reference-161-721.png"
+    },
+    {
+      "nodeId": "161:871",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=161-871&m=dev",
+      "output": "thumbnail.html",
+      "reference": "references/reference-161-871.png"
+    },
+    {
+      "nodeId": "161:722",
+      "url": "https://www.figma.com/design/65CMrCi7opIqi80NPrKFxu/Untitled?node-id=161-722&m=dev",
+      "output": "style-guide.html",
+      "reference": "references/reference-161-722.png"
+    }
+  ],
+  "shared": [
+    "styles.css",
+    "assets/",
+    "asset-manifest.generated.json"
+  ]
+}

@@ -38,20 +38,25 @@ function decodeReceive(buffer) {
   return { state: bytes[0], x: view.getInt16(3, false), y: view.getInt16(5, false), r: view.getInt16(7, false) };
 }
 
-// ── 镜像：model/geometry.ets ────────────────────────────────────────────────
+// ── 镜像：model/geometry.ets（含 x0/y0 世界偏移，M1）──────────────────────────
+const COORD_UNITS_PER_METER = 20; // 1 米 = 20 个 5cm 单位（= constants/protocol）
+function worldToGrid(m, t) {
+  const mpp = t.metersPerPixel > 0 ? t.metersPerPixel : 0.05;
+  return { x: (m.x / COORD_UNITS_PER_METER - t.x0) / mpp, y: (m.y / COORD_UNITS_PER_METER - t.y0) / mpp };
+}
+function gridToWorld(g, t) {
+  const mpp = t.metersPerPixel > 0 ? t.metersPerPixel : 0.05;
+  return { x: Math.round((g.x * mpp + t.x0) * COORD_UNITS_PER_METER), y: Math.round((g.y * mpp + t.y0) * COORD_UNITS_PER_METER) };
+}
 function canvasToMap(c, t, half) {
   const halfTxt = t.txtAverSize / 2;
-  return {
-    x: Math.round((c.x + half) / t.gridSize + t.startX - halfTxt),
-    y: -Math.round((c.y + half) / t.gridSize + halfTxt - t.endY),
-  };
+  const g = { x: (c.x + half) / t.gridSize + t.startX - halfTxt, y: -((c.y + half) / t.gridSize + halfTxt - t.endY) };
+  return gridToWorld(g, t);
 }
 function mapToCanvas(m, t, half) {
   const halfTxt = t.txtAverSize / 2;
-  return {
-    x: Math.round((m.x - t.startX + halfTxt) * t.gridSize - half),
-    y: Math.round((t.endY - halfTxt - m.y) * t.gridSize - half),
-  };
+  const g = worldToGrid(m, t);
+  return { x: Math.round((g.x - t.startX + halfTxt) * t.gridSize - half), y: Math.round((t.endY - halfTxt - g.y) * t.gridSize - half) };
 }
 
 // ── 镜像：service/MapService.ets parseMap（首行按位置 parts[2]/[3]；数据行归一化 空格(-1/0) 或 密排(1/0)）──
@@ -68,13 +73,46 @@ function parseRow(line) {
   for (let i = 0; i < t.length; i++) cells[i] = t[i] === '1' ? 1 : 0;
   return cells;
 }
+// 镜像：解一行压缩数据 `rowBitCount wordCount word0 ...` → 归一化栅格行（1=障碍）。cell col = word[col>>6] 的 bit(63-(col&63))。
+function decodeZipedRow(line, width) {
+  const toks = line.split(/\s+/);
+  const n = width > 0 ? width : parseInt(toks[0], 10);   // width 缺失时回退 rowBitCount
+  const cells = new Uint8Array(n > 0 ? n : 0);
+  const wordCount = parseInt(toks[1], 10);
+  for (let wi = 0; wi < wordCount; wi++) {
+    const tok = toks[2 + wi];
+    if (tok === undefined) break;
+    const bits = BigInt(tok).toString(2).padStart(64, '0'); // 无符号 64 位 → MSB 在前的 64 位串：bits[j]=bit(63-j)=第(base+j)格
+    const base = wi << 6, limit = Math.min(64, n - base);
+    for (let j = 0; j < limit; j++) cells[base + j] = bits[j] === '1' ? 1 : 0;
+  }
+  return cells;
+}
+// 仅测试用：把 0/1 行压成 ZMAP1（生成解压用例的输入，逆 decodeZipedRow）。
+function compressZiped(headerLine, rows) {
+  const width = rows.length ? rows[0].length : 0, wordCount = Math.ceil(width / 64);
+  const out = ['ZMAP1', headerLine];
+  for (const row of rows) {
+    const words = new Array(wordCount).fill(0n);
+    for (let col = 0; col < width; col++) if (row[col]) words[col >> 6] |= (1n << BigInt(63 - (col & 63)));
+    out.push(`${width} ${wordCount} ${words.map((w) => w.toString()).join(' ')}`);
+  }
+  return out.join('\n');
+}
 function parseMap(text, canvasW, canvasH) {
   const rawLines = text.split('\n');
-  const grid = [];
-  for (let y = 0; y < rawLines.length; y++) grid.push(y === 0 ? new Uint8Array(0) : parseRow(rawLines[y]));
-  const headerParts = (rawLines[0] ?? '').trim().split(/\s+/);
-  let height = parseInt(headerParts[2], 10);  // 位置：range resolution height width ...
+  const ziped = rawLines.length > 0 && rawLines[0].trim() === 'ZMAP1';  // 压缩图：首行 ZMAP1，头在第 2 行
+  const headerIdx = ziped ? 1 : 0;
+  const headerParts = (rawLines[headerIdx] ?? '').trim().split(/\s+/);
+  let height = parseInt(headerParts[2], 10);  // 位置：range resolution height width metersPerPixel x0 y0
   let width = parseInt(headerParts[3], 10);
+  let mpp = parseFloat(headerParts[4]), x0 = parseFloat(headerParts[5]), y0 = parseFloat(headerParts[6]);
+  if (!(mpp > 0)) mpp = 0.05; if (Number.isNaN(x0)) x0 = 0; if (Number.isNaN(y0)) y0 = 0;
+  const grid = [new Uint8Array(0)];           // grid[0]=头占位；grid[y>=1]=数据行
+  for (let y = headerIdx + 1; y < rawLines.length; y++) {
+    if (ziped) { const t = rawLines[y].trim(); grid.push(t.length === 0 ? new Uint8Array(0) : decodeZipedRow(t, width)); }
+    else grid.push(parseRow(rawLines[y]));
+  }
   if (!(height > 0) || !(width > 0)) {        // 回退：首行非标准 → 按数据推断
     let maxCols = 0, dataRows = 0;
     for (let y = 1; y < grid.length; y++) if (grid[y].length > 0) { dataRows++; if (grid[y].length > maxCols) maxCols = grid[y].length; }
@@ -97,6 +135,7 @@ function parseMap(text, canvasW, canvasH) {
   return {
     rows: height, cols: width, startX: xMin, startY: yMin, endX: xMax, endY: yMax,
     squareSize, gridWidth, gridHeight, gridSize: (gridWidth + gridHeight) / 2, txtAverSize: (width + height) / 2,
+    metersPerPixel: mpp, x0, y0,
   };
 }
 
@@ -267,6 +306,32 @@ console.log('坐标换算（map -> canvas -> map 互逆）：');
   check('map->canvas->map 误差 ≤ 1', maxErr <= 1, `maxErr=${maxErr}`);
 }
 
+// ── ②b x0/y0 世界偏移（M1）：非零偏移下互逆 + 偏移量正确 ─────────────────────
+console.log('坐标换算 x0/y0 偏移（M1：非零偏移互逆 + 常量偏移）：');
+{
+  // 7 值首行带 x0=-45, y0=-44（米），mpp=0.05；全障碍 40×40 → 包围盒满幅、gridSize=25
+  const realMap = ['0.05 0.05 40 40 0.05 -45 -44']
+    .concat(Array.from({ length: 40 }, () => Array(40).fill('-1').join(' '))).join('\n');
+  const t = parseMap(realMap, 1000, 1000);
+  check('②b parseMap 解析 x0=-45/y0=-44/mpp=0.05', t.x0 === -45 && t.y0 === -44 && t.metersPerPixel === 0.05,
+    JSON.stringify({ x0: t.x0, y0: t.y0, mpp: t.metersPerPixel }));
+  // worldToGrid 正确：world(0,0) 5cm 单位 → grid = (0/20 − (−45))/0.05 = 900；y 同理 880
+  const g0 = worldToGrid({ x: 0, y: 0 }, t);
+  check('②b world(0,0) → grid(900,880)（= −x0/mpp, −y0/mpp）', Math.round(g0.x) === 900 && Math.round(g0.y) === 880, JSON.stringify(g0));
+  // 非零偏移下互逆（含偏移往返）
+  let maxErr = 0;
+  for (const p of [{ x: 100, y: 200 }, { x: -50, y: 30 }, { x: 0, y: 0 }]) {
+    const back = canvasToMap(mapToCanvas(p, t, 500), t, 500);
+    maxErr = Math.max(maxErr, Math.abs(back.x - p.x), Math.abs(back.y - p.y));
+  }
+  check('②b 非零偏移 map->canvas->map 互逆 ≤ 1', maxErr <= 1, `maxErr=${maxErr}`);
+  // 退化：旧 2 值首行 → x0=y0=0、mpp=0.05，world==grid（与旧版一致）
+  const t0 = parseMap(['40 40'].concat(Array.from({ length: 40 }, () => Array(40).fill('-1').join(' '))).join('\n'), 1000, 1000);
+  check('②b 旧 2 值首行退化 x0=y0=0/mpp=0.05', t0.x0 === 0 && t0.y0 === 0 && t0.metersPerPixel === 0.05, JSON.stringify({ x0: t0.x0, y0: t0.y0 }));
+  const g1 = worldToGrid({ x: 20, y: 40 }, t0); // 20/20/0.05=20；40/20/0.05=40
+  check('②b 退化 world(20,40)→grid(20,40)', Math.round(g1.x) === 20 && Math.round(g1.y) === 40, JSON.stringify(g1));
+}
+
 // ── ③ 地图解析 ──────────────────────────────────────────────────────────────
 console.log('地图解析（fixtures/defultMap.txt, 画布 1000x1000）：');
 {
@@ -298,6 +363,48 @@ console.log('真机地图格式（首行 range resolution height width metersPer
   check('空格分隔 -1 识别为障碍：xMin=0', rm.startX === 0, `startX=${rm.startX}`);
   check('空格分隔 -1 识别为障碍：xMax=4', rm.endX === 4, `endX=${rm.endX}`);
   check('未把负偏移当行列（rows/cols 均 >0）', rm.rows > 0 && rm.cols > 0, `rows=${rm.rows} cols=${rm.cols}`);
+}
+
+// ── ③c 压缩地图 ZMAP1（A README §3：1 bit/格，64 格打包成无符号 64 位整数）：解压等价 + 位序 + 补零 ──
+console.log('压缩地图 ZMAP1（解压 + 与普通图等价 + 位序/补零）：');
+{
+  // 同一张 4×5 图：压缩 → parseMap 应与普通图 parseMap 逐字段一致
+  const rows = [[1, 1, 1, 1, 1], [1, 0, 0, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1]];
+  const header = '0.05 0.05 4 5 0.05 -45 -44';
+  const z = compressZiped(header, rows);
+  check('压缩首行 = ZMAP1', z.split('\n')[0] === 'ZMAP1');
+  const zm = parseMap(z, 1000, 1000);
+  const pm = parseMap([header, '-1 -1 -1 -1 -1', '-1 0 0 0 -1', '-1 0 0 0 -1', '-1 -1 -1 -1 -1'].join('\n'), 1000, 1000);
+  check('ZMAP1 解出 rows=4/cols=5', zm.rows === 4 && zm.cols === 5, `rows=${zm.rows} cols=${zm.cols}`);
+  check('ZMAP1 解压结果与普通图 parseMap 逐字段一致',
+    zm.rows === pm.rows && zm.cols === pm.cols && zm.startX === pm.startX && zm.endX === pm.endX &&
+    zm.startY === pm.startY && zm.endY === pm.endY && zm.squareSize === pm.squareSize,
+    `ziped=${JSON.stringify(zm)} plain=${JSON.stringify(pm)}`);
+}
+{
+  // A README 示例：width=70 → wordCount=2；cell 64..69 落在 word1 的 bit63..58。造一行：cell 0、64、69 为障碍。
+  const width = 70, row = new Array(width).fill(0);
+  row[0] = 1; row[64] = 1; row[69] = 1;
+  const dataLine = compressZiped(`0.05 0.05 1 ${width} 0.05 0 0`, [row]).split('\n')[2];
+  const toks = dataLine.split(/\s+/);
+  check('示例 width=70 → wordCount=2', parseInt(toks[1], 10) === 2, `wordCount=${toks[1]}`);
+  check('word0 = 2^63（cell0 在最高位 bit63）', BigInt(toks[2]) === (1n << 63n), `word0=${toks[2]}`);
+  check('word1 = 2^63+2^58（cell64→bit63, cell69→bit58）', BigInt(toks[3]) === ((1n << 63n) | (1n << 58n)), `word1=${toks[3]}`);
+  const dec = decodeZipedRow(dataLine, width);
+  let bitsOk = dec[0] === 1 && dec[64] === 1 && dec[69] === 1, zeros = true;
+  for (let i = 0; i < width; i++) if (i !== 0 && i !== 64 && i !== 69 && dec[i] !== 0) zeros = false;
+  check('解回 cell0/64/69=障碍、其余空旷（高位精度未丢）', bitsOk && zeros);
+  check('解回长度 = width（忽略末字补零位）', dec.length === width, `len=${dec.length}`);
+}
+{
+  // 高位精度回归：一整行 64 格全障碍 → word0 = 2^64-1（>2^53），用普通 number 解会丢位，BigInt 不丢。
+  const width = 64, row = new Array(width).fill(1);
+  const dataLine = compressZiped(`0.05 0.05 1 ${width} 0.05 0 0`, [row]).split('\n')[2];
+  check('全障碍行 word0 = 2^64-1', dataLine.split(/\s+/)[2] === (2n ** 64n - 1n).toString(), dataLine);
+  const dec = decodeZipedRow(dataLine, width);
+  let allWall = true;
+  for (let i = 0; i < width; i++) if (dec[i] !== 1) allWall = false;
+  check('全障碍行解回 64 格全 1（BigInt 不丢高位）', allWall);
 }
 
 // ── ④ 共享层副本同步（car-agent 自带共享层 vs app-harmony 权威；§6.1 "改一处改两处" 守卫）──

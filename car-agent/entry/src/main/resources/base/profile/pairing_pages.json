@@ -1,0 +1,6 @@
+{
+  "src": [
+    "pages/PairingPage",
+    "pages/AgentStatusPage"
+  ]
+}

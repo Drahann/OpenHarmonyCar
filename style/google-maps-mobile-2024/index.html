@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Google Maps Mobile UI Views - Figma 2:7</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="workspace">
+      <div>
+        <h1 class="title">Google Maps mobile UI views</h1>
+        <p class="subtitle">Editable static extraction of the selected Figma workspace: mobile map views, route UI, place detail cards, map pins, chips, controls, and map component samples.</p>
+      </div>
+
+      <section class="board-row" aria-label="Extracted Google Maps UI boards">
+        <div class="black-board">
+          <div class="phone-strip">
+            <article class="phone" aria-label="Explore map screen">
+              <div class="status"><span>9:41</span><span>LTE</span></div>
+              <div class="map">
+                <div class="road one"></div>
+                <div class="road two"></div>
+                <div class="road-thin"></div>
+                <div class="search">Search here <span class="avatar"></span></div>
+                <span class="pin blue" style="left: 60%; top: 47%;"></span>
+                <span class="pin" style="left: 72%; top: 34%;"></span>
+                <div class="zoom"><span class="fab">+</span><span class="fab">&#8982;</span></div>
+                <div class="bottom-nav"><b>Explore</b><span>Go</span><span>Saved</span><span>Contribute</span><span>Updates</span></div>
+              </div>
+            </article>
+
+            <article class="phone" aria-label="Search results screen">
+              <div class="status"><span>9:41</span><span>LTE</span></div>
+              <div class="directions">
+                <div class="field">Coffee near Brooklyn</div>
+                <div class="label-row"><span class="chip active">Open now</span><span class="chip">Top rated</span></div>
+                <div class="route-option"><span>&#9749;</span><span><strong>Devocion</strong>Williamsburg</span><b>4.7</b></div>
+                <div class="route-option"><span>&#9749;</span><span><strong>Partners Coffee</strong>North 6th Street</span><b>4.5</b></div>
+                <div class="route-option"><span>&#9749;</span><span><strong>Blue Bottle</strong>Berry Street</span><b>4.4</b></div>
+              </div>
+            </article>
+
+            <article class="phone" aria-label="Directions screen">
+              <div class="status"><span>9:41</span><span>LTE</span></div>
+              <div class="map">
+                <div class="road one"></div>
+                <div class="road two"></div>
+                <div class="search">Brooklyn &rarr; Manhattan <span class="avatar"></span></div>
+                <span class="pin blue" style="left: 28%; top: 68%;"></span>
+                <span class="pin" style="left: 72%; top: 28%;"></span>
+                <div class="route-card">
+                  <h3>32 min</h3>
+                  <p>via Williamsburg Bridge</p>
+                  <div class="chips"><span class="chip active">Drive</span><span class="chip">Transit</span></div>
+                </div>
+              </div>
+            </article>
+
+            <article class="phone tall" aria-label="Place detail screen">
+              <div class="status"><span>9:41</span><span>LTE</span></div>
+              <div class="map">
+                <div class="road one"></div>
+                <div class="road two"></div>
+                <div class="search">Lincoln Center <span class="avatar"></span></div>
+                <span class="pin" style="left: 58%; top: 24%;"></span>
+                <div class="place-card">
+                  <h3>Lincoln Center</h3>
+                  <p>Performing arts venue &middot; 4.6 &#9733;</p>
+                  <div class="chips"><span class="chip active">Directions</span><span class="chip">Save</span><span class="chip">Share</span></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="black-board">
+          <div class="component-panel">
+            <div class="component">
+              <strong>Calendar</strong>
+              <p>Mon Tue Wed Thu Fri Sat Sun</p>
+              <div class="label-row"><span class="small-button">12</span><span class="small-button">13</span><span class="small-button">14</span></div>
+            </div>
+            <div class="component wide">
+              <strong>Filters</strong>
+              <div class="label-row" style="margin-top: 10px;">
+                <span class="chip active">Open</span>
+                <span class="chip">Price</span>
+                <span class="chip">Rating</span>
+                <span class="chip">Hours</span>
+              </div>
+            </div>
+            <div class="component">
+              <strong>Map tools</strong>
+              <div class="label-row" style="margin-top: 10px;"><span class="fab">+</span><span class="fab">&minus;</span><span class="fab">&#8982;</span></div>
+            </div>
+            <div class="component">
+              <strong>Location card</strong>
+              <p>Brooklyn, NY</p>
+              <span class="small-button">Use precise location</span>
+            </div>
+            <div class="component wide">
+              <strong>Route input</strong>
+              <div class="field" style="margin-top: 8px;">Current location</div>
+              <div class="field">Lincoln Center</div>
+            </div>
+            <div class="component map-tile">
+              <div class="mini-map">
+                <div class="road one"></div>
+                <div class="road two"></div>
+                <span class="pin blue" style="left: 42%; top: 46%;"></span>
+                <span class="pin" style="left: 68%; top: 30%;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="source-note">Reference screenshot saved in <code>references/reference-2-7.png</code>. The Figma node is a Section and did not expose child frame IDs through MCP, so this implementation rebuilds the visible UI elements from the captured section.</p>
+    </main>
+  </body>
+</html>

@@ -13,6 +13,13 @@ Thumbs.db
 .vscode/
 *.swp
 
+# Qwen Code 本机缓存（运行态/记忆，不进 git）
+.qwen/
+
+# 本机临时/实验产物（demo-remotion 已被 demo-video/ HTML 方案取代；demo-video.zip 为打包快照）
+demo-remotion/
+demo-video.zip
+
 # ===== 鸿蒙 App (app-harmony) =====
 # 详细规则见 app-harmony/.gitignore
 oh_modules/
@@ -26,6 +33,8 @@ local.properties
 .appanalyzer
 **/build/
 **/.test/
+# DevEco「自动签名」会把含证书路径/口令的解析结果写进 build-profile.json（注意不是 .json5 源模板），不进 git
+**/build-profile.json
 
 # ===== C/C++ (purplepi-control) =====
 *.o

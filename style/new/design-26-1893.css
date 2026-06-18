@@ -1,0 +1,127 @@
+.ff-about {
+  background: var(--ff-color-bg);
+  color: var(--ff-color-text);
+  font-family: var(--ff-font-body);
+}
+
+.ff-about__intro {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.ff-about__intro-text {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-h1);
+  line-height: 1;
+  letter-spacing: var(--ff-tracking-tight);
+  max-width: 1080px; /* node 26:1406 width */
+  margin: 0;
+}
+
+.ff-about__section {
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.ff-about__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.ff-about__h2 {
+  font-family: var(--ff-font-heading);
+  font-size: 70px; /* node uses 70px tall headings (e.g. Our Services) */
+  line-height: 1;
+  letter-spacing: var(--ff-tracking-tight);
+  margin: 0;
+}
+
+.ff-about__services {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 20px;
+  row-gap: 40px;
+  align-content: start;
+}
+
+.ff-about__label {
+  font-family: var(--ff-font-body);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ff-color-text-muted);
+  margin: 0 0 12px;
+  text-transform: uppercase;
+}
+
+.ff-about__list {
+  font-family: var(--ff-font-body);
+  font-size: var(--ff-p);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: var(--ff-color-text);
+  white-space: pre-line;
+}
+
+.ff-about__stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.ff-about__stat-value {
+  font-family: var(--ff-font-heading);
+  font-size: 116px; /* aligns with stat value blocks in nodes */
+  line-height: 1;
+  letter-spacing: var(--ff-tracking-tight);
+  margin: 0 0 16px;
+}
+
+.ff-about__stat-text {
+  font-family: var(--ff-font-body);
+  font-size: var(--ff-p);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 0;
+  max-width: 387px;
+}
+
+.ff-about__connect {
+  padding: 34px 0;
+}
+
+.ff-about__connect-text {
+  font-family: var(--ff-font-heading);
+  font-size: 41px; /* node 26:1509 height 41 */
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .ff-about__grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .ff-about__services {
+    grid-template-columns: 1fr;
+  }
+
+  .ff-about__stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ff-about__h2 {
+    font-size: 48px;
+  }
+
+  .ff-about__intro-text {
+    font-size: 48px;
+  }
+}
+

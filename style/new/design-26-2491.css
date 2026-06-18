@@ -1,0 +1,116 @@
+.ff-styleguide {
+  background: var(--ff-color-bg);
+  color: var(--ff-color-text);
+  font-family: var(--ff-font-body);
+}
+
+.ff-styleguide__section-title {
+  font-family: var(--ff-font-label);
+  font-size: var(--ff-small);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.ff-type-h1 {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-h1);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin: 0;
+}
+
+.ff-type-h2 {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-h2);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.ff-type-h3 {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-h3);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.ff-type-h4 {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-h4);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin: 0;
+}
+
+.ff-type-h5 {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-h5);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ff-type-nav {
+  font-family: var(--ff-font-heading);
+  font-size: var(--ff-nav);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin: 0;
+}
+
+.ff-type-p1 {
+  font-family: var(--ff-font-body);
+  font-size: var(--ff-nav);
+  line-height: 1.2;
+  letter-spacing: -0.05em;
+  margin: 0;
+}
+
+.ff-type-p2 {
+  font-family: var(--ff-font-body);
+  font-size: var(--ff-p);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--ff-color-text-muted);
+  margin: 0;
+}
+
+.ff-link {
+  font-family: var(--ff-font-heading);
+  font-size: 16px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  color: var(--ff-color-text-muted);
+  text-decoration: none;
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.ff-link:hover {
+  color: var(--ff-color-text);
+}
+
+.ff-nav-bar {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  padding-inline: 15px;
+  background: var(--ff-color-bg);
+}
+
+.ff-nav-bar__row {
+  flex: 1;
+  height: 100%;
+  border-bottom: 1px solid var(--ff-color-text);
+  display: flex;
+  align-items: flex-end;
+  padding: 12px 20px 10px 0;
+  gap: 50px;
+  justify-content: flex-end;
+}
+

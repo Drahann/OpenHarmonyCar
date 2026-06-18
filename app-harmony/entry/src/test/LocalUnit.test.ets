@@ -2,6 +2,9 @@ import { describe, it, expect } from '@ohos/hypium';
 import { encodeSend, decodeReceive, UdpSendData, RobotCommand } from '../main/ets/model/protocol';
 import { canvasToMap, mapToCanvas, MapTransform, Point } from '../main/ets/model/geometry';
 import { MapService, ParsedMap } from '../main/ets/service/MapService';
+import {
+  Mission, MissionSnapshot, ControlMode, MissionPhase, RobotStatus, RobotRuntime, EndPoint, Assignment, Rect
+} from '../main/ets/model/mission';
 
 /** ArrayBuffer -> "b0,b1,..." 便于断言。 */
 function bytesString(buf: ArrayBuffer): string {
@@ -80,6 +83,58 @@ export default function localUnitTest() {
       const m: ParsedMap = MapService.parseMap('0 0 5 5\n11111\n10001\n10101\n10001\n11111\n', 500, 500);
       expect(m.rows).assertEqual(5);
       expect(m.cols).assertEqual(5);
+    });
+  });
+
+  describe('missionSnapshot', () => {
+    // FleetMission 黑板快照往返：toSnapshot → applySnapshot 应逐字段还原（含协同字段）
+    it('toSnapshot_applySnapshot_roundTrip', 0, () => {
+      const m: Mission = new Mission(ControlMode.distributed);
+      m.phase = MissionPhase.covering;
+      m.mapReady = true;
+      m.frame = { originX: 1, originY: 2, resolution: 0.05, headingZero: 90 };
+      m.map = { ref: 'master-1', text: '5 5\n11111' };
+      m.area = { corner1: { x: 0, y: 0 }, corner2: { x: 10, y: 10 } };
+      m.endPoints = [new EndPoint(3, 4), new EndPoint(null, null)];
+      m.assignments = [new Assignment(2, { x: 1, y: 1 }, { x: 5, y: 5 }, 1)];
+      const r0: RobotRuntime = new RobotRuntime(1, '172.168.11.99', 'net-1');
+      r0.online = true;
+      r0.x = 7;
+      r0.y = 8;
+      r0.r = 45;
+      r0.command = 105;
+      r0.progress = 0.5;
+      r0.status = RobotStatus.covering;
+      m.robots = [r0];
+
+      // 经 JSON 串行化（与软总线同步路径一致）再还原
+      const m2: Mission = new Mission();
+      m2.applySnapshot(JSON.parse(JSON.stringify(m.toSnapshot())) as MissionSnapshot);
+
+      expect(m2.mode).assertEqual(ControlMode.distributed);
+      expect(m2.phase).assertEqual(MissionPhase.covering);
+      expect(m2.mapReady).assertTrue();
+      expect(m2.frame.resolution).assertEqual(0.05);
+      expect(m2.frame.headingZero).assertEqual(90);
+      expect(m2.map.ref).assertEqual('master-1');
+
+      const area: Rect | null = m2.area;
+      expect(area !== null).assertTrue();
+      if (area !== null) {
+        expect(area.corner1.x).assertEqual(0);
+        expect(area.corner2.x).assertEqual(10);
+      }
+
+      expect(m2.endPoints.length).assertEqual(2);
+      expect(m2.endPoints[0].x).assertEqual(3);
+      expect(m2.assignments.length).assertEqual(1);
+      expect(m2.assignments[0].carId).assertEqual(2);
+      expect(m2.assignments[0].corner2.y).assertEqual(5);
+      expect(m2.assignments[0].robotId).assertEqual(1);
+      expect(m2.robots.length).assertEqual(1);
+      expect(m2.robots[0].networkId).assertEqual('net-1');
+      expect(m2.robots[0].progress).assertEqual(0.5);
+      expect(m2.robots[0].status).assertEqual(RobotStatus.covering);
     });
   });
 }

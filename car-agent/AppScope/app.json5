@@ -1,0 +1,15 @@
+// 🚧 car-agent 应用级配置。
+// 🔑 bundleName 必须 = 平板 App（app-harmony）的 com.example.carapp：
+//    distributedDataObject 跨设备同步要求两端为「同一个应用程序」（同 bundleName），否则 FleetMission 黑板不同步。
+//    依据：OpenHarmony 官方文档「数据同步发生在同一个应用程序下」——见 docs/distributed-trust.md「官方文档依据」+ integration-qa Q9。
+// icon/label 资源已随 DevEco 工程集成补齐：分层图标 $media:layered_image（AppScope/resources/base/media）+ $string:app_name（AppScope 同名 string.json）。
+{
+  "app": {
+    "bundleName": "com.example.carapp",
+    "vendor": "example",
+    "versionCode": 1000000,
+    "versionName": "1.0.0",
+    "icon": "$media:layered_image",
+    "label": "$string:app_name"
+  }
+}

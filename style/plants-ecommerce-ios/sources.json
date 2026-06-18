@@ -1,0 +1,18 @@
+{
+  "figmaFileKey": "KffDJpXDr7fKvyWDcN0rxE",
+  "nodes": [
+    {
+      "nodeId": "1:57",
+      "url": "https://www.figma.com/design/KffDJpXDr7fKvyWDcN0rxE/Plants-E-commerce-iOS-Mobile-App--Community-?node-id=1-57&m=dev",
+      "output": "index.html",
+      "reference": "references/reference-1-57.png"
+    },
+    {
+      "nodeId": "1:267",
+      "url": "https://www.figma.com/design/KffDJpXDr7fKvyWDcN0rxE/Plants-E-commerce-iOS-Mobile-App--Community-?node-id=1-267&m=dev",
+      "output": "fonts-colors.html",
+      "reference": "references/reference-1-267.png"
+    }
+  ],
+  "shared": ["styles.css", "assets/", "asset-manifest.generated.json"]
+}

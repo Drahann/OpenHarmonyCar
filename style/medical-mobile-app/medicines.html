@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Medicines</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .app-container {
+      width: 348px;
+      height: 753px;
+      background-color: var(--color-white);
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15);
+      user-select: none;
+    }
+    .absolute { position: absolute; }
+    
+    /* Background decorative fluid shapes (Figma 1:848 background overlay) */
+    .bg-decorator {
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 310px;
+      background: radial-gradient(108.96% 76.25% at 0% 0%, #C7F4C2 0%, #E0FCE2 60%, #FBFAF3 100%);
+      clip-path: ellipse(80% 65% at 30% 30%);
+      z-index: 1;
+    }
+    .bg-circle-1 {
+      left: -50px;
+      top: -50px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(11, 171, 124, 0.15);
+      z-index: 1;
+    }
+    .bg-circle-2 {
+      right: -30px;
+      top: 180px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 1px dashed rgba(95, 72, 230, 0.1);
+      z-index: 1;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px 0 24px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    .status-time {
+      font-family: var(--font-family-lato);
+      font-weight: 900;
+      font-size: 13px;
+      color: var(--color-bg-dark);
+      margin: 0;
+    }
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      color: var(--color-bg-dark);
+    }
+    
+    /* Navigation Bar */
+    .nav-bar {
+      left: 21.14px;
+      top: 46px;
+      width: 305.78px;
+      height: 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .nav-user {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 1.5px solid var(--color-primary-green);
+      box-shadow: 0px 4px 10px rgba(11, 171, 124, 0.2);
+    }
+    .nav-user img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .nav-title {
+      font-family: var(--font-family-vietnam);
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--color-bg-dark);
+      margin: 0;
+      flex-grow: 1;
+      margin-left: 10px;
+    }
+    .nav-cart {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: var(--color-white);
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .nav-cart:hover {
+      transform: scale(1.05);
+    }
+    .cart-badge {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      width: 12px;
+      height: 12px;
+      background-color: var(--color-primary-purple);
+      border-radius: 50%;
+      color: white;
+      font-family: var(--font-family-lato);
+      font-weight: 900;
+      font-size: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--color-white);
+    }
+
+    /* Search Box */
+    .search-box {
+      left: 21.14px;
+      top: 98px;
+      width: 305.78px;
+      height: 46px;
+      background-color: var(--color-search-bg);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    .search-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-family: var(--font-family-vietnam);
+      font-size: 11px;
+      color: var(--color-bg-dark);
+      outline: none;
+    }
+    .search-input::placeholder {
+      color: var(--color-text-gray);
+    }
+    .search-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--color-text-gray);
+    }
+
+    /* Scrollable content container */
+    .scroll-container {
+      position: absolute;
+      left: 0;
+      top: 156px;
+      width: 100%;
+      height: 530px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0 21.14px 20px 21.14px;
+      box-sizing: border-box;
+      z-index: 5;
+      scrollbar-width: none; /* Firefox */
+    }
+    .scroll-container::-webkit-scrollbar {
+      display: none; /* Chrome/Safari */
+    }
+
+    /* Upload Prescription Banner */
+    .upload-card {
+      width: 305.78px;
+      height: 112px;
+      background-color: var(--color-secondary-purple);
+      border-radius: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+      position: relative;
+      margin-bottom: 16px;
+      box-shadow: 0px 6px 15px rgba(95, 72, 230, 0.1);
+      overflow: hidden;
+    }
+    .upload-card::after {
+      content: '';
+      position: absolute;
+      right: -20px;
+      bottom: -20px;
+      width: 80px;
+      height: 80px;
+      background: rgba(95, 72, 230, 0.08);
+      border-radius: 50%;
+    }
+    .upload-title {
+      font-family: var(--font-family-vietnam);
+      font-weight: 700;
+      font-size: 13.5px;
+      color: var(--color-bg-dark);
+      margin: 0 0 4px 0;
+      text-transform: uppercase;
+    }
+    .upload-desc {
+      font-family: var(--font-family-lato);
+      font-weight: 700;
+      font-size: 10px;
+      color: rgba(21, 25, 33, 0.7);
+      margin: 0 0 10px 0;
+      line-height: 1.3;
+      width: 65%;
+    }
+    .upload-badge {
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 9px;
+      color: var(--color-primary-purple);
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .upload-btn {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: 90px;
+      height: 28px;
+      background-color: var(--color-primary-purple);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: white;
+      font-family: var(--font-family-lato);
+      font-weight: 900;
+      font-size: 10px;
+      text-transform: uppercase;
+      box-shadow: 0px 4px 10px rgba(95, 72, 230, 0.2);
+      transition: all 0.2s ease;
+      z-index: 2;
+    }
+    .upload-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0px 6px 12px rgba(95, 72, 230, 0.3);
+    }
+
+    /* Ad Banner Card */
+    .ad-card {
+      width: 305.78px;
+      height: 140px;
+      background-color: var(--color-secondary-green);
+      border-radius: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+      position: relative;
+      margin-bottom: 24px;
+      box-shadow: 0px 6px 15px rgba(11, 171, 124, 0.08);
+    }
+    .ad-badge-vertical {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 9px;
+      color: #125F45;
+      text-transform: uppercase;
+    }
+    .ad-percent {
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 30px;
+      color: #125F45;
+      margin: 0;
+      position: absolute;
+      left: 36px;
+      top: 10px;
+      line-height: 1;
+    }
+    .ad-offer-text {
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 8px;
+      color: #125F45;
+      position: absolute;
+      left: 36px;
+      top: 40px;
+      text-transform: uppercase;
+    }
+    .ad-title {
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 11px;
+      color: #125F45;
+      position: absolute;
+      left: 16px;
+      top: 56px;
+      margin: 0;
+    }
+    .ad-shop-btn {
+      position: absolute;
+      left: 16px;
+      top: 80px;
+      width: 76px;
+      height: 24px;
+      background-color: var(--color-primary-green);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: white;
+      font-family: var(--font-family-lato);
+      font-weight: 900;
+      font-size: 9px;
+      text-transform: uppercase;
+      box-shadow: 0px 4px 8px rgba(11, 171, 124, 0.2);
+    }
+    .ad-desc {
+      font-family: var(--font-family-vietnam);
+      font-weight: 500;
+      font-size: 8px;
+      color: rgba(21, 25, 33, 0.7);
+      position: absolute;
+      left: 16px;
+      top: 112px;
+      width: 140px;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .ad-img {
+      position: absolute;
+      right: 10px;
+      top: 14px;
+      width: 130px;
+      height: 112px;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0px 5px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Popular Categories Section */
+    .categories-sec {
+      width: 305.78px;
+    }
+    .cat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .cat-title {
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--color-bg-dark);
+      margin: 0;
+    }
+    .cat-seeall {
+      font-family: var(--font-family-vietnam);
+      font-weight: 800;
+      font-size: 10px;
+      color: var(--color-primary-green);
+      text-transform: uppercase;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .grid-item {
+      background: var(--color-white);
+      border: 1px solid #efede9;
+      border-radius: 12px;
+      height: 110px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 4px 6px 4px;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .grid-item:hover {
+      border-color: var(--color-primary-green);
+      transform: translateY(-2px);
+      box-shadow: 0px 4px 12px rgba(11, 171, 124, 0.05);
+    }
+    .grid-img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+    .grid-label {
+      font-family: var(--font-family-vietnam);
+      font-weight: 600;
+      font-size: 9px;
+      color: var(--color-bg-dark);
+      text-align: center;
+      margin: 0;
+      line-height: 1.2;
+      width: 100%;
+    }
+
+    /* Fixed Bottom Tab Bar */
+    .tab-bar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 64px;
+      background-color: #fdfbf7;
+      border-top: 1.5px solid #F3F2E9;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding-bottom: 14px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-decoration: none;
+      color: var(--color-text-gray);
+      transition: color 0.2s ease;
+    }
+    .tab-item:hover {
+      color: var(--color-bg-dark);
+    }
+    .tab-item svg {
+      width: 20px;
+      height: 20px;
+      margin-bottom: 3px;
+      fill: currentColor;
+    }
+    .tab-item.active {
+      color: var(--color-primary-purple);
+    }
+    .tab-item p {
+      font-family: var(--font-family-lato);
+      font-weight: 900;
+      font-size: 8px;
+      text-transform: uppercase;
+      margin: 0;
+      letter-spacing: 0.5px;
+    }
+    .home-indicator {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 6px;
+      width: 110px;
+      height: 4px;
+      background-color: #d3dae1;
+      border-radius: 80px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="absolute bg-decorator"></div>
+    <div class="absolute bg-circle-1"></div>
+    <div class="absolute bg-circle-2"></div>
+    
+    <!-- Status Bar (SVG Native Inline) -->
+    <div class="status-bar">
+      <p class="status-time">9:02</p>
+      <div class="status-icons">
+        <div class="status-icon">
+          <!-- Signal Icon -->
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+            <rect x="3" y="14" width="3" height="6" rx="0.5"/>
+            <rect x="8" y="11" width="3" height="9" rx="0.5"/>
+            <rect x="13" y="7" width="3" height="13" rx="0.5"/>
+            <rect x="18" y="3" width="3" height="17" rx="0.5"/>
+          </svg>
+        </div>
+        <div class="status-icon">
+          <!-- Wifi Icon -->
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+            <path d="M12 21a2 2 0 1 1-2-2 2 2 0 0 1 2 2zm-7.07-7.07a10 10 0 0 1 14.14 0l-1.42 1.42a8 8 0 0 0-11.3 0zM1.46 9.46a15 15 0 0 1 21.08 0l-1.42 1.42a13 13 0 0 0-18.24 0z"/>
+          </svg>
+        </div>
+        <div class="status-icon">
+          <!-- Battery Icon -->
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <rect x="2" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+            <rect x="4" y="8" width="9" height="8" rx="1" fill="currentColor"/>
+            <path d="M20 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <div class="absolute nav-bar">
+      <div class="nav-user">
+        <img src="./assets/user_avatar.png" alt="user avatar photo">
+      </div>
+      <p class="nav-title">Medicine</p>
+      <div class="nav-cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-bg-dark)" stroke-width="2.5" width="16" height="16">
+          <circle cx="9" cy="21" r="1"/>
+          <circle cx="20" cy="21" r="1"/>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+        <div class="cart-badge">2</div>
+      </div>
+    </div>
+
+    <!-- Search Box -->
+    <div class="absolute search-box">
+      <input type="text" placeholder="Search Medicine & Health Products" class="search-input">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </div>
+
+    <!-- Scrollable Body content -->
+    <div class="scroll-container">
+      
+      <!-- Upload Prescription Banner -->
+      <div class="upload-card">
+        <p class="upload-title">Upload Prescription</p>
+        <p class="upload-desc">Upload a Prescription and Tell Us what you Need. We do the Rest.!</p>
+        <p class="upload-badge">Flat 25% off on Medicines*</p>
+        <a href="prescription.html" class="upload-btn">Order Now</a>
+      </div>
+
+      <!-- Ad Promo Banner -->
+      <div class="ad-card">
+        <span class="ad-badge-vertical">Upto</span>
+        <p class="ad-percent">80%</p>
+        <span class="ad-offer-text">Offer*</span>
+        <p class="ad-title">On Health Products</p>
+        <a href="#" class="ad-shop-btn">Shop Now</a>
+        <p class="ad-desc">Homeopathy, Ayurvedic, Personal Care & More</p>
+        <img src="./assets/image2.png" class="ad-img" alt="promotion banner image">
+      </div>
+
+      <!-- Popular Categories Section -->
+      <div class="categories-sec">
+        <div class="cat-header">
+          <p class="cat-title">Popular Categories</p>
+          <a href="#" class="cat-seeall">
+            See All
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="10" height="10">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </a>
+        </div>
+        <div class="grid-container">
+          <div class="grid-item">
+            <img src="./assets/image3.png" class="grid-img" alt="Nutritional Drinks">
+            <p class="grid-label">Nutritional Drinks</p>
+          </div>
+          <div class="grid-item">
+            <img src="./assets/image4.png" class="grid-img" alt="Ayurveda">
+            <p class="grid-label">Ayurveda</p>
+          </div>
+          <div class="grid-item">
+            <img src="./assets/image5.png" class="grid-img" alt="Vitamins">
+            <p class="grid-label">Vitamins & Supplement</p>
+          </div>
+          <div class="grid-item">
+            <img src="./assets/image6.png" class="grid-img" alt="Devices">
+            <p class="grid-label">Healthcare Devices</p>
+          </div>
+          <div class="grid-item">
+            <img src="./assets/image7.png" class="grid-img" alt="Homeopathy">
+            <p class="grid-label">Homeopathy</p>
+          </div>
+          <div class="grid-item">
+            <img src="./assets/image8.png" class="grid-img" alt="Diabetes">
+            <p class="grid-label">Diabetes Care</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Fixed Tab Bar -->
+    <div class="tab-bar">
+      <a href="medicines.html" class="tab-item active">
+        <!-- Home SVG -->
+        <svg viewBox="0 0 24 24">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <p>Home</p>
+      </a>
+      <a href="#" class="tab-item">
+        <!-- Box SVG -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+        </svg>
+        <p>Order</p>
+      </a>
+      <a href="#" class="tab-item">
+        <!-- Lab Test SVG -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M10 2v7.31L4.75 19.9a2 2 0 0 0 1.78 2.9h11a2 2 0 0 0 1.78-2.9L14 9.3V2zM8.5 2h7M7 9.3h10"/>
+        </svg>
+        <p>Lab Test</p>
+      </a>
+      <a href="offers.html" class="tab-item">
+        <!-- Offers SVG -->
+        <svg viewBox="0 0 24 24">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01"/>
+        </svg>
+        <p>Offers</p>
+      </a>
+      <a href="profile.html" class="tab-item">
+        <!-- Profile SVG -->
+        <svg viewBox="0 0 24 24">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <p>Profile</p>
+      </a>
+    </div>
+    <div class="home-indicator"></div>
+  </div>
+</body>
+</html>

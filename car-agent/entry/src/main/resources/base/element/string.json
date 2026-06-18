@@ -1,0 +1,12 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "车载无界面 agent（紫派常驻）"
+    },
+    {
+      "name": "perm_datasync",
+      "value": "用于平板与各车之间同步协同任务（FleetMission 黑板）"
+    }
+  ]
+}
