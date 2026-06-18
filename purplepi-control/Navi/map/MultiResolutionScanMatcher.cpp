@@ -342,7 +342,7 @@ bool saveMap1(GridMap &gm) {
 
     ofstream outFile;
 
-    outFile.open("haha2.txt", ios::out);
+    outFile.open("/data/test/haha2.txt", ios::out);
 
     if (!outFile) {
         return false;

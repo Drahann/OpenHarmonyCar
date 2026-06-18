@@ -12,7 +12,7 @@
 - 🆕 **压缩图 `zipedMap.txt`（A 2026-06-12 README §3 新增）= App 现在的首选拉取**（URL = `http://<紫派IP>:8000/zipedMap.txt`）：
   保存 `defultMap.txt` 后同源生成、**~6× 小**（1 bit/格打包成 64 位整数），解决"6.5MB 普通图在单线程 server 上 ~47KB/s 拉不完"。
   App `MapService.fetchMapPreferZiped` **先拉它、失败回退 `defultMap.txt`**；`parseMap`/`mapLooksComplete` 按首行 `ZMAP1` 自动识别解压。详见下「压缩地图格式」。
-- 分布式：子机经 UDP `cmd105/'i'` → 紫派 `cmd124` 用 `wget` 从主机优先拉 **`zipedMap.txt`**，校验 `ZMAP1` 后在本机解压生成 `defultMap.txt`；压缩图不可用时回退拉 **`defultMap.txt`**。`roadFile.txt` 仍会拉取，但只服务旧 `107/108` 矩形覆盖兼容路径。URL 无前缀，文件落到本机 `/data/test/`。
+- 分布式：子机经 UDP `cmd105/'i'` → 紫派 `cmd124` 用 `wget` 从主机优先拉 **`zipedMap.txt`**，校验 `ZMAP1` 后在本机解压生成 `defultMap.txt`；压缩图不可用时回退拉 **`defultMap.txt`**。`roadFile.txt` 不从主机拉取，而是在本车收到自己的 `107/108` 区域后由 `122` 本地生成。URL 无前缀，文件落到本机 `/data/test/`。
 - 全息路径覆盖另会生成 `tmpcoverageMap.txt`（初始）、`coverageMap.txt`（最终）；分布式覆盖的路径文件为 `roadFile.txt`。
 
 ## 文本格式（✅ 2026-06-08 据紫派 `Navi/map/MapServer.cpp::saveProbMap` 源码更正 —— 旧描述"4值首行+密排0/1"不准）
@@ -79,5 +79,5 @@ rowBitCount wordCount word0 word1 ...               ← 第 3 行起：每行一
 - [x] **原点 = 建图/定位初始位姿**；子机经 **`cmd 5`** 加载图归零到 (0,0,0)（`cmd 2/'j'` 沿用当前位姿，不归零；`cmd108/'l'` 不再加载地图）。
 - [x] 地图**文件名 = `defultMap.txt`**（`.txt.txt` 启动即删，弃用）。
 - [x] 地图**首行 = 7 值 `range resolution height width metersPerPixel x0 y0`**；行列 = `parts[2]/[3]`，**不是末两个**（末两个是 `x0/y0` 偏移）。
-- [x] 分布式地图传输 = **方案 B**（子机 `cmd124` 优先 wget 拉 `zipedMap.txt` 并解压，失败回退 `defultMap.txt`；`roadFile.txt` 仅旧矩形兼容使用）；DDO/软总线传图方案不采纳。
+- [x] 分布式地图传输 = **方案 B**（子机 `cmd124` 优先 wget 拉 `zipedMap.txt` 并解压，失败回退 `defultMap.txt`；`roadFile.txt` 由本车 `107/108 -> 122` 本地生成）；DDO/软总线传图方案不采纳。
 - [x] 🆕 **压缩图 `zipedMap.txt`**（A 2026-06-12 README §3）：首行 `ZMAP1` + 7 值头 + 每行 `rowBitCount wordCount word0…`（1bit/格、64格/无符号64位整数、cell0=bit63）；App 已 **`fetchMapPreferZiped` 先拉它、回退 `defultMap.txt`**，BigInt 解压（见「压缩地图格式」）。

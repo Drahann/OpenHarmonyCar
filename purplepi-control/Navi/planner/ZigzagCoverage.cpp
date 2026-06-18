@@ -24,6 +24,7 @@ bool ZigzagCoverage::detectFrontPlan(ProbMap &visMap, Pose &curpose, Pose &endpo
     {
         printf("Too close! Add 5 GridSize!\n");
         tmppose.x += astarPlanner.GGridSize * 5;
+        distance = LinAlg::DistancePose(endpose, tmppose);
     }
     IPoint robot = astarPlanner.GlobalToGrid(tmppose.x, tmppose.y);
     int deltax[8] = {1, 1, 0, -1, -1, -1, 0, 1};
@@ -78,6 +79,7 @@ bool ZigzagCoverage::detectBackPlan(ProbMap &visMap, Pose &curpose, Pose &endpos
     {
         printf("Too close! Add 5 GridSize!\n");
         tmppose.x -= astarPlanner.GGridSize * 5;
+        distance = LinAlg::DistancePose(endpose, tmppose);
     }
     IPoint robot = astarPlanner.GlobalToGrid(tmppose.x, tmppose.y);
     int deltax[8] = {1, 1, 0, -1, -1, -1, 0, 1};
@@ -132,6 +134,7 @@ bool ZigzagCoverage::detectLeftPlan(ProbMap &visMap, Pose &curpose, Pose &endpos
     {
         printf("Too close! Add 5 GridSize!\n");
         tmppose.y += astarPlanner.GGridSize * 5;
+        distance = LinAlg::DistancePose(endpose, tmppose);
     }
     IPoint robot = astarPlanner.GlobalToGrid(tmppose.x, tmppose.y);
     int deltax[8] = {1, 1, 0, -1, -1, -1, 0, 1};
@@ -186,6 +189,7 @@ bool ZigzagCoverage::detectRightPlan(ProbMap &visMap, Pose &curpose, Pose &endpo
     {
         printf("Too close! Add 5 GridSize!\n");
         tmppose.y -= astarPlanner.GGridSize * 5;
+        distance = LinAlg::DistancePose(endpose, tmppose);
     }
     IPoint robot = astarPlanner.GlobalToGrid(tmppose.x, tmppose.y);
     int deltax[8] = {1, 1, 0, -1, -1, -1, 0, 1};

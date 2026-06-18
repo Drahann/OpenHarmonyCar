@@ -1,32 +1,15 @@
 #include "serial.h"
 
-int fd;         // 轮子的串口文件描述符
-char *portname; // 串口设备名
+int fd = -1;         // 轮子的串口文件描述符
+const char *portname; // 串口设备名
 struct termios tty;
+static pthread_mutex_t wheelFdMutex = PTHREAD_MUTEX_INITIALIZER;
 
-/* 初始化串口通信 */
-bool whellInit() {
-    // portname = findUSBDev("wheel");  // 动态查找设备名
-    portname = "/dev/ttyUSB1"; // "/dev/ttyUSB1 // 硬编码设备名
-    if (portname == NULL) {
-        fprintf(stderr, "Error: Failed to find wheel serial port\n");
-        return false;
-    }
-    printf("Wheel serial port: %s\n", portname);
-    // 以读写模式打开串口
-    // O_RDWR：可读可写模式
-    // O_NOCTTY：不将设备设置为控制终端
-    // O_SYNC：同步I/O
-    fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
-    if (fd < 0) {
-        fprintf(stderr, "Error opening %s: %s\n", portname, strerror(errno));
-        return false;
-    }
-
-    // 设置串口参数
+static bool configureWheelFdLocked(void) {
     memset(&tty, 0, sizeof tty);
     if (tcgetattr(fd, &tty) != 0) {
-        fprintf(stderr, "Error from tcgetattr: %s\n", strerror(errno));
+        fprintf(stderr, "Error from tcgetattr on %s: %s\n", portname,
+                strerror(errno));
         return false;
     }
 
@@ -50,10 +33,64 @@ bool whellInit() {
     tty.c_cflag &= ~CRTSCTS;
 
     if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-        fprintf(stderr, "Error from tcsetattr: %s\n", strerror(errno));
+        fprintf(stderr, "Error from tcsetattr on %s: %s\n", portname,
+                strerror(errno));
         return false;
     }
     return true;
+}
+
+static bool openWheelPortLocked(void) {
+    const char *envPort = getenv("WHEEL_SERIAL_PORT");
+    const char *selectedPort = (envPort != NULL && envPort[0] != '\0')
+                                   ? envPort
+                                   : "/dev/ttyUSB1";
+
+    portname = selectedPort;
+    printf("Wheel serial port: %s\n", portname);
+    fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
+    if (fd < 0) {
+        fprintf(stderr, "Error opening %s: %s\n", portname, strerror(errno));
+        const char *detectedPort = findUSBDev("wheel");
+        if (detectedPort != NULL && strcmp(detectedPort, portname) != 0) {
+            portname = detectedPort;
+            printf("Wheel serial fallback port: %s\n", portname);
+            fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
+        }
+    }
+    if (fd < 0) {
+        fprintf(stderr, "Error opening wheel serial port: %s\n",
+                strerror(errno));
+        return false;
+    }
+
+    if (!configureWheelFdLocked()) {
+        close(fd);
+        fd = -1;
+        return false;
+    }
+    return true;
+}
+
+static void closeWheelPortLocked(void) {
+    if (fd >= 0) {
+        close(fd);
+        fd = -1;
+    }
+}
+
+static bool reopenWheelPortLocked(void) {
+    closeWheelPortLocked();
+    usleep(200 * 1000);
+    return openWheelPortLocked();
+}
+
+/* 初始化串口通信 */
+bool whellInit() {
+    pthread_mutex_lock(&wheelFdMutex);
+    bool ok = openWheelPortLocked();
+    pthread_mutex_unlock(&wheelFdMutex);
+    return ok;
 }
 
 /* 通过串口发送控制命令 */
@@ -82,13 +119,55 @@ bool wheelSend(byte a, byte a_v, byte b, byte b_v) {
     }
     data[6] = checksum;
 
-    // 发送数据
-    if (write(fd, data, 7) != 7) {
-        fprintf(stderr, "Failed to write to the serial port\n");
-        return false;
+    pthread_mutex_lock(&wheelFdMutex);
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        if (fd < 0 && !openWheelPortLocked()) {
+            fprintf(stderr, "SERIAL_WRITE_ERROR reopen failed attempt=%d\n",
+                    attempt);
+            continue;
+        }
+
+        size_t written = 0;
+        int savedErrno = 0;
+        while (written < sizeof(data)) {
+            ssize_t n = write(fd, data + written, sizeof(data) - written);
+            if (n > 0) {
+                written += (size_t)n;
+                continue;
+            }
+            if (n < 0 && errno == EINTR) {
+                continue;
+            }
+            savedErrno = (n < 0) ? errno : EIO;
+            break;
+        }
+
+        if (written == sizeof(data)) {
+            if (tcdrain(fd) != 0) {
+                savedErrno = errno;
+            } else {
+                printf("Data %02X %02X %02X %02X %02X %02X %02X wheelSend successfully!\n",
+                       data[0], data[1], data[2], data[3], data[4], data[5],
+                       data[6]);
+                pthread_mutex_unlock(&wheelFdMutex);
+                return true;
+            }
+        }
+
+        fprintf(stderr,
+                "SERIAL_WRITE_ERROR port=%s fd=%d attempt=%d wrote=%zu/7 errno=%d(%s) data=%02X %02X %02X %02X %02X %02X %02X\n",
+                portname ? portname : "(null)", fd, attempt, written,
+                savedErrno, strerror(savedErrno), data[0], data[1], data[2],
+                data[3], data[4], data[5], data[6]);
+
+        if (!reopenWheelPortLocked()) {
+            fprintf(stderr,
+                    "SERIAL_RECOVER_ERROR port=%s attempt=%d errno=%d(%s)\n",
+                    portname ? portname : "(null)", attempt, errno,
+                    strerror(errno));
+        }
     }
 
-    printf("Data %02X %02X %02X %02X %02X %02X %02X wheelSend successfully!\n",
-           data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
-    return true;
+    pthread_mutex_unlock(&wheelFdMutex);
+    return false;
 }

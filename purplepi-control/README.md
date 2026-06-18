@@ -24,7 +24,7 @@
 - 常规控制包按 9 字节解析；`0x06` 发现探测允许至少 1 字节。
 - 收到 `0x06` 发现探测时立即回 9 字节发现响应，不建立心跳会话，也不触发导航命令。
 - 3 秒无新 UDP 包时，向 `wheel_ctrl` 发布停止命令，底盘急停。
-- 紫派每 500ms 向最近一次有效客户端 IP 的 `5001` 端口回传 9 字节心跳；方案 A 下平板是每辆车的唯一直连客户端，车端不再按客户端源端口回发。
+- 紫派每 500ms 向最近一次有效客户端 IP 的 `5001` 端口回传 9 字节心跳；心跳 byte1/byte2 分别携带协同避障状态和事件；方案 A 下平板是每辆车的唯一直连客户端，车端不再按客户端源端口回发。
 
 ### 2. 紫派到 App：HTTP 地图服务
 
@@ -50,7 +50,7 @@ http://<紫派IP>:8000/zipedMap.txt
 
 地图和路径文件写入规则：
 
-- App 或子机只读取正式文件：`/data/test/zipedMap.txt`、`/data/test/defultMap.txt`、`/data/test/roadFile.txt`。
+- App 或子机拉图只读取正式地图文件：`/data/test/zipedMap.txt`、`/data/test/defultMap.txt`。`roadFile.txt` 是机器人端收到本车区域后本地生成的覆盖路径文件，不由平板生成、读取或下发。
 - `Navi` 写主地图、兼容地图和覆盖路径时先写同目录 `.tmp`，写完且文件有效后再替换正式文件；算法运行中不会直接半写正式文件。
 - 子机执行 `105`/`'i'` 拉主机文件时也先下载到 `.tmp`，优先拉 `zipedMap.txt`，校验 `ZMAP1` 后在本机解压生成正式 `defultMap.txt`；压缩图不可用时再回退拉 `defultMap.txt`，下载失败时保留原正式文件。
 - `navigation` 启动和建图命令进入新一轮建图前，都会删除旧的 `defultMap.txt`、`defultMap.txt.txt`、`zipedMap.txt`、`unprobdefultMap.txt`、`roadFile.txt` 和覆盖调试图，避免旧数据影响首次普通建图或重新建图。
@@ -62,7 +62,7 @@ http://<紫派IP>:8000/zipedMap.txt
 | `unprobdefultMap.txt` | `/data/test/unprobdefultMap.txt` | 未优化地图/中间地图。保存地图命令执行时先写出该文件，再优化生成 `defultMap.txt`。写入过程使用 `unprobdefultMap.txt.tmp`。 |
 | `defultMap.txt.txt` | `/data/test/defultMap.txt.txt` | 兼容显示文件，由 `defultMap.txt` 同源生成；首行同为 7 字段，栅格为密排 `1/0`。App 新实现优先读取 `defultMap.txt`。 |
 | `zipedMap.txt` | `/data/test/zipedMap.txt`；HTTP 为 `http://<紫派IP>:8000/zipedMap.txt` | 压缩地图文件。保存 `defultMap.txt` 或 `unprobdefultMap.txt` 后生成，障碍位压缩为 64 位整数，适合 App 和子机快速拉图；子机拉到后会解压恢复为 `defultMap.txt` 的 `-1/0` 文本格式。 |
-| `roadFile.txt` | `/data/test/roadFile.txt`；子机可通过 `http://<主机IP>:8000/roadFile.txt` 获取 | 覆盖路径点文件，每行格式为 `x,y`。它属于旧 `107/108` 矩形分布式覆盖兼容路径；新的平板多点协同覆盖主设计不要求 App 读取或下发该文件。写入和拉取过程使用 `roadFile.txt.tmp`。 |
+| `roadFile.txt` | `/data/test/roadFile.txt` | 覆盖路径点文件，每行格式为 `x,y`。当前多机覆盖主路径中，平板给每辆车下发各自的矩形区域后，车端由 `122` 本地生成该文件，`123` 读取并完整执行本车区域覆盖；平板和子机拉图流程都不读取或下发该文件。写入过程使用 `roadFile.txt.tmp`。 |
 | `tmpcoverageMap.txt` | `/data/test/tmpcoverageMap.txt` | 覆盖算法初始阶段的临时栅格调试输出，用于查看覆盖图生成前期状态。 |
 | `initCoverageMap.txt` | `/data/test/initCoverageMap.txt` | 覆盖算法初始化后的栅格输出，用于检查初始覆盖区域和栅格化结果。 |
 | `midMap.txt` | `/data/test/midMap.txt` | 覆盖算法中间过程输出，用于检查坐标变换、区域划分或中间覆盖结果。 |
@@ -122,10 +122,9 @@ bit = (word[wordIndex] >> (63 - bitOffset)) & 1
 wget http://<主机IP>:8000/zipedMap.txt -O /data/test/zipedMap.txt.tmp
 # 若 zipedMap.txt 不存在、为空或 ZMAP1 校验/解压失败，再回退：
 wget http://<主机IP>:8000/defultMap.txt -O /data/test/defultMap.txt.tmp
-wget http://<主机IP>:8000/roadFile.txt -O /data/test/roadFile.txt.tmp
 ```
 
-压缩图下载成功后，`Navi` 会用 `MapServer::loadZipedMap()` 解压并原子替换本机 `defultMap.txt`，同时把 `zipedMap.txt.tmp` 替换为正式 `zipedMap.txt`。若压缩图不可用，旧 `defultMap.txt` 拉取逻辑保持可用。正式文件始终在 `/data/test` 下，HTTP URL 不包含 `/data/test` 前缀。这说明当前车端仍复用“车间 HTTP 拉图”：平板或 agent 只触发命令，从车直接访问主车 `:8000` 拉地图文件。
+压缩图下载成功后，`Navi` 会用 `MapServer::loadZipedMap()` 解压并原子替换本机 `defultMap.txt`，同时把 `zipedMap.txt.tmp` 替换为正式 `zipedMap.txt`。若压缩图不可用，旧 `defultMap.txt` 拉取逻辑保持可用。正式文件始终在 `/data/test` 下，HTTP URL 不包含 `/data/test` 前缀。这说明当前车端仍复用“车间 HTTP 拉图”：平板只触发命令，从车直接访问主车 `:8000` 拉地图文件；覆盖路径不从主车拉取，而是在各车收到自己的 `107/108` 区域后本地生成。
 
 ### 5. 其它模块对接注意事项
 
@@ -135,7 +134,7 @@ wget http://<主机IP>:8000/roadFile.txt -O /data/test/roadFile.txt.tmp
 | --- | --- |
 | App 地图显示 | 优先拉取 `http://<紫派IP>:8000/zipedMap.txt`，失败回退 `defultMap.txt`；不要拼成 `/data/test/...` URL；普通地图首行 7 字段，`height/width` 固定取第 3、4 字段。 |
 | App 命令发送 | 常规控制包保持 9 字节；`0x06` 可以只发 1 字节做发现探测；`105` 主机 IP 仍放在 byte `[1] [2] [4] [6]`。 |
-| App 多机覆盖 | 新主设计以平板为任务规划器：平板为每台车生成不同的多点队列，车端加载同一张地图后按队列逐点执行普通目标点导航，动态交汇由车端 `COOP_AVOID` 协同避障处理。旧 `107 -> 108(robot_id=0/1)` 矩形分布式覆盖保留为兼容路径。 |
+| App 多机覆盖 | 当前主设计为平板只负责给两辆车分别下发区域：每车一组 `107 -> 108(robot_id=0/1)` 对角矩形。车端收到本车区域后由 `122` 本地生成完整覆盖路径 `roadFile.txt`，再由 `123` 完整执行本车区域覆盖；平板不生成、不下发路径点队列。 |
 | 方案 A 分布式 | 平板直接向每辆车 `:5001` 发送 9 字节命令并接收心跳；车上不启动 ArkTS agent，不需要 LAN TCP 5003 或本机 UDP 5002 桥接。 |
 | mock/契约文档 | `MAP_FILE_NAME` 使用 `defultMap.txt`；地图数据以 `defultMap.txt` 的空格分隔 `-1/0` 为准；`defultMap.txt.txt` 仅作兼容显示文件。 |
 | 机器人端脚本 | 所有运行产物和生成文件放在 `/data/test`；HTTP 服务根目录就是 `/data/test`；建图开始后旧地图会被清理，保存完成前拉图可能暂时 404。 |
@@ -164,19 +163,24 @@ wget http://<主机IP>:8000/roadFile.txt -O /data/test/roadFile.txt.tmp
 | `-36` | 恢复请求 | 请求被暂停方恢复保存的导航目标 |
 | `-35` | 恢复确认 | 被暂停方已收到恢复请求 |
 | `-34` | 可靠传输 ACK | `iparams[0]=源 robotId`，`iparams[1]=被确认消息序号`，`iparams[2]=被确认 commandid`，`iparams[3]=确认方当前协同状态` |
+| `-33` | 本地动态避障接管通知 | 一方已经因协同超时切回本地动态避障后，若又收到对车迟到的协同消息，则回发该通知；接收方清理本轮可靠重传，不再继续发布该轮协同消息 |
+| `-32` | 对车覆盖已完成通知 | 一方已经完成覆盖并返航待机后，若收到对车协同避障请求，则回发该通知；接收方标记对车已完成，后续同目标阻塞直接走本地动态避障，不再持续发送协同请求 |
 
 可靠传输与排查日志：
 
-- `POSE_REQUEST`、`STOP_REQUEST`、`RESUME_REQUEST` 进入等待状态后会记录最后一次发送上下文，并按约 450ms 间隔重发，最多 6 次；总等待超过约 3.5s 后回到普通状态并打印 `TIMEOUT`。
+- `POSE_REQUEST`、`STOP_REQUEST`、`RESUME_REQUEST` 进入等待状态后会记录最后一次发送上下文，并按约 450ms 间隔重发；初发加 4 次重发共 5 次请求仍无业务响应时回到普通状态、打印 `TIMEOUT`，并切回本地动态避障。
 - 收到任何有效的非 ACK 协同消息后，接收方都会先回 `ACK`，再执行业务逻辑；ACK 只证明消息到达，不替代坐标响应、停机确认或恢复确认。
+- 如果本车已经因超时选择本地动态避障，又收到另一台车迟到的协同业务消息，本车只回 `ACK` 和 `LOCAL_FALLBACK(-33)`，不再执行该业务消息；对端收到 `-33` 后清理本轮可靠重传并切到本地动态避障，避免对端持续超时重传占用线程。
 - 协同日志统一以 `COOP_AVOID` 开头，包含 `self/cmd/source/target/seq/state/retry/extra`，用于判断请求是否发出、对端是否收到、业务响应是否丢失、是否发生重试或超时。
 - `navigation` 初始化 `COOP_AVOID` 前会检查默认 UDP 端口 `7668` 是否可绑定；不可用时在日志中打印 `COOP_AVOID port check failed`，但不会直接中断主导航初始化。
+- `Navi` 会通过 `SERVICE_COMMAND 74` 发布协同避障状态，`udp2lcm` 订阅后写入 App 心跳 byte1/byte2，方便平板区分正常、诊断、避障暂停、对端暂停和本地动态避障兜底。
 
 触发入口：
 
 - A* 规划失败、连续无路径或 DWA 判定不可达时，`NaviInterface` 会触发协同诊断。
 - 图匹配跳变达到现有阈值时，也会触发协同诊断。
-- 若对方位置或预测路径走廊与本车当前路线距离小于安全半径，则判断为对方车辆阻挡；图匹配跳变场景还要求近期激光/障碍点在对方走廊附近，降低外部障碍误判。
+- 若对方位置或近场预测路径走廊与本车当前路线距离小于安全半径，则判断为对方车辆阻挡。当前只检查约 0.8m 的本车前瞻路线和约 0.8m 的对车前瞻路线，安全半径下限为 0.20m，避免两车距离很远但远期路线相交时误触发协同避障；图匹配跳变场景还要求近期激光/障碍点在对方走廊附近，降低外部障碍误判。
+- 本地 DWA 动态避障会对预测轨迹点先做地图边界检查，避免轨迹靠近地图边界时越界读栅格；评分分母为 0 时直接回到重规划，不继续除零选速度。
 
 停机与恢复规则：
 
@@ -231,6 +235,7 @@ wget http://<主机IP>:8000/roadFile.txt -O /data/test/roadFile.txt.tmp
 | `51` | `SERVICE_COMMAND` 建图启动结果，`iparams[0]` 为是否成功启动。 |
 | `52` | `SERVICE_COMMAND` 保存地图阶段状态。 |
 | `73` | `SERVICE_COMMAND` 路径/服务分片，`iparams[0]` 为分片序号，`iparams[1]` 为类型。 |
+| `74` | `SERVICE_COMMAND` 协同避障状态，`iparams[0]=robotId`，`iparams[1]=状态`，`iparams[2]=事件`；`udp2lcm` 会把状态和事件写入对外心跳 byte1/byte2。 |
 | `99` | 导航进程存活心跳，同时发布到 `ALIVE` 和 `ROBOT_LOG`。 |
 | `101` | 保存地图完成回包，发布到 `ROBOT_CONTROL`。 |
 | `102` | 地图名列表回包，`sparams` 为 `/data/test` 下 txt 文件名列表。 |
@@ -329,7 +334,8 @@ right_percent = (v + w * RADIUS) / FULLSPEED * 100
 | 字节 | 含义 |
 | --- | --- |
 | `[0]` | 固定 `0x03`，表示当前位姿。 |
-| `[1..2]` | 保留，当前为 0。 |
+| `[1]` | 协同避障状态：`0=normal`，`1=diagnosing`，`2=stopped_for_peer`，`3=peer_paused_by_me`，`4=local_dynamic_fallback`。 |
+| `[2]` | 协同避障事件：`0=none`，`1=nopath`，`2=match_jump`，`3=timeout`，`4=resume`，`5=no_lcm`。 |
 | `[3..4]` | `x * 20`，大端 `int16`。 |
 | `[5..6]` | `y * 20`，大端 `int16`。 |
 | `[7..8]` | `theta_deg`，大端 `int16`，范围 `[-180,180]`。 |
@@ -393,7 +399,7 @@ http://<紫派IP>:8000/defultMap.txt
 
 ### 4. 多机地图传输选 A 还是 B
 
-当前车端主路径为方案 A：平板直接协调两辆车，但地图文件仍走车间 HTTP/wget。子机按主机 IP 通过 `cmd105 -> cmd124` 优先拉取 `zipedMap.txt`，在本机解压生成 `defultMap.txt`；压缩图不可用时回退拉 `defultMap.txt`。`roadFile.txt` 只服务旧 `107/108` 矩形覆盖兼容路径。地图失败时直接返回，不继续拉路径文件，避免旧图/空图误执行。
+当前车端主路径为方案 A：平板直接协调两辆车，但地图文件仍走车间 HTTP/wget。子机按主机 IP 通过 `cmd105 -> cmd124` 优先拉取 `zipedMap.txt`，在本机解压生成 `defultMap.txt`；压缩图不可用时回退拉 `defultMap.txt`。`roadFile.txt` 不从主车拉取，必须由本车后续收到自己的 `107/108` 区域后本地生成。地图失败时直接返回，避免旧图/空图误执行。
 
 ### 5. 方案 A 不需要车载 ArkTS agent
 
@@ -420,18 +426,18 @@ hidumper -s RenderService -a screen
 
 期望结果是 HDMI 未插时仍为 `connected`，RenderService 仍有 `screen[0]`。这才是“虚拟显示/假显示器”的系统级实现；`power-shell timeout` 只负责有 screen 后不自动息屏。
 
-### 6. 多机覆盖：平板多点队列与旧矩形兼容
+### 6. 多机覆盖：平板下发双区域，机器人本地全覆盖
 
-plan9 指向的后续主设计不再让车端用一个矩形自动拆分两车覆盖路线，而是由平板在同一张地图上为每台车规划不同的多个选点队列。车端职责收敛为：加载同一张主地图、执行普通目标点导航、在运行中用本地雷达/视觉动态避障，并在两车路线交汇时由 `COOP_AVOID` 做车间让行。
+当前多机覆盖主设计为：平板在同一张地图上给两辆车分别下发两个不同的矩形区域，机器人端根据自己收到的区域生成并执行覆盖路径。平板不生成覆盖航点、不维护 `points[]` 队列，也不把整条路径下发给车。
 
-新的多点协同主流程建议如下：
+区域协同主流程如下：
 
-- 平板持有全局任务，按车生成 `route/carId/points[]`，每个点仍使用当前地图坐标系和 5cm 单位。
-- master 已有地图和定位时直接接收自己的点队列；sub 先执行 `105 -> 5`，确保压缩地图已解压到本机 `defultMap.txt` 并从 master 原点归零。
-- 平板按每台车的进度逐点下发普通目标点，即复用现有 `cmd3 -> ROBOT_CONTROL 20` 目标点接口；车端到点或失败后再接下一点。
-- 两车靠近、A* 失败、DWA 不可达或定位跳变时，车端继续走 `COOP_AVOID`：请求对方位姿、判断安全半径、按优先级停车/恢复。平板只需要把短暂停车视为避障状态，不要立刻判定任务失败。
+- 平板给 master 下发区域 A：先发 `'k'`/107 暂存对角点 1，再发 `'l'`/108 携带对角点 2 与 `robot_id=0`。
+- 平板给 sub 下发区域 B：sub 先执行 `105 -> 5`，确保压缩地图已解压到本机 `defultMap.txt` 并从 master 原点归零；随后同样用 `107 -> 108(robot_id=1)` 下发 sub 自己的矩形区域。
+- 每辆车收到完整矩形后，`udp2lcm` 先发布 `122`，`Navi::CreateFullPath()` 在本车矩形内生成完整覆盖路径 `/data/test/roadFile.txt`；随后发布 `123`，`Navi` 读取本车生成的整条路径并完整执行，不再按 `robot_id` 拆成前半/后半。
+- 协同避障入口已和本地动态避障解耦：目标点被 `laserMap`/`visionMap` 动态占用、A* 无路或 DWA 不可达时，`Navi` 先按同一目标做本地动态重试并保持心跳 `normal/none`；连续失败达到本地阈值后才进入 `COOP_AVOID`，请求对方位姿、判断安全半径、按优先级停车/恢复。平板只需要把真正的协同停车视为避障状态，不要把普通本地动态等待判定为协同避障。
 
-旧 `107/108` 矩形分布式覆盖仍保留为兼容路径：接口只接收一个轴对齐矩形选择区域，由两个对角点确定，并要求 `x1 != x2` 且 `y1 != y2`。`CreateFullPath()` 优先在这个矩形范围内使用 BCD 牛耕分解生成 `roadFile.txt`，失败再回退旧矩形牛耕。下发时序仍是先 `'k'`/107 暂存对角点 1，再 `'l'`/108 携带对角点 2 与 `robot_id`；`122` 同步生成 `/data/test/roadFile.txt`，`123` 读取该文件并按 `robot_id` 分段执行。
+`107/108` 接口接收一个轴对齐矩形选择区域，由两个对角点确定，并要求 `x1 != x2` 且 `y1 != y2`。`CreateFullPath()` 优先在这个矩形范围内使用 BCD 牛耕分解生成 `roadFile.txt`，失败再回退原矩形牛耕。`robot_id` 当前用于标识本车身份和协同避障优先级，不再表示“共享路径的前半/后半”。
 
 ### 7. App 侧地图首行格式与栅格格式
 
@@ -449,22 +455,49 @@ range resolution height width metersPerPixel x0 y0
 
 - 命令 `5`：加载本机 `/data/test/defultMap.txt`，初始位姿为 `0,0,0`。
 - 命令 `106`/`'j'`：先加载本机地图，再接收主机下发的目标点。
-- 命令 `108`/`'l'`：旧矩形分布式覆盖兼容接口；不加载地图、不重置定位。收到完整对角点且 `robot_id` 为 `0/1` 后，先发布 `122` 生成当前矩形覆盖路径，再发布 `123` 按 `robot_id` 执行跟踪。`122` 生成失败会打印 `Create full path ... failed`，不能再把失败伪装成成功。
-- 新多点协同覆盖主路径不依赖 `108` 生成 `roadFile.txt`，而是让平板逐点下发现有目标点命令 `3`，由车端普通导航和 `COOP_AVOID` 执行。
+- 命令 `108`/`'l'`：当前多机区域覆盖主接口；不加载地图、不重置定位。收到完整对角点且 `robot_id` 为 `0/1` 后，先发布 `122` 在本车矩形内生成完整覆盖路径，再发布 `123` 读取本车 `roadFile.txt` 并完整执行。`122` 生成失败会打印 `Create full path ... failed`，不能再把失败伪装成成功。
 - 子机地图来自命令 `105`/`'i'` 触发的 HTTP 拉图，压缩图成功时落地 `/data/test/zipedMap.txt` 并解压到 `/data/test/defultMap.txt`；压缩图失败时回退直接拉 `/data/test/defultMap.txt`。
 
 ### 9. 其它模块对接结论汇总
 
 - App 显示地图优先使用 `zipedMap.txt`，回退 `defultMap.txt`。紫派 HTTP 根目录已经是 `/data/test`，所以 URL 为 `http://<紫派IP>:8000/<文件名>`。
 - 子机如果还没有主机地图，应先发 `105`/`'i'`，让子机从主机优先拉取 `/zipedMap.txt` 并解压到 `/defultMap.txt`，失败再回退 `/defultMap.txt`；确认落地后再执行 `5` 归零加载。
-- `roadFile.txt` 是旧矩形覆盖路径点文件，每行 `x,y`。它不是地图文件，新的平板多点队列主路径不要求 App 关心它。
+- `roadFile.txt` 是机器人端本地生成的覆盖路径点文件，每行 `x,y`。它不是地图文件，平板不需要读取、生成或下发它。
 - 地图首行必须按 `range resolution height width metersPerPixel x0 y0` 解析，`height/width` 固定取第 3、4 个字段。
 - `defultMap.txt` 栅格为空格分隔 `-1/0`；`defultMap.txt.txt` 是兼容密排 `1/0`，不作为新 App 默认地图。
 - 当前 C/C++ 栈已实现的是方案 A 所需的车间 HTTP/wget 拉图；子机仍通过 `105`/`'i'` 触发 HTTP 拉图。
-- `cmd124` 优先拉 `zipedMap.txt` 并解压，失败再回退 `defultMap.txt`；地图失败时直接返回，不再继续拉路径文件造成旧图/空图误执行。
+- `cmd124` 优先拉 `zipedMap.txt` 并解压，失败再回退 `defultMap.txt`；地图失败时直接返回；成功后也不拉主机 `roadFile.txt`，后续由本车 `107/108 -> 122` 本地生成路径。
 - 当前方案不启动 ArkTS agent；平板直接向每辆车 `:5001` 发送命令，紫派心跳固定回平板 `:5001`。
-- 新多机覆盖主设计以平板多点队列为准：平板给每台车不同 `points[]`，车端按普通目标点逐个运行，`COOP_AVOID` 处理路线交汇。旧矩形接口仍可用：`107/108` 表示一个矩形，`108` 的 byte1 携带 `robot_id`，`122` 负责生成 `roadFile.txt`，`123` 只负责读取和分段执行。
-- 协同避障不新增 App 侧 UDP 命令。两车靠近后的坐标请求、停机、恢复都在 `Navi` 的 `COOP_AVOID` LCM 通道内完成；`udp2lcm` 只额外压制高频空轮控包日志，不承载协同避障消息。
+- 新多机覆盖主设计以平板下发双区域为准：平板给每辆车不同矩形区域，车端根据自己的区域完整生成并执行覆盖路径，`COOP_AVOID` 处理路线交汇。`107/108` 表示一个矩形，`108` 的 byte1 携带 `robot_id`，`122` 负责生成本车 `roadFile.txt`，`123` 读取并完整执行，不再分段。
+- 协同避障不新增 App 侧 UDP 命令。两车靠近后的坐标请求、停机、恢复都在 `Navi` 的 `COOP_AVOID` LCM 通道内完成；本地动态阻塞会先在车端重试，连续失败后才升级到 `COOP_AVOID`；`udp2lcm` 只额外压制高频空轮控包日志，不承载协同避障消息。
+
+### 10. 2026-06-14 107.251 覆盖测试排查结论
+
+- `roadFile.txt` 为机器人本地生成的全局栅格路径，107.251 本次为 14 个点：`900,907` 到 `942,929`。首点 `900,907` 对应世界坐标约 `(0, 0.35)`，不是 `900,900`，原因是 `CreateFullPath()` 优先在平板下发的本车矩形内用 BCD 生成覆盖路径，`BCDCoverage::nearestFreePoint()` 会选择矩形内离机器人最近的 free cell；若矩形本身从 y≈0.4 开始，从 00 出发也不会让 `roadFile.txt` 首点变成 00。
+- 已修正 `[Turn ...]` 的 Grid 日志格式，改为按整数输出，避免此前因 `printf` 格式不匹配显示出误导性的 `Grid (0,0)`。
+- `navi.log` 中 `ready for dwa` 与 `cant arv1` 各出现 828 次，但没有 `can not arrive !`、没有 `astar planning failure`、没有 `COOP_AVOID TRIGGER`。这里的 `cant arv1` 是目标距离小于 1.6m 后进入 DWA/到点控制段的提示，不是 A* 失败。覆盖点间距较小，所以矩形空地里也会频繁进入 DWA；本次代码已去掉这两条高频调试日志，保留真正异常的 `can not arrive !`。
+- `serial.log` 显示 PATH 到串口链路有 837 次速度下发，其中约 767 次 `v=0`，约 732 次为原地旋转，只有 70 次 `v>0`。若现场观察 107.251 基本未平移，主要应排查 DWA 控制序列长期原地转向、轮控板实际执行、轮子供电/方向字节/串口设备号，而不是地图精度。
+- 当前 `NewWheelCtrl` 的 `curPose` 由已下发的 `curSpeed/curOmega` 积分并发布到 `POSE`，`wheelSend successfully` 只表示 `write(fd, 7)` 成功，不表示底盘板 ACK 或轮子真实运动。因此导航侧可能按命令估算位姿继续切换目标，即使实车没有同步移动。
+- `pathplanmap.txt` 是整张 A* 输入地图的文本 dump，首行 `20 0.05 1800 1800 0.05 -45 -45`，后面固定 1800x1800 共 3,240,000 个栅格。本次统计为 1,750 个 `-1` 障碍格、3,238,250 个 `0`，文件约 6.48MB 属于文本整图输出的正常体积。`testmap_astar.txt` 同样整图输出，并额外包含值为 `2` 的 A* 路径覆盖格。老代码也已有同样的 `pathplanmap.txt` 和 `testmap_astar.txt` 落盘逻辑，只是路径从 `/mnt/cf/mapfile/...` 改到了 `/data/test/...`。
+- 107.251 实际会动，但每次切目标/重新 A* 的反应慢。原因优先怀疑为每次规划同步写两份约 6.48MB 的整图文本：`InitializeCellTotal()` 写 `/data/test/pathplanmap.txt`，A* 成功后 `saveMap_Astar()` 写 `/data/test/testmap_astar.txt`。本次代码已改成默认不写这两个规划调试文件，只有设置环境变量 `NAVI_DUMP_PLAN_MAPS=1`、`y` 或 `t` 时才会输出。
+- 分布式全路径已补上“跑完后返回起点”：`algNum=2` 开始执行本车 `roadFile.txt` 时记录当前 `m_CurPosForPath`，完成所有 `turnPoints` 后先下发回起点目标，再清理覆盖状态。备用的 `NavigatePathByGridPoints()` 也改为同样语义。
+- 非 BCD 回退矩形牛耕生成中，y 方向起点判断原来误用了 `abs(robx - xb)`，本次修正为比较 `abs(roby - yb)`；107.251 本次 BCD 生成成功，所以该笔误不是这次 `roadFile.txt` 首点的直接原因。
+
+本轮 107.251 主车、107.216 从车双车测试补充：
+
+- 主车 `udp2lcm.log` 显示 HTTP 地图服务固定监听 `0.0.0.0:8000`，子车拉图期间只有保存前的 `404` 和保存后的 `200`；代码中 HTTP 服务端口也是固定 `8000`，不会切换到轮控串口 `/dev/ttyUSB1`。因此“HTTP 服务换端口占用轮控端口”不符合日志和代码事实：这是 TCP/UDP 端口与字符设备串口两类资源。
+- 主车 `serial.log` 在中途从一次停机帧附近开始连续出现 `Failed to write to the serial port`，旧日志没有 `errno` 和短写字节数，无法进一步区分 `EIO/ENODEV/EBADF`。本次已把 `wheelSend()` 改为完整写 7 字节、失败打印 `SERIAL_WRITE_ERROR port/fd/attempt/wrote/errno/data`、自动关闭并重开串口；若最终仍失败，轮控里程计会冻结为零速，避免“串口没写进去但 POSE 继续按命令积分”。
+- 从车拉图第一次 `zipedMap.txt` 在 `108600/122949` 字节处超时，第二次完整成功，随后用 `0,0,0` 加载地图并生成本车区域路径。107.216 的首个 BCD 覆盖转折点为 `Grid (900,904) -> World (0.00,0.20)`，不是浮点误差导致的真 `0,0` 死点；旧的全局到点阈值 `0.25m` 会把这个 0.20m 目标直接判定到达。本次覆盖态改用 `0.10m` 到点阈值，仍然能忽略 0,0 附近的浮点微小误差，但不会吞掉 0.20m 的首点。
+- 从车卡住时 `serial.log` 前段大量下发 `v=0,w=0.392699`，换算为左右轮约 8% 的原地转向命令；这更像低速低扭矩无法克服静摩擦，所以人为踹车后才开始动。本次轮控对非零轮速增加 `MIN_NONZERO_WHEEL_PERCENT=12` 的启动下限，避免 DWA 的小角速度长期停在 8% 原地转向。
+- 多机协同避障确认：本地动态阻塞会先本地等待/重试，达到阈值后才发协同请求；若协同请求没有业务响应，超时后直接切回本地动态避障。若已切到本地动态避障后收到对车迟到消息，则回 `LOCAL_FALLBACK(-33)`，对车据此停止本轮重传。
+
+107.251 主车、107.216 从车实机演示补充：
+
+- 主车没有完整执行全部覆盖区域。107.251 的 `navi.log` 中 BCD 生成 42 个覆盖点、压缩为 23 个折返点，但第 17、18、21、22 个折返点在执行时被判为 `TARGET_STATIC_INVALID(1003)`，随后旧逻辑打印 `Previous target failed, skipping.` 并直接跳过，所以平板端显示主车区域未全覆盖是导航执行事实，不是单纯显示问题。
+- 本次已在覆盖折返点下发前增加静态栅格修正：若折返点在当前 A* 静态图中不可通行，会在 5 个栅格半径内寻找最近可通行点并打印 `COVERAGE_TARGET_REPAIR`；找不到才打印 `COVERAGE_TARGET_UNREPAIRABLE` 并保留本轮覆盖未完整完成的日志/错误码。只要覆盖任务结束且返航停住，车辆都会进入协同层面的“任务结束待机”状态，用于告知对车不要再请求它协同移动。
+- 从车的核心 A* 问题不是目标点本身非法。107.216 在第 20 个折返点 `(2.60,1.35)` 前，上一折返点为 `(2.40,1.35)`，距离约 0.20m；覆盖到点阈值已收紧为 0.10m，但 `Astarplanner::GlobalPlanner()` 仍把 0.25m 内目标直接返回“近距离成功”且不填充路径，上层看到空路径后误判为 `ASTAR_NO_PATH(1006)`。本次修复为近距离成功时向 `path` 填入终点，交给 DWA 继续走完 0.10m 到 0.25m 的尾段。
+- A* 无路日志已补充 `ASTAR_NO_PATH_CONTEXT`、`ASTAR_NO_PATH_STATIC`、`ASTAR_NO_PATH_DYNAMIC`，包含起点/终点世界坐标、栅格坐标、静态/雷达/视觉图状态和附近阻塞统计。若后续仍怀疑 2D 雷达互相干扰，需要拉取雷达日志和当时地图，对照这些动态图状态判断是否是主车雷达或主车实体被从车雷达膨胀成动态障碍。
+- 协同避障新增 `PEER_COVERAGE_DONE(-32)`：当一辆车已经完成覆盖、返航并不再运动时，收到另一辆车的协同避障请求会 ACK 后回发 `-32`。请求方收到后清理本轮可靠重传、标记对车已完成，之后再遇到同类阻塞直接走本地动态避障，不再持续给已完成车辆发协同消息。
 
 ## 八、维护建议
 

@@ -644,7 +644,7 @@ void CAstar::InitializeCellTotal(ProbMap &map) {
 #if 0	
 	ofstream outFile;
  
-	outFile.open("/mnt/cf/mapfile/testmap_planmap.txt",ios::out);
+	outFile.open("/data/test/testmap_planmap.txt",ios::out);
 
 	if (!outFile)
 	{	
@@ -690,46 +690,48 @@ void CAstar::InitializeCellTotal(ProbMap &map) {
 	outFile.close();
 #endif
 #if 1
-    ofstream outFile;
+    if (NAVI_ShouldDumpPlanDebugMaps()) {
+        ofstream outFile;
 
-    outFile.open("/mnt/cf/mapfile/pathplanmap.txt", ios::out);
+        outFile.open("/data/test/pathplanmap.txt", ios::out);
 
-    if (!outFile) {
-        printf("epenerror\n");
-        // return false;
-    }
-
-    outFile << 20;
-    outFile << ' ';
-    outFile << 0.05;
-    outFile << ' ';
-    outFile << map.height;
-    outFile << ' ';
-    outFile << map.width;
-    outFile << ' ';
-    outFile << map.metersPerPixel;
-    outFile << ' ';
-    outFile << map.x0;
-    outFile << ' ';
-    outFile << map.y0;
-    outFile << endl;
-
-    for (int j = 0; j < map.height; j++) {
-        for (int i = 0; i < map.width; i++) {
-            double status = 0;
-            status = map.data[j * map.width + i];
-            if (status > 0.5) {
-                outFile << -1;
-            } else {
-                outFile << 0;
-            }
-
-            outFile << ' ';
+        if (!outFile) {
+            printf("epenerror\n");
+            // return false;
         }
-        outFile << endl;
-    }
 
-    outFile.close();
+        outFile << 20;
+        outFile << ' ';
+        outFile << 0.05;
+        outFile << ' ';
+        outFile << map.height;
+        outFile << ' ';
+        outFile << map.width;
+        outFile << ' ';
+        outFile << map.metersPerPixel;
+        outFile << ' ';
+        outFile << map.x0;
+        outFile << ' ';
+        outFile << map.y0;
+        outFile << endl;
+
+        for (int j = 0; j < map.height; j++) {
+            for (int i = 0; i < map.width; i++) {
+                double status = 0;
+                status = map.data[j * map.width + i];
+                if (status > 0.5) {
+                    outFile << -1;
+                } else {
+                    outFile << 0;
+                }
+
+                outFile << ' ';
+            }
+            outFile << endl;
+        }
+
+        outFile.close();
+    }
 #endif
 }
 
@@ -1389,6 +1391,16 @@ bool CAstar::plan(Pose thegoal, ProbMap &visMap, Pose curpose,
     if (ret == -1)
     {
         return false;
+    }
+    if (ret == 1) {
+        vector<double> finalGoal;
+        finalGoal.push_back(thegoal.x);
+        finalGoal.push_back(thegoal.y);
+        path.push_back(finalGoal);
+        printf("astar planner near goal: direct final segment to (%.3f, %.3f)\n",
+               thegoal.x, thegoal.y);
+        fflush(stdout);
+        return true;
     }
 
     if (!vtPlanPath.empty()) {

@@ -33,6 +33,31 @@ static double clampDouble(double value, double minValue, double maxValue) {
     return value;
 }
 
+static void encodeWheelPercent(double percent, byte *direction, byte *speed) {
+    double magnitude = fabs(percent);
+    if (magnitude <= 0.5) {
+        *direction = 0x00;
+        *speed = 0x00;
+        return;
+    }
+    if (magnitude < MIN_NONZERO_WHEEL_PERCENT) {
+        magnitude = MIN_NONZERO_WHEEL_PERCENT;
+    }
+    magnitude = clampDouble(magnitude, 0.0, 60.0);
+    *direction = percent > 0 ? 0x01 : 0x02;
+    *speed = (byte)magnitude;
+}
+
+static double signedWheelPercent(byte direction, byte speed) {
+    if (direction == 0x01) {
+        return (double)speed;
+    }
+    if (direction == 0x02) {
+        return -(double)speed;
+    }
+    return 0.0;
+}
+
 int main() {
     // 串口初始化
     if (!whellInit()) {
@@ -97,21 +122,33 @@ void parseCmd(const lcm_recv_buf_t *rbuf, const char *channel,
     switch (status) {
     case 1:
         // 状态 1：双轮前进，设置相同速度
-        wheelSend(0x01, speed, 0x01, speed);
-        curSpeed = speed;
-        curOmega = 0;
+        if (wheelSend(0x01, speed, 0x01, speed)) {
+            curSpeed = speed;
+            curOmega = 0;
+        } else {
+            curSpeed = 0;
+            curOmega = 0;
+        }
         break;
     case 2:
         // 状态 2：左转，右轮运动，左轮停止
-        wheelSend(0x02, DEFAULT_SPEED, 0x01, DEFAULT_SPEED);
-        curOmega = (double)DEFAULT_SPEED * FULLSPEED / 100 / RADIUS;    // 正角速度，表示顺时针旋转
-        curSpeed = 0;
+        if (wheelSend(0x02, DEFAULT_SPEED, 0x01, DEFAULT_SPEED)) {
+            curOmega = (double)DEFAULT_SPEED * FULLSPEED / 100 / RADIUS;    // 正角速度，表示顺时针旋转
+            curSpeed = 0;
+        } else {
+            curOmega = 0;
+            curSpeed = 0;
+        }
         break;
     case 3:
         // 状态 3：右转，左轮运动，右轮停止
-        wheelSend(0x01, DEFAULT_SPEED, 0x02, DEFAULT_SPEED);
-        curOmega = (double)-DEFAULT_SPEED * FULLSPEED / 100 / RADIUS;   // 负角速度，表示逆时针旋转
-        curSpeed = 0;
+        if (wheelSend(0x01, DEFAULT_SPEED, 0x02, DEFAULT_SPEED)) {
+            curOmega = (double)-DEFAULT_SPEED * FULLSPEED / 100 / RADIUS;   // 负角速度，表示逆时针旋转
+            curSpeed = 0;
+        } else {
+            curOmega = 0;
+            curSpeed = 0;
+        }
         break;
     // TODO 屏蔽停止指令
     case 4:
@@ -166,10 +203,15 @@ void parsePath(const lcm_recv_buf_t *rbuf, const char *channel,
     w = msg->xyr[0][1]; // 角速度
     printf("v: %f m/s, w: %f rad/s\n", v, w);
     if (fabs(v) <= 0.01 && fabs(w) <= 0.01) {
-        wheelSend(0x00, 0x00, 0x00, 0x00);
         renewCurPose();
-        curSpeed = 0;
-        curOmega = 0;
+        if (wheelSend(0x00, 0x00, 0x00, 0x00)) {
+            curSpeed = 0;
+            curOmega = 0;
+        } else {
+            curSpeed = 0;
+            curOmega = 0;
+            fprintf(stderr, "SERIAL_ODOM_FREEZE write failed for stop command\n");
+        }
     } else {
         if (fabs(w) <= 0.2) {
             w *= 2;
@@ -179,13 +221,28 @@ void parsePath(const lcm_recv_buf_t *rbuf, const char *channel,
         vWheels[1] = (double)(v + w * RADIUS) / FULLSPEED * 100;
         vWheels[0] = clampDouble(vWheels[0], -60.0, 60.0);
         vWheels[1] = clampDouble(vWheels[1], -60.0, 60.0);
-        bWheels[0] = vWheels[0] > 0 ? 0x01 : 0x02;
-        bWheels[1] = vWheels[1] > 0 ? 0x01 : 0x02;
-        wheelSend(bWheels[0], (byte)fabs(vWheels[0]), bWheels[1],
-                  (byte)fabs(vWheels[1]));
         renewCurPose();
-        curSpeed = (int8_t)((double)v / FULLSPEED * 100);
-        curOmega = w;
+        byte leftDir;
+        byte leftSpeed;
+        byte rightDir;
+        byte rightSpeed;
+        encodeWheelPercent(vWheels[0], &leftDir, &leftSpeed);
+        encodeWheelPercent(vWheels[1], &rightDir, &rightSpeed);
+        bWheels[0] = leftDir;
+        bWheels[1] = rightDir;
+        if (wheelSend(bWheels[0], leftSpeed, bWheels[1], rightSpeed)) {
+            double leftPercent = signedWheelPercent(leftDir, leftSpeed);
+            double rightPercent = signedWheelPercent(rightDir, rightSpeed);
+            curSpeed = (int8_t)((leftPercent + rightPercent) / 2.0);
+            curOmega = ((rightPercent - leftPercent) / 2.0) *
+                       FULLSPEED / 100.0 / RADIUS;
+        } else {
+            curSpeed = 0;
+            curOmega = 0;
+            fprintf(stderr,
+                    "SERIAL_ODOM_FREEZE write failed for PATH v=%f w=%f\n",
+                    v, w);
+        }
     }
     printf("curSpeed: %d, curOmega: %f\n", curSpeed, curOmega);
 }

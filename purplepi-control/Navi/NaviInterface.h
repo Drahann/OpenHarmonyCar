@@ -12,6 +12,7 @@
 #include "CleanPlanner.h"
 #include "particlefilter/ParticleFilter.h"
 #include <queue>
+#include <stdint.h>
 #include "Astarplanner.h"
 #include "FullPathCoverage.h"
 #include "Eigen/LU"
@@ -19,6 +20,82 @@
 #define GET_ROOM_BOUNDARY 1
 #define COVERAGEALG 1
 #define ROBOTSIZE 7
+
+#define COOP_AVOID_CHANNEL "COOP_AVOID"
+#define COOP_AVOID_CMD_POSE_REQUEST  -40
+#define COOP_AVOID_CMD_POSE_RESPONSE -39
+#define COOP_AVOID_CMD_STOP_REQUEST  -38
+#define COOP_AVOID_CMD_STOP_ACK      -37
+#define COOP_AVOID_CMD_RESUME_REQUEST -36
+#define COOP_AVOID_CMD_RESUME_ACK    -35
+#define COOP_AVOID_CMD_ACK           -34
+#define COOP_AVOID_CMD_LOCAL_FALLBACK -33
+#define COOP_AVOID_CMD_PEER_COVERAGE_DONE -32
+#define COOP_AVOID_STATUS_COMMAND     74
+
+enum CoopAvoidState
+{
+	COOP_AVOID_NORMAL = 0,
+	COOP_AVOID_WAIT_PEER_POSE,
+	COOP_AVOID_WAIT_STOP_ACK,
+	COOP_AVOID_WAIT_RESUME_ACK,
+	COOP_AVOID_PEER_PAUSED_BY_ME,
+	COOP_AVOID_STOPPED_FOR_PEER
+};
+
+enum CoopAvoidTrigger
+{
+	COOP_AVOID_TRIGGER_NOPATH = 1,
+	COOP_AVOID_TRIGGER_MATCH_JUMP = 2
+};
+
+enum CoopAvoidHeartbeatStatus
+{
+	COOP_HEARTBEAT_NORMAL = 0,
+	COOP_HEARTBEAT_DIAGNOSING = 1,
+	COOP_HEARTBEAT_STOPPED_FOR_PEER = 2,
+	COOP_HEARTBEAT_PEER_PAUSED_BY_ME = 3,
+	COOP_HEARTBEAT_LOCAL_DYNAMIC_FALLBACK = 4
+};
+
+enum CoopAvoidHeartbeatEvent
+{
+	COOP_HEARTBEAT_EVENT_NONE = 0,
+	COOP_HEARTBEAT_EVENT_NOPATH = 1,
+	COOP_HEARTBEAT_EVENT_MATCH_JUMP = 2,
+	COOP_HEARTBEAT_EVENT_TIMEOUT = 3,
+	COOP_HEARTBEAT_EVENT_RESUME = 4,
+	COOP_HEARTBEAT_EVENT_NO_LCM = 5,
+	COOP_HEARTBEAT_EVENT_PEER_DONE = 6
+};
+
+enum MapLifecycleState
+{
+	MAP_STATE_IDLE = 0,
+	MAP_STATE_MAPPING,
+	MAP_STATE_SAVING,
+	MAP_STATE_MAP_READY,
+	MAP_STATE_NAVIGATING
+};
+
+enum FullPathErrorCode
+{
+	FULLPATH_OK = 0,
+	FULLPATH_ROOM_INIT_FAILED = 1001,
+	FULLPATH_ROAD_FILE_INVALID = 1002,
+	TARGET_STATIC_INVALID = 1003,
+	TARGET_DYNAMIC_BLOCKED_LASER = 1004,
+	TARGET_DYNAMIC_BLOCKED_VISION = 1005,
+	ASTAR_NO_PATH = 1006
+};
+
+enum TargetCheckResult
+{
+	TARGET_CHECK_OK = 0,
+	TARGET_CHECK_STATIC_INVALID,
+	TARGET_CHECK_DYNAMIC_BLOCKED_LASER,
+	TARGET_CHECK_DYNAMIC_BLOCKED_VISION
+};
 
 
 using namespace std;
@@ -62,6 +139,21 @@ struct laser_st
         std::vector< float > intensities;
         float      rad0;
         float      radstep;
+};
+
+struct MappingScanFrame
+{
+    Pose pose;
+    std::vector<Pose> bodyPoints;
+    std::vector<Pose> forelaserPoints;
+    std::vector<Pose> limitlaserPoints;
+
+    MappingScanFrame()
+    {
+        pose.x = 0;
+        pose.y = 0;
+        pose.theta = 0;
+    }
 };
 
 
@@ -157,6 +249,8 @@ public:
 	bool			enableCoverage;
 	bool			targetErr;
 	int				searchType;
+	MapLifecycleState m_mapState;
+	int             m_lastFullPathError;
 	/**********************/
     MapServer			*m_pmsSLAMtest;
 	/**********************/
@@ -221,6 +315,7 @@ public:
 	bool			bpfsetpose;
 	Pose			m_lastxyt;
 	Pose			m_nowxyt;
+	int             m_encoderInitialized;
 
 	Pose 			scanlinkpose;
 
@@ -294,8 +389,46 @@ public:
 	vector<Pose> m_CollisionWallDataCopy;
 
 	vector<Pose> gridPath;
+    vector<MappingScanFrame> m_mappingScanFrames;
+    bool m_mappingReplayInProgress;
 
 	int robotId;
+	pthread_mutex_t m_coop_mutex;
+	CoopAvoidState m_coopState;
+	int m_coopSeq;
+	int m_coopActiveSeq;
+	int m_coopActivePeer;
+	int m_coopTriggerReason;
+	long m_coopStateTimeMs;
+	int m_coopHeartbeatStatus;
+	int m_coopHeartbeatEvent;
+	bool m_coopPendingStopRequest;
+	int m_coopPendingStopSource;
+	int m_coopPendingStopSeq;
+	bool m_coopSavedGoalValid;
+	Pose m_coopSavedGoal;
+	int m_coopSavedCoverageIndex;
+	int m_coverageTurnIndex;
+	bool m_coverageActive;
+	bool m_coopPeerPoseValid;
+	bool m_coopPeerHasGoal;
+	Pose m_coopPeerPose;
+	Pose m_coopPeerGoal;
+	int m_coopLastTxCommand;
+	int m_coopLastTxTarget;
+	int m_coopLastTxSeq;
+	int m_coopLastTxReason;
+	long m_coopLastTxTimeMs;
+	int m_coopLastTxRetryCount;
+	bool m_coopLastTxAcked;
+	bool m_localDynamicFallbackActive;
+	bool m_coverageCompletedIdle;
+	bool m_coopPeerCoverageDone;
+	bool m_localDynamicBlockGoalValid;
+	Pose m_localDynamicBlockGoal;
+	int m_localDynamicBlockCount;
+	long m_localDynamicBlockFirstMs;
+	long m_localDynamicLastCoopMs;
 
 	static void * PlanThreadProc(LPVOID pPara);
 	static void * CoverageThreadProc(LPVOID pPara);
@@ -329,13 +462,17 @@ public:
 	double  bifsavelaseronly(Pose &p);
 	int 	ifrobotsafe(vector<double> &p);
     bool 	iftargetlegal(vector<double> &p);
+	TargetCheckResult checkTargetLegal(vector<double> &p, bool includeDynamic);
+	bool 	iftargetlegalStatic(vector<double> &p);
+	void    setLastFullPathError(int errorCode);
 	double  doArrive(vector<double> &p);
 	double  doArrivelaseronly(vector<double> &p);
 	double  ThetaScore(Pose &p,vector<double> &q);
 	double  DetaTheta(Pose &From,vector<double> &To);
 	double  DistScore(Pose &p,vector<double> &q,int flag);
 	bool	loadMap(const char *strMapName,vector<Pose> &vtWallPos);
-	void	createMap(double metersPerPixel);
+	bool	createMap(double metersPerPixel, bool forceNewMap = false);
+	void    resetMappingRuntimeState(void);
 	void	initLoc(Pose &pos,Pose &range);
 	void	saveMap(const char *strMapName);
 	void	saveModifyMap();
@@ -379,6 +516,12 @@ public:
 	void	setdrawvisionmode(bool mode);
 	void    ClearVisionData(void);
 	void    ClearCollisionData(void);
+    void    clearMappingLaserFrames(void);
+    void    resetScanMatcherRuntime(ScanMatcher *scanMatcher);
+    void    cacheMappingScanFrame(vector<Pose> &bodyPoints,
+                                  vector<Pose> &forelaserPoints,
+                                  vector<Pose> &limitlaserPoints);
+    bool    replayMappingScanFramesForSave(void);
 	void    Setmanualupdate(bool mode);
 	bool	Getmanualmode();
 	void	SetBackforward(bool mode);
@@ -389,6 +532,8 @@ public:
 	bool    saveMapCallBack(void);
 	void 	SetSaveMapDone(int status);
     void    Setautocharge(bool mode);
+	void    setMapLifecycleState(MapLifecycleState state);
+	MapLifecycleState getMapLifecycleState(void);
 
 	// AnXin：2025-2-11
 	void	setPlanFullPath(int algNum);
@@ -402,13 +547,50 @@ public:
 	// AnXin：2025-6-26
 	void	subGetMapFromMain(int* ip);
 
-	void	CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
+	bool	CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
 
 	void	getsize_forFullRoad(int len, int safe,int mins, int* list);
 
 	void	NavigatePathByGridPoints(const vector<Pose>& gridPath);
 
 	vector<IPoint> ReadFullPathFromFile(const string& filepath);
+	void	handleCoopAvoidMessage(int commandId, int targetRobotId, int sourceRobotId,
+								 int seq, const double *dparams, int ndparams,
+								 const int8_t *iparams, int niparams,
+								 const uint8_t *bparams, int nbparams);
+	void	triggerCoopAvoidance(int reason);
+	void	updateCoopAvoidance(void);
+	bool	isStoppedForCoopPeer(void);
+	bool	isPeerPausedByMe(void);
+	void	markCoverageIndex(int index);
+	void	resetCoverageState(void);
+	void	markCoverageStarted(void);
+	void	markCoverageCompletedIdle(void);
+	bool	isCoverageCompletedIdle(void);
+	void	respondCoopPoseRequest(int sourceRobotId, int seq);
+	void	sendCoopPoseRequest(int seq, int reason);
+	void	sendCoopStopRequest(int targetRobotId, int seq, int reason);
+	void	sendCoopStopAck(int targetRobotId, int seq);
+	void	sendCoopResumeRequest(int targetRobotId, int seq);
+	void	sendCoopResumeAck(int targetRobotId, int seq);
+	void	sendCoopAck(int targetRobotId, int seq, int ackedCommandId);
+	void	sendCoopLocalFallbackNotice(int targetRobotId, int seq,
+										int originalCommandId);
+	void	sendCoopCoverageDoneNotice(int targetRobotId, int seq,
+									   int originalCommandId);
+	void	beginCoopReliableTxLocked(int commandId, int targetRobotId, int seq, int reason);
+	void	clearCoopReliableTxLocked(void);
+	void	publishCoopHeartbeatStatus(int status, int event);
+	void	fallbackToLocalDynamicAvoidance(int failedCommand, int reason,
+										   bool acked, int retryCount);
+	bool	holdLocalDynamicBlockBeforeCoop(const Pose &goal, int reason,
+											const char *context);
+	void	resetLocalDynamicBlockState(void);
+	bool	getCurrentGoal(Pose &goal);
+	bool	peerLikelyBlocksCurrentRoute(int reason);
+	bool	pauseForCoopPeer(int sourceRobotId, int seq);
+	void	resumeAfterCoopPeer(void);
+	void	publishZeroVelocity(void);
 };
 
 void	NAVI_SetLocationType(LocationType type);
@@ -421,6 +603,8 @@ void  	NAVI_GetCollisionData(double **wallxy, int length);
 void	NAVI_PutEncoderData(Pose *pPos);
 bool	NAVI_LoadMapAndLoc(const char* strMapName,Pose initPos, Pose initRange,vector<Pose> &vtWallPos);
 void	NAVI_CreateMap(double metersPerPixel);
+bool	NAVI_CreateMapWithMode(double metersPerPixel, bool forceNewMap);
+void    NAVI_ClearGeneratedMapFiles(void);
 void	NAVI_SaveMap(const char *strMapName);
 void	NAVI_SaveModifyMap(void);
 void	NAVI_SetGoalPoint(Pose goal);
@@ -477,7 +661,7 @@ void NAVI_SetSearchType(int searchType);
 // AnXin：2025-6-10
 void NAVI_SubGetMapFromMain(int* ip);
 
-void NAVI_CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
+bool NAVI_CreateFullPath(int x1, int y1, int x2, int y2, int* rob, int safesize, int minsize);
 
 void NAVI_getsize_forFullRoad(int len, int safe,int mins, int* list);
 
@@ -488,3 +672,8 @@ void NAVI_SetgridPath(const vector<Pose>& gridPath);
 void NAVI_SetrobotId(int robotId);
 
 IPoint NAVI_GlobalToGrid(double x, double y);
+bool NAVI_ShouldDumpPlanDebugMaps(void);
+void NAVI_HandleCoopAvoidMessage(int commandId, int targetRobotId, int sourceRobotId,
+								 int seq, const double *dparams, int ndparams,
+								 const int8_t *iparams, int niparams,
+								 const uint8_t *bparams, int nbparams);

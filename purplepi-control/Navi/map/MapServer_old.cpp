@@ -2,8 +2,6 @@
 #include "MapServer.h"
 #include <cerrno>
 #include <cstdio>
-#include <cstdarg>
-#include <sys/time.h>
 
 static bool replaceTempFile(const string &tmpName, const string &finalName) {
     if (rename(tmpName.c_str(), finalName.c_str()) == 0) {
@@ -36,110 +34,12 @@ static bool closeAndReplaceMapFile(ofstream &outFile,
     return replaceTempFile(tmpName, finalName);
 }
 
-
-static FILE *g_mapServerDebugFile = NULL;
-
-static long mapServerDebugNowMs()
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-
-static void mapServerDebugLog(const char *format, ...)
-{
-    if (g_mapServerDebugFile == NULL) {
-        return;
-    }
-    va_list args;
-    va_start(args, format);
-    vfprintf(g_mapServerDebugFile, format, args);
-    va_end(args);
-    fflush(g_mapServerDebugFile);
-}
-
-extern "C" void MapServerDebugAttach(FILE *file)
-{
-    g_mapServerDebugFile = file;
-    if (g_mapServerDebugFile != NULL) {
-        fprintf(g_mapServerDebugFile, "MAPSERVER_DEBUG_ATTACH %ld\n",
-                mapServerDebugNowMs());
-        fflush(g_mapServerDebugFile);
-    }
-}
-
-extern "C" void MapServerDebugDetach(void)
-{
-    if (g_mapServerDebugFile != NULL) {
-        fprintf(g_mapServerDebugFile, "MAPSERVER_DEBUG_DETACH %ld\n",
-                mapServerDebugNowMs());
-        fflush(g_mapServerDebugFile);
-        g_mapServerDebugFile = NULL;
-    }
-}
-
 static bool isDefaultZipMapTarget(const char *fileName) {
     if (fileName == NULL) {
         return true;
     }
     return string(fileName).find("defultMap.txt") != string::npos ||
            string(fileName).find("unprobdefultMap.txt") != string::npos;
-}
-
-
-template <typename TMap>
-static void resetMapStorageMetadata(TMap &map) {
-    map.data = NULL;
-    map.width = 0;
-    map.height = 0;
-    map.x0 = 0;
-    map.y0 = 0;
-    map.metersPerPixel = 0;
-}
-
-template <typename TMap>
-static void releaseMapStorage(TMap &map) {
-    if (map.data != NULL) {
-        delete[] map.data;
-        map.data = NULL;
-    }
-    resetMapStorageMetadata(map);
-}
-
-static void resetMapServerStorageMetadata(MapServer *server) {
-    if (server == NULL) {
-        return;
-    }
-    resetMapStorageMetadata(server->globalBinaryMap);
-    resetMapStorageMetadata(server->globalGaussianMap);
-    resetMapStorageMetadata(server->globalWallMap);
-    resetMapStorageMetadata(server->laserMap);
-    resetMapStorageMetadata(server->astarMap);
-    resetMapStorageMetadata(server->globalProbMap);
-    resetMapStorageMetadata(server->visionMap);
-    resetMapStorageMetadata(server->globalcorrectionMap);
-    resetMapStorageMetadata(server->globalcorrectionMap2);
-    resetMapStorageMetadata(server->autochargemap);
-    resetMapStorageMetadata(server->globalVisionMap);
-    resetMapStorageMetadata(server->testpathmap);
-}
-
-static void releaseMapServerStorage(MapServer *server) {
-    if (server == NULL) {
-        return;
-    }
-    releaseMapStorage(server->globalBinaryMap);
-    releaseMapStorage(server->globalGaussianMap);
-    releaseMapStorage(server->globalWallMap);
-    releaseMapStorage(server->laserMap);
-    releaseMapStorage(server->astarMap);
-    releaseMapStorage(server->globalProbMap);
-    releaseMapStorage(server->visionMap);
-    releaseMapStorage(server->globalcorrectionMap);
-    releaseMapStorage(server->globalcorrectionMap2);
-    releaseMapStorage(server->autochargemap);
-    releaseMapStorage(server->globalVisionMap);
-    releaseMapStorage(server->testpathmap);
 }
 
 int bSaveMapDone = 0;
@@ -150,30 +50,15 @@ MapServer::MapServer(void) {
     range = 15;
     resolution = 0.05;
     bHaveWall = false;
-
-    // MapServer 会在重复建图时反复 new/delete。这里显式把所有地图
-    // data 指针和尺寸清成空状态，避免第二次建图时因为旧指针/脏元数据
-    // 让 makeNewGridMap() 误判为“地图已经初始化”。
-    resetMapServerStorageMetadata(this);
 }
 
-MapServer::~MapServer(void) {
-    mapServerDebugLog("MAPSERVER_DESTRUCT %ld map %.9f %.9f %d %d %.9f has_data %d\n",
-                      mapServerDebugNowMs(), globalBinaryMap.x0,
-                      globalBinaryMap.y0, globalBinaryMap.width,
-                      globalBinaryMap.height,
-                      globalBinaryMap.metersPerPixel,
-                      globalBinaryMap.data != NULL ? 1 : 0);
-    releaseMapServerStorage(this);
-}
+MapServer::~MapServer(void) {}
 
 void MapServer::SetConfig(double _range, double _resolution) {
     robotDiameter = 0.1;
     debug = false;
     range = _range;
     resolution = _resolution;
-    mapServerDebugLog("MAPSERVER_SET_CONFIG %ld range %.9f resolution %.9f\n",
-                      mapServerDebugNowMs(), range, resolution);
 }
 
 bool MapServer::loadMap(const char *fileName,
@@ -450,43 +335,15 @@ bool MapServer::makeNewGridMap(
     GridMap &
         gm) // g��������Ԫ����GNode��ÿ��GNode�������㣬���һ��GNode�����µĻ�����λ��
 {
-    if (g.nodes.empty()) {
-        printf("ERR: makeNewGridMap failed: graph has no nodes\n");
-        mapServerDebugLog("MAP_INIT_FAILED %ld reason empty_graph\n",
-                          mapServerDebugNowMs());
-        return false;
-    }
-
-    bool mapInvalid = (globalBinaryMap.data == NULL ||
-                       globalBinaryMap.width <= 0 ||
-                       globalBinaryMap.height <= 0 ||
-                       globalBinaryMap.metersPerPixel < 0.00000001);
-
-    // 建图初始化不能只判断 data 是否为 NULL。重复建图时如果旧指针或尺寸残留，
-    // 会跳过 makePixels()，导致第二次建图从脏地图状态开始拼接。
-    if (mapInvalid) {
-        if (globalBinaryMap.data != NULL) {
-            delete[] globalBinaryMap.data;
-            globalBinaryMap.data = NULL;
-        }
+    //�����Ƶ�ͼ����ͼ���ĵ�Ϊ������λ��
+    if (globalBinaryMap.data ==
+        NULL) //��������ڶ����Ƶ�ͼ�����½�һ�����½���ͼ�����ĵ㣬��g�����һ��GNode�еĻ�����λ��
+    {
         globalBinaryMap.makePixels(
             g.nodes.at(g.nodes.size() - 1).state.x - range,
             g.nodes.at(g.nodes.size() - 1).state.y - range,
             (int)(2 * range / resolution), (int)(2 * range / resolution),
             resolution, 0, false);
-        mapServerDebugLog("MAP_INIT %ld nodes %lu map_invalid 1 %.9f %.9f %d %d %.9f\n",
-                          mapServerDebugNowMs(),
-                          (unsigned long)g.nodes.size(),
-                          globalBinaryMap.x0, globalBinaryMap.y0,
-                          globalBinaryMap.width, globalBinaryMap.height,
-                          globalBinaryMap.metersPerPixel);
-    } else {
-        mapServerDebugLog("MAP_INIT_SKIP %ld nodes %lu map_invalid 0 %.9f %.9f %d %d %.9f\n",
-                          mapServerDebugNowMs(),
-                          (unsigned long)g.nodes.size(),
-                          globalBinaryMap.x0, globalBinaryMap.y0,
-                          globalBinaryMap.width, globalBinaryMap.height,
-                          globalBinaryMap.metersPerPixel);
     }
     return true;
 }
@@ -589,23 +446,10 @@ bool MapServer::addToGlobalMap(Pose pose, vector<Pose> &points) {
         globalBinaryMap.height = height / globalBinaryMap.metersPerPixel;
     }
 
-    mapServerDebugLog("ADD_TO_GLOBAL_MAP %ld pose %.9f %.9f %.9f points %lu expand_x %d expand_y %d map %.9f %.9f %d %d %.9f\n",
-                      mapServerDebugNowMs(), pose.x, pose.y, pose.theta,
-                      (unsigned long)points.size(), expandX ? 1 : 0,
-                      expandY ? 1 : 0, globalBinaryMap.x0,
-                      globalBinaryMap.y0, globalBinaryMap.width,
-                      globalBinaryMap.height,
-                      globalBinaryMap.metersPerPixel);
-
     // addGridMap(globalBinaryMap, pose, points);//��ɨ��ĵ����ӽ�ȥ
     return expandX || expandY;
 }
 bool MapServer::addGridMap(GridMap &gridMap, Pose pose, vector<Pose> &points) {
-    mapServerDebugLog("ADD_GRID_MAP %ld pose %.9f %.9f %.9f points %lu map %.9f %.9f %d %d %.9f\n",
-                      mapServerDebugNowMs(), pose.x, pose.y, pose.theta,
-                      (unsigned long)points.size(), gridMap.x0, gridMap.y0,
-                      gridMap.width, gridMap.height,
-                      gridMap.metersPerPixel);
     Pose lastp;
 
     lastp.x = 0;

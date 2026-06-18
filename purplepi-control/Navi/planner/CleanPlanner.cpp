@@ -2214,7 +2214,7 @@ void CleanPlanner::saveMap(const char* fileName, GridMap &map)
 		 }
 
 
-		 saveMap("/mnt/cf/cleanmap.txt",cleanmap);
+		 saveMap("/data/test/cleanmap.txt",cleanmap);
 
 		 GridMap bakmap;
 

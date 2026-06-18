@@ -8,11 +8,32 @@ pthread_mutex_t heartBeatMutex;
 struct sockaddr_in clientAddr;
 char clientIP[20] = "";
 lcm_t *lcm;
+static int8_t coopHeartbeatStatus = 0;
+static int8_t coopHeartbeatEvent = 0;
 
 pid_t httpServerPid = -1;
 
 static int16_t diag_pt1_x = -1, diag_pt1_y = -1;
 static int16_t diag_pt2_x = -1, diag_pt2_y = -1;
+static bool diag_pt1_valid = false;
+static bool diag_pt2_valid = false;
+static int mapCreateRequestedFromHeartbeat = 0;
+
+static bool defaultMapExists(void) {
+    return access("/data/test/defultMap.txt", F_OK) == 0;
+}
+
+static bool isZeroWheelStopMessage(const char *buffer, int bytesReceived) {
+    if (buffer == NULL || bytesReceived < 9 || (unsigned char)buffer[0] != 0x01) {
+        return false;
+    }
+    for (int i = 1; i < 9; i++) {
+        if ((unsigned char)buffer[i] != 0x00) {
+            return false;
+        }
+    }
+    return true;
+}
 
 /* 捕获 SIGINT 信号（通常是 Ctrl+C），清理资源并退出程序 */
 void sigIntHandler(int sig) {
@@ -37,8 +58,9 @@ int main() {
     pthread_create(&udpRecv, NULL, udpRecvHandler, NULL);
     // 订阅 LCM 通道 CURRENTPOSE，使用回调函数 poseHandler 处理位置消息
     pose_t_subscribe(lcm, "CURRENTPOSE", poseHandler, NULL);
+    robot_control_t_subscribe(lcm, "SERVICE_COMMAND", serviceCommandHandler, NULL);
     if ((httpServerPid = fork()) == 0) {
-        // 拉起服务器进程，手机端需要申请的文件/data/test/defaultMap.txt.txt
+        // 拉起服务器进程，App 通过 http://<紫派IP>:8000/defultMap.txt 拉取地图
         // ATTENTION: 这里的路径需要根据实际存储地图的路径来修改
         chdir("/data/test");
         /*
@@ -47,7 +69,12 @@ int main() {
          * 其他的是传递过去的参数，按一般约定，第一个参数是程序名，不被使用
          * 因而这里出现了两个python
          */
-        execlp("python", "python", "-m", "http.server", NULL);
+        execlp("python3", "python3", "-u", "-m", "http.server", "8000",
+               "--bind", "0.0.0.0", "--directory", "/data/test", NULL);
+        execlp("python", "python", "-u", "-m", "http.server", "8000",
+               "--bind", "0.0.0.0", "--directory", "/data/test", NULL);
+        perror("start http map server failed");
+        exit(1);
     }
     while (true) {
         // pause();
@@ -71,11 +98,19 @@ void parseCmd(const char *buffer, int bytesReceived) {
         fprintf(stderr, "Error: Invalid message\n");
         return;
     }
-    printf("Received UDP message (9 bytes): ");
-    for (int i = 0; i < 9; i++) {
-        printf("%02hhx ", buffer[i]);
+
+    unsigned char msgType = (unsigned char)buffer[0];
+    bool isHeartbeatMsg = (msgType == 0x00);
+    bool isQuietStopMsg = isZeroWheelStopMessage(buffer, bytesReceived);
+    if (!isHeartbeatMsg && !isQuietStopMsg) {
+        int dumpLen = bytesReceived < 9 ? bytesReceived : 9;
+        printf("Received UDP message (%d bytes, dump %d): ", bytesReceived, dumpLen);
+        for (int i = 0; i < dumpLen; i++) {
+            printf("%02hhx ", buffer[i]);
+        }
+        printf("\n");
+        fflush(stdout);
     }
-    printf("\n");
 
     path_ctrl_t path;
     robot_control_t robotCtrlData;
@@ -92,7 +127,11 @@ void parseCmd(const char *buffer, int bytesReceived) {
          */
         // 手机端用来与udp2lcm服务器建立连接的初始化消息
         // 也是手机端的心跳
-        // 下达30号命令，开始建图
+        if (defaultMapExists() || mapCreateRequestedFromHeartbeat) {
+            return;
+        }
+        // 兼容旧平板：首次连接且没有默认地图时，才自动下达30号建图命令。
+        mapCreateRequestedFromHeartbeat = 1;
         robotCtrlInit(&robotCtrlData, 0, 30, 0, 1, 1, 0, 0);
         robotCtrlData.dparams[0] = 0.05;    // double类型数据值为0.05
         robotCtrlData.niparams = 1; // int类型数据个数为1
@@ -221,6 +260,15 @@ void parseCmd(const char *buffer, int bytesReceived) {
         robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
         // 释放资源
         freeRobotCtrl(&robotCtrlData);
+    } else if (buffer[0] == 'm') {
+        printf("Force Create Map!\n");
+        mapCreateRequestedFromHeartbeat = 1;
+        robotCtrlInit(&robotCtrlData, 0, 30, 0, 1, 2, 0, 0);
+        robotCtrlData.dparams[0] = 0.05;
+        robotCtrlData.iparams[0] = 1;
+        robotCtrlData.iparams[1] = 1;
+        robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
+        freeRobotCtrl(&robotCtrlData);
     } else if (buffer[0] == 'f') {
         // 消息类型为 f：全息路径规划
         printf("Start Full Path Planning!\n");
@@ -326,79 +374,58 @@ void parseCmd(const char *buffer, int bytesReceived) {
     } else if (buffer[0] == 'k') {
         diag_pt1_x = swapEndian(*(int16_t *)&buffer[3]);
         diag_pt1_y = swapEndian(*(int16_t *)&buffer[5]);
+        diag_pt1_valid = true;
         printf("Received diagonal point 1: (%d, %d)\n", diag_pt1_x, diag_pt1_y);fflush(stdout);
     } else if (buffer[0] == 'l') {
-        int robot_id = buffer[1];  // 0：主机，1：从机
+        int robot_id = (unsigned char)buffer[1];  // 0：主机，1：从机
         diag_pt2_x = swapEndian(*(int16_t *)&buffer[3]);
         diag_pt2_y = swapEndian(*(int16_t *)&buffer[5]);
+        diag_pt2_valid = true;
         printf("Received diagonal point 2: (%d, %d)\n", diag_pt2_x, diag_pt2_y);fflush(stdout); 
-        
-        if (diag_pt1_x != -1 && diag_pt2_x != -1 && robot_id == 1) {
-            printf("build FullRoad file for robot %d\n", robot_id);
-            pthread_mutex_lock(&heartBeatMutex);
-            robotCtrlInit(&robotCtrlData, 0, 10, 0, 7, 0, 0, 0);
-            // 通过 heartBeat 数据获取实时坐标，并设置控制命令的参数
-            int16_t x, y, sita;
-            // 提取实时坐标信息并转换字节序
-            x = swapEndian(*(int16_t *)&heartBeat[3]);
-            y = swapEndian(*(int16_t *)&heartBeat[5]);
-            sita = swapEndian(*(int16_t *)&heartBeat[7]);
-            // 打印当前位置
-            printf("NOW point: x: %d, y: %d, sita: %d\n", x, y, sita);fflush(stdout);
-            // 将坐标数据转换为浮点类型并存储到命令参数中
-            pthread_mutex_unlock(&heartBeatMutex);
-            robotCtrlData.dparams[4] = x / 20.0;
-            robotCtrlData.dparams[5] = y / 20.0;
-            robotCtrlData.dparams[6] = sita * M_PI / 180.0;
-            // 发布加载地图命令
-            robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
-            // 释放资源
-            freeRobotCtrl(&robotCtrlData);
-            robot_control_t robotCtrlData;
-            robotCtrlInit(&robotCtrlData, 0, 122, 0, 7, 0, 0, 0);  // 调用FullRoad路径规划命令
-            robotCtrlData.dparams[0] = (double)x / 20;
-            robotCtrlData.dparams[1] = (double)y / 20;
-            robotCtrlData.dparams[2] = (double)sita * M_PI / 180;
-            robotCtrlData.dparams[3] = (double)diag_pt1_x / 20;
-            robotCtrlData.dparams[4] = (double)diag_pt1_y / 20;
-            robotCtrlData.dparams[5] = (double)diag_pt2_x / 20;
-            robotCtrlData.dparams[6] = (double)diag_pt2_y / 20;
 
-            printf("Publishing FullRoad path planning command (122)...\n");fflush(stdout);
-            robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
-            freeRobotCtrl(&robotCtrlData);
+        if (!diag_pt1_valid || !diag_pt2_valid) {
+            printf("Reject distributed coverage start: incomplete diagonal points, pt1_valid=%d, pt2_valid=%d\n",
+                   diag_pt1_valid ? 1 : 0, diag_pt2_valid ? 1 : 0);
+            fflush(stdout);
+            return;
         }
-        
+        if (robot_id != 0 && robot_id != 1) {
+            printf("Reject distributed coverage start: invalid robot_id=%d\n", robot_id);
+            fflush(stdout);
+            return;
+        }
+
+        pthread_mutex_lock(&heartBeatMutex);
+        int16_t x = swapEndian(*(int16_t *)&heartBeat[3]);
+        int16_t y = swapEndian(*(int16_t *)&heartBeat[5]);
+        int16_t sita = swapEndian(*(int16_t *)&heartBeat[7]);
+        pthread_mutex_unlock(&heartBeatMutex);
+
+        printf("build FullRoad file for robot %d\n", robot_id);
+        printf("NOW point: x: %d, y: %d, sita: %d\n", x, y, sita);fflush(stdout);
+        robotCtrlInit(&robotCtrlData, 0, 122, 0, 7, 0, 0, 0);  // 调用FullRoad路径规划命令
+        robotCtrlData.dparams[0] = (double)x / 20;
+        robotCtrlData.dparams[1] = (double)y / 20;
+        robotCtrlData.dparams[2] = (double)sita * M_PI / 180;
+        robotCtrlData.dparams[3] = (double)diag_pt1_x / 20;
+        robotCtrlData.dparams[4] = (double)diag_pt1_y / 20;
+        robotCtrlData.dparams[5] = (double)diag_pt2_x / 20;
+        robotCtrlData.dparams[6] = (double)diag_pt2_y / 20;
+
+        printf("Publishing FullRoad path planning command (122)...\n");fflush(stdout);
+        robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
+        freeRobotCtrl(&robotCtrlData);
+
         printf("Robot %d start distributed path following\n", robot_id);fflush(stdout);
-
-        // 主机器人(非建图机器人)加载地图
-        if (robot_id == 0) {
-            path.cmd = 0;
-            path.speed = 0;
-            path_ctrl_t_publish(lcm, "wheel_ctrl", &path);
-
-            robot_control_t robotCtrlData;
-            robotCtrlInit(&robotCtrlData, 0, 10, 0, 7, 0, 0, 0);  // 加载地图命令
-            pthread_mutex_lock(&heartBeatMutex);
-            int16_t x = swapEndian(*(int16_t *)&heartBeat[3]);
-            int16_t y = swapEndian(*(int16_t *)&heartBeat[5]);
-            int16_t sita = swapEndian(*(int16_t *)&heartBeat[7]);
-            printf("NOW point: x: %d, y: %d, sita: %d\n", x, y, sita);fflush(stdout);
-            pthread_mutex_unlock(&heartBeatMutex);
-
-            robotCtrlData.dparams[4] = x / 20.0;
-            robotCtrlData.dparams[5] = y / 20.0;
-            robotCtrlData.dparams[6] = sita * M_PI / 180.0;
-            robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
-            freeRobotCtrl(&robotCtrlData);
-        }
-
-        // 调用分布式路径执行逻辑
-        robot_control_t robotCtrlData;
         robotCtrlInit(&robotCtrlData, 0, 123, 0, 1, 1, 0, 0);  // 分布式路径跟踪执行命令
         robotCtrlData.iparams[0] = robot_id;  // 标记机器人编号
         robot_control_t_publish(lcm, "ROBOT_CONTROL", &robotCtrlData);
         freeRobotCtrl(&robotCtrlData);
+
+        diag_pt1_x = diag_pt1_y = -1;
+        diag_pt2_x = diag_pt2_y = -1;
+        diag_pt1_valid = false;
+        diag_pt2_valid = false;
     } else {
         // 未知的消息类型，输出错误信息
         fprintf(stderr, "Error: Invalid command: ");
@@ -435,7 +462,8 @@ void poseHandler(const lcm_recv_buf_t *rbuf, const char *channel,
     pthread_mutex_lock(&heartBeatMutex);
     // 填充 heartBeat 数组，用于存储当前的位姿信息
     heartBeat[0] = 0x03;    // 消息标志位，表示心跳类型为位姿更新
-    heartBeat[1] = heartBeat[2] = 0;    // 保留字段，初始化为 0
+    heartBeat[1] = coopHeartbeatStatus; // 协同避障状态
+    heartBeat[2] = coopHeartbeatEvent;  // 协同避障事件
     // 将 x 坐标拆分为高字节和低字节，存储到 heartBeat 数组
     heartBeat[3] = x >> 8;  // x 的高 8 位
     heartBeat[4] = x & 0xff;    // x 的低 8 位
@@ -447,6 +475,25 @@ void poseHandler(const lcm_recv_buf_t *rbuf, const char *channel,
     heartBeat[8] = sita;    // sita 的低 8 位
     // 解锁互斥锁，允许其他线程访问 heartBeat 数组
     pthread_mutex_unlock(&heartBeatMutex);
+}
+
+void serviceCommandHandler(const lcm_recv_buf_t *rbuf, const char *channel,
+                           const robot_control_t *msg, void *userdata) {
+    if (msg == NULL || msg->commandid != 74 ||
+        msg->niparams < 3 || msg->iparams == NULL) {
+        return;
+    }
+
+    pthread_mutex_lock(&heartBeatMutex);
+    coopHeartbeatStatus = msg->iparams[1];
+    coopHeartbeatEvent = msg->iparams[2];
+    heartBeat[1] = coopHeartbeatStatus;
+    heartBeat[2] = coopHeartbeatEvent;
+    pthread_mutex_unlock(&heartBeatMutex);
+
+    printf("Heartbeat coop status updated: robot=%d status=%d event=%d\n",
+           msg->iparams[0], msg->iparams[1], msg->iparams[2]);
+    fflush(stdout);
 }
 
 /*
