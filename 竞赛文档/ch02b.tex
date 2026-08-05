@@ -1,0 +1,183 @@
+\chapter{硬件平台与系统部署}
+\label{ch:hardware-deploy}
+
+本章介绍整车硬件组成、各计算单元与传感器选型，以及 OpenHarmony 5.0 的裁剪适配、依赖库构建与三端部署流程。
+
+\section{整车硬件组成}
+\label{sec:hardware-composition}
+
+整车由“双计算单元 + 感知 + 执行 + 供电”四部分组成，对应第~\ref{sec:vision-nav-decoupling}~节视觉--导航解耦的物理实现，如表~\ref{tab:hardware}所示。紫派通过两条 USB 串口分别连接雷达（ttyUSB0）和底盘（ttyUSB1），香橙派连接 USB 摄像头，两块板卡经车内网络交换减速、恢复指令与行进状态，并与平板接入同一局域网。
+
+\begin{table}[htbp]
+\centering
+\caption{整车硬件组成}
+\label{tab:hardware}
+\begin{tabularx}{\textwidth}{p{2.2cm}p{3cm}p{2.5cm}X}
+\toprule
+\textbf{部件} & \textbf{选型} & \textbf{接口/连接} & \textbf{角色} \\
+\midrule
+运动主控 & 紫派 Purple Pi (RK3566) & --- & 运行 OpenHarmony 5.0，承载导航四进程并执行车速控制 \\
+视觉单元 & 香橙派 Orange Pi AI Pro (昇腾 310B) & 网口 (192.168.1.5) & 视觉推理、行进状态控制与 DeepSeek 大模型 \\
+激光雷达 & SLAMTEC RPLIDAR A2M8 & /dev/ttyUSB0 (115200) & 360° 二维测距，SLAM 感知输入 \\
+底盘 & 两驱动轮 + 万向轮差速底盘 + 电机驱动板 & /dev/ttyUSB1 (115200, 8N1) & 执行运动；轮控进程按速度指令积分生成里程估计 \\
+摄像头 & USB 摄像头 & /dev/video0 & 仪表画面采集 \\
+交互终端 & 鸿蒙平板 & Wi-Fi & 总控与可视化 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{运动主控 Purple Pi OH}
+\label{sec:purplepi-hardware}
+
+运动主控选用 Purple Pi OH 开发板，核心处理器为 RK3566（四核 Cortex-A55），兼容 OpenHarmony 5.0，可满足导航进程、地图服务与串口通信的并行运行需求。板卡尺寸约 85\,mm $\times$ 56\,mm，提供千兆网口、USB 2.0/3.0 与 40 pin 扩展排针，可同时连接雷达、底盘串口与局域网，降低了整车布线复杂度（图~\ref{fig:hardware-purplepi}）。主控单独配置 5\,V 供电模块，避免电机启动、雷达旋转造成主控端压降。
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.32\textheight,keepaspectratio]{hardware-purplepi-front.png}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.32\textheight,keepaspectratio]{hardware-purplepi-back.png}
+\end{minipage}
+\caption{Purple Pi OH 正反面接口}
+\label{fig:hardware-purplepi}
+\end{figure}
+
+\section{视觉单元 香橙派 AI Pro}
+\label{sec:orangepi-hardware}
+
+视觉单元选用香橙派 Orange Pi AI Pro，搭载华为昇腾 310B 处理器，内置 NPU，可在板端实时运行 YOLO 检测、关键点检测模型以及端侧 DeepSeek 大模型。板卡运行基于 CANN 的 Linux 系统，提供完整的 ACL 运行时与 ATC 模型编译工具链，经千兆网口（固定 IP 192.168.1.5）与紫派、平板互联（图~\ref{fig:hardware-orangepi}）。
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.32\textheight,keepaspectratio]{hardware-orangepi-front.png}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.32\textheight,keepaspectratio]{hardware-orangepi-back.png}
+\end{minipage}
+\caption{香橙派 AI Pro 正反面接口}
+\label{fig:hardware-orangepi}
+\end{figure}
+
+\section{RPLIDAR A2M8 激光雷达}
+\label{sec:rplidar-hardware}
+
+激光感知采用 SLAMTEC RPLIDAR A2M8，输出 360° 二维测距数据，典型旋转频率 10~Hz，典型角分辨率约 $0.45^{\circ}$，满足室内建图与避障需求（图~\ref{fig:hardware-rplidar}）。该雷达以单个激光采样点为基本单位输出，驱动程序连续读取采样点并在角度回绕处切分为完整扫描帧；相比按整圈回调的方案，逐点输出便于驱动层做角度排序、异常点过滤与帧边界判断，与 \texttt{lidar\_driver} 的实现方式相契合。
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.24\textheight,keepaspectratio]{hardware-rplidar-a2m8.png}
+\end{minipage}\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.24\textheight,keepaspectratio]{hardware-rplidar-principle.png}
+\end{minipage}\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.24\textheight,keepaspectratio]{hardware-rplidar-scan.png}
+\end{minipage}
+\caption{RPLIDAR A2M8 实物、工作原理与扫描效果}
+\label{fig:hardware-rplidar}
+\end{figure}
+
+\section{电机、驱动板与供电}
+\label{sec:motor-driver-hardware}
+
+底盘执行机构采用兆威 ZWMD032032-33-01 行星减速电机（12\,V，减速比 32.8），可为低速巡检底盘提供较高输出力矩，关键参数如表~\ref{tab:motor-parameters}所示。电机驱动板未采用商用整机控制器，而是围绕 OpenHarmony 主控与底盘需求自行设计：支持双轮差速控制，通过串口接收轮控进程下发的方向与速度指令（图~\ref{fig:hardware-motor-driver}）。供电上，电机侧使用 12\,V 电源模块、主控侧使用 5\,V 电源模块，二者按功能域分离，降低了电机瞬态电流对主控与串口通信的影响，也便于排查压降、重启与外设掉线问题。
+
+\begin{table}[htbp]
+\centering
+\caption{驱动电机关键参数}
+\label{tab:motor-parameters}
+\begin{tabularx}{\textwidth}{p{4cm}X}
+\toprule
+\textbf{参数} & \textbf{数值} \\
+\midrule
+直径 / 长度 & 32\,mm / 81.6\,mm \\
+减速比 & 32.8 \\
+额定电压 & 12\,VDC \\
+齿轮箱额定容许力矩 & 60000\,gf.cm \\
+空载数据 & 转速 164.40\,rpm；最大电流 235\,mA \\
+负载数据 & 转速 147.87\,rpm；最大电流 715\,mA；转矩 2518.93\,gf.cm \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{hardware-motor-driver-board.png}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{hardware-motor-driver-real.png}
+\end{minipage}
+\caption{电机驱动板卡设计图与实物}
+\label{fig:hardware-motor-driver}
+\end{figure}
+
+\section{OpenHarmony 5.0 裁剪适配与烧录}
+\label{sec:openharmony-build-flash}
+
+紫派运行的是面向本项目裁剪适配的 OpenHarmony 5.0 镜像。构建流程为：在宿主机配置编译环境并安装 \texttt{repo} 工具；拉取 OpenHarmony 5.0 源码后打入 Purple Pi OH 板级补丁，使内核与设备配置匹配 RK3566；修正两处 64 位系统配置后执行编译，生成的镜像经 RKDevTools 烧录至板卡，烧录后验证图形界面与网络连接正常（图~\ref{fig:ohos-flash-verify}）。
+
+适配过程中解决的两个关键问题值得说明：（1）64 位默认配置栈空间不足，表现为设置无法启动、WLAN 无法开启，需在板级配置中将 \texttt{device\_stack\_size} 设为 8388608；（2）受 SELinux 沙箱限制，WLAN 操作存在权限错误，需在系统沙箱配置中补充 WLAN 相关访问权限，使网络初始化正常完成。
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{ohos-flash-check.png}
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.28\textheight,keepaspectratio]{ohos-desktop.png}
+\end{minipage}
+\caption{Purple Pi OH 烧录完成后的连接检查与图形界面}
+\label{fig:ohos-flash-verify}
+\end{figure}
+
+\section{板端工具与依赖库构建}
+\label{sec:openharmony-tools-build}
+
+多机地图同步要求紫派能在板端直接发起 HTTP 请求（从车需拉取主车地图），而 OpenHarmony 默认的轻量化 \texttt{toybox} 环境不包含完整 \texttt{wget}。本项目基于交叉编译工具链，依次构建 \texttt{zlib}、\texttt{openssl} 与 \texttt{wget}，并解决了 GNU 工具链产物依赖 \texttt{ld-linux-aarch64.so} 而板端使用 \texttt{ld-musl-aarch64.so.1} 的动态链接器差异问题，使 \texttt{wget} 可在板端原生运行。
+
+紫派内部的雷达、导航、轮控与桥接进程均通过 LCM 通信，LCM 及其底层依赖 \texttt{glib} 同样需交叉编译至板端。编译时裁剪了 LCM 的 Python 绑定，仅保留 C/C++ 核心库，并通过自定义测试消息完成了宿主机收发验证，随后将库文件部署至板端，四个控制进程均动态链接成功。相比引入 ROS，LCM 体积小、消息模型简单，更适合资源受限的 RK3566 板端。
+
+\section{三端部署与启动流程}
+\label{sec:deployment}
+
+三台设备均有脚本化的部署与启动流程。紫派的机器人栈统一部署在 \texttt{/data/test} 目录，由 \texttt{test.sh} 一键拉起四个核心进程：
+
+\begin{lstlisting}
+./test.sh run     # 检查 /dev/ttyUSB* 数量为 2，依次启动：
+                  #   lidar_driver / navigation / serial / udp2lcm
+./test.sh stop    # 向四进程 + python 发送 SIGINT 停止
+./test.sh clean   # 清理 /data/test 下日志与历史地图文件
+\end{lstlisting}
+
+香橙派侧启动昇腾推理服务：
+
+\begin{lstlisting}
+ssh HwHiAiUser@192.168.1.5
+cd ~/simple_baselines/web/backend
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+python3 main.py    # FastAPI 监听 0.0.0.0:8000
+\end{lstlisting}
+
+其中 \texttt{set\_env.sh} 加载昇腾工具链（ACL 运行时、ATC 编译器等）的环境变量，是 OM 模型在 NPU 上加载推理的前提。
+
+\section{真机调试经验}
+\label{sec:debugging}
+
+真机调试中积累了两条关键经验。其一，边缘 AI 设备对供电质量敏感：香橙派曾出现系统负载虚高、ACL 加载模型即崩溃重启的现象，最终定位为 NPU 满载推理时供电不足，更换稳定电源并冷启动后故障消除。其二，OpenHarmony 默认 30~s 息屏会影响无人值守运行，启动脚本在运行前执行 \texttt{power-shell wakeup} 与超时设置作为保活措施，停止时恢复默认。
+
+整车硬件、接线、供电与 OpenHarmony 5.0 镜像均由本项目自主搭建与适配，与自研软件共同构成完整的软硬件系统。

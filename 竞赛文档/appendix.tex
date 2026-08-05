@@ -1,0 +1,39 @@
+﻿% appendix.tex - 附录（仅术语表）
+\chapter{术语表}
+\label{app:glossary}
+
+\begin{table}[htbp]
+\centering
+\caption{术语表}
+\label{tab:glossary}
+\small
+\begin{tabularx}{\textwidth}{p{3cm}X}
+\toprule
+\textbf{术语} & \textbf{全称与含义} \\
+\midrule
+OpenHarmony & 开源鸿蒙，我国自主研发的分布式操作系统 \\
+分布式软总线 & 鸿蒙系统中实现多设备逻辑互联的底层通信能力 \\
+DDO & distributedDataObject，分布式数据对象，支持跨设备自动同步的共享数据实体 \\
+昇腾 / Ascend & 华为自主研发的 AI 芯片系列；本项目采用 310B 边缘 NPU \\
+ACL & Ascend Computing Language，昇腾运行时编程接口 \\
+OM & Offline Model，昇腾离线模型格式（由 ATC 编译器生成） \\
+AIPP & AI Pre-Processing，昇腾硬件预处理单元 \\
+ATC & Ascend Tensor Compiler，将模型转换为 OM 格式的编译工具 \\
+MindSpore & 华为开源的国产深度学习框架 \\
+LCM & Lightweight Communications and Marshalling，基于 UDP 组播的轻量级发布/订阅通信中间件 \\
+SLAM & Simultaneous Localization And Mapping，同步定位与建图 \\
+CSM & Correlative Scan Matching，相关性扫描匹配算法 \\
+MCL / AMCL & （自适应）蒙特卡洛定位，即基于粒子滤波的定位方法 \\
+KLD & Kullback-Leibler Divergence，用于粒子滤波自适应采样中的粒子数量控制 \\
+A* / D* & 启发式最短路搜索算法 / 增量式重规划算法 \\
+DWA & Dynamic Window Approach，动态窗口法，用于局部动态避障 \\
+BCD & Boustrophedon Cellular Decomposition，牛耕式单元分解，用于全覆盖路径规划 \\
+STC & Spanning Tree Coverage，基于生成树的覆盖算法 \\
+ArkTS / ArkUI & 鸿蒙应用开发语言 / 声明式 UI 框架 \\
+ROS & Robot Operating System，机器人操作系统（本项目未使用） \\
+ZMAP1 & 本项目设计的位打包压缩地图格式 \\
+COOP\_AVOID & 车与车直连的协同避障多播 LCM 通信通道 \\
+信创 & 信息技术应用创新，即国产自主可控信息化产业 \\
+\bottomrule
+\end{tabularx}
+\end{table}

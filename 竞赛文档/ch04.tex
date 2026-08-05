@@ -1,0 +1,129 @@
+\chapter{自主导航与运动控制}
+\label{ch:navigation}
+
+本章介绍运行在紫派（RK3566 / OpenHarmony 5.0）上的导航与运动控制子系统，涵盖激光雷达采集、SLAM 建图与定位、A* 全局规划、DWA 局部避障、全覆盖路径生成、多机协同避障与差速轮控制。与基于 ROS 导航栈的方案不同，本项目在 OpenHarmony 上以 C/C++/Python3 实现了完整闭环，仅以 LCM 作为进程间通信总线。
+
+不依赖 ROS 并非简单更换框架，而是出于国产操作系统适配与真机可调试性的综合考虑：ROS 的 gmapping、amcl、move\_base 等模块会将建图、定位、规划与参数体系绑定于境外开源生态；全部纳入自有代码后，交叉编译、板端部署与协议联调均可逐文件追溯。
+
+\section{子系统结构}
+\label{sec:nav-positioning}
+
+紫派侧的设计目标是将硬件运动抽象为可被平板稳定调用的导航能力：平板只需发送 9 字节 UDP 命令，紫派内部将其转换为建图、目标点、全覆盖等控制事件，导航进程维护地图与位姿并输出速度指令。子系统由四个常驻进程构成（表~\ref{tab:purplepi-processes}），经 LCM 总线协作，运行链路如图~\ref{fig:purplepi-lcm}所示。主总线 \texttt{ttl=0} 仅限本机，协同避障使用独立多播通道，避免多车运行时互相污染内部信道。
+
+\begin{table}[htbp]
+\centering
+\caption{紫派四进程概览}
+\label{tab:purplepi-processes}
+\begin{tabularx}{\textwidth}{p{2.5cm}p{1.5cm}Xp{3.5cm}}
+\toprule
+\textbf{进程} & \textbf{语言} & \textbf{主要职责} & \textbf{关键输入/输出} \\
+\midrule
+\texttt{lidar\_driver} & C/C++ & 读取 RPLIDAR 雷达，切分完整扫描帧并发布点云 & 发布 \texttt{HOKUYO\_LIDAR} \\
+\texttt{Navi} & C/C++ & SLAM 建图、定位、A* 规划、DWA 避障、覆盖规划与协同避障 & 订阅雷达/里程/控制，发布 \texttt{PATH}、\texttt{CURRENTPOSE} \\
+\texttt{serial} & C & 差速轮速度解算、串口下发、里程估计与手动遥控 & 订阅 \texttt{PATH}、\texttt{wheel\_ctrl}，发布 \texttt{POSE} \\
+\texttt{udp2lcm} & C/Python3 & UDP 5001 桥接、心跳回传、看门狗、HTTP 地图服务 & 订阅 \texttt{CURRENTPOSE}，发布 \texttt{ROBOT\_CONTROL}、\texttt{wheel\_ctrl} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-4-1-lcm.pdf}
+\caption{紫派内部运行链路图}
+\label{fig:purplepi-lcm}
+\end{figure}
+
+\section{激光雷达驱动与统一感知链路}
+\label{sec:lidar-driver}
+
+系统采用单雷达统一感知方案：同一雷达数据同时服务于建图、定位匹配、动态障碍判断与导航避障，硬件链路简单、时间源一致。驱动基于 RPLIDAR SDK 改造，经 \texttt{/dev/ttyUSB0}（115200）连接雷达，采用角度回绕判定切分完整扫描帧——当扫描角度从接近 360\textdegree{} 回到 0\textdegree{} 附近时判定一圈结束，封装为 \texttt{laser\_t} 消息发布至 \texttt{HOKUYO\_LIDAR} 信道。扫描点缓存设置了容量上限，避免异常数据包拖垮进程；驱动还周期性输出扫描频率、点数与失败次数等统计信息，便于真机调试定位问题。
+
+\section{UDP-LCM 桥接与 9 字节控制协议}
+\label{sec:udp-lcm-bridge}
+
+\texttt{udp2lcm} 是平板应用与紫派算法栈之间的边界层：平板端只面对 UDP 5001 的 9 字节协议，内部进程只面对 LCM 信道，协议要点如表~\ref{tab:udp-transport}所示。
+
+\begin{table}[htbp]
+\centering
+\caption{9 字节 UDP 协议要点}
+\label{tab:udp-transport}
+\begin{tabular}{ll}
+\toprule
+\textbf{项目} & \textbf{约定} \\
+\midrule
+端口 / 包长 & UDP 5001，固定 9 字节，大端字节序 \\
+坐标单位 & 1 个整数单位 = 5~cm（与地图栅格一一对应） \\
+心跳 & 紫派每约 500~ms 回传一帧当前位姿 \\
+安全看门狗 & 约 3~s 未收到有效控制包则车端自动急停 \\
+发现机制 & 广播 \texttt{0x06} 发现包仅回响应，不建立控制会话 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+命令包的 byte0 为命令码，其余字节按命令复用（方向、顶点序号、目标坐标或 IP 段），主要命令如表~\ref{tab:command-codes}所示。桥接层将命令解析后发布为 LCM 控制事件；心跳包则携带融合位姿与协同避障状态：byte0 固定为 3，byte1/byte2 为协同避障状态与事件，byte3--6 为当前 $x$、$y$（5~cm 单位整数），byte7--8 为朝向角（度）。
+
+\begin{table}[htbp]
+\centering
+\caption{9 字节协议主要命令码}
+\label{tab:command-codes}
+\small
+\begin{tabularx}{\textwidth}{p{1.8cm}p{2.8cm}X}
+\toprule
+\textbf{byte0} & \textbf{命令} & \textbf{紫派动作} \\
+\midrule
+0x6d (\texttt{m}) & 强制重新建图 & 清理旧图与旧路径产物，进入建图状态 \\
+1 & 手动遥控 & 发布 \texttt{wheel\_ctrl}，用于建图阶段 \\
+2 & 结束建图 & 停轮、保存地图并加载为导航图 \\
+3 / 4 & 设置目标点 / 取消导航 & 目标点换算为米制后下发规划 / 删除目标并停车 \\
+5 / 6 & 加载地图 / 发现 & 加载默认地图（子机归零入场）/ 仅回发现响应 \\
+102--104 (\texttt{f/g/h}) & 单车全覆盖 & 收集区域顶点后启动/取消全覆盖，byte1 携带算法号 \\
+105 (\texttt{i}) & 子机拉主车地图 & 主车 IP 编码于字节中，经 \texttt{wget} 拉取压缩图 \\
+107--108 (\texttt{k/l}) & 分布式覆盖 & 暂存对角点后生成本车覆盖路径并按车号执行 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+协议内嵌三类安全机制：车端看门狗独立于平板运行，3~s 无有效控制包即停车；发现包与普通控制包严格分离，避免广播发现误连子网内其他车辆；强制重建命令保证重新建图时清理旧产物，避免在旧图上定位与存图。此外，桥接进程在 \texttt{/data/test} 下拉起 HTTP 服务暴露地图文件——小包控制走 UDP、大文件传输走 HTTP，二者互不阻塞。
+
+\section{SLAM 建图与地图管理}
+\label{sec:slam-mapping}
+
+收到强制建图命令后，\texttt{Navi} 先检查地图生命周期状态（建图、保存、导航中等状态下拒绝重入），随后清理旧地图与覆盖产物，重置扫描匹配器与运行时状态，进入实时增量建图：每收到一帧激光，将雷达点转换至车体坐标系，结合里程估计的预测位姿做多分辨率扫描匹配，并将结果增量融合进概率栅格地图。结束建图时，系统先保存未优化地图，再经优化流程生成默认导航图 \texttt{defultMap.txt}，同时生成 ZMAP1 压缩图 \texttt{zipedMap.txt} 供快速拉取（压缩格式见第~\ref{sec:bit-packing}~节）。子车拉图时优先拉取压缩图并本地解压，校验失败或不可用时回退至普通地图。
+
+\section{定位与位姿更新}
+\label{sec:localization}
+
+定位由轮控里程估计、激光扫描匹配与粒子滤波共同构成。\texttt{serial} 按当前线速度、角速度与时间差积分出连续里程估计，以约 15~ms 周期发布 \texttt{POSE}；激光帧进入 \texttt{Navi} 后与当前地图做多分辨率扫描匹配——先在粗分辨率大范围搜索可能位姿，再逐层细化，兼顾搜索范围与实时性；粒子滤波模块用于抑制里程估计的长期漂移。融合后的定位结果以 \texttt{CURRENTPOSE} 发布，作为心跳回传、规划与协同避障的统一位姿来源。系统还对位姿角度做归一化处理，避免 $\pm\pi$ 附近的角度跳变。
+
+\section{A* 全局规划与 DWA 局部避障}
+\label{sec:astar-dwa}
+
+单点导航采用 A* 全局规划与 DWA 局部速度规划的组合。A* 并非简单的二值通行搜索，而是在多级代价栅格上规划：静态障碍按机器人半径膨胀，激光与视觉动态障碍也参与代价计算，规划结果倾向于远离墙体与障碍而非贴边行驶。规划失败时系统区分“地图本身无路”与“临时障碍占据路线”：后者先停车、等待并重试，必要时重新规划或在多机场景下触发协同避障，避免过早终止任务。
+
+DWA 根据当前速度与加减速约束，在速度空间内采样若干 $(v,w)$ 候选，预测短时轨迹并按碰撞安全性、目标朝向与速度效率评分，最优速度经 \texttt{PATH} 信道发送给轮控进程。接近目标时收紧速度选择范围，使停车与转向更平稳。
+
+\section{全覆盖路径规划与多机分区执行}
+\label{sec:coverage}
+
+全覆盖分单车与多机两类。单车模式支持两种算法：zigzag 牛耕式覆盖（结合方向探测与 BFS 目标选择逐步推进）与 STC 生成树覆盖（将地图转换为机器人尺度粗栅格，生成覆盖树并按 DFS 顺序执行）。
+
+多机矩形覆盖由平板下发两个对角点与车号触发。\texttt{Navi} 在当前地图上将矩形区域转换为栅格，优先采用 BCD 牛耕式单元分解生成覆盖路径——按列扫描识别连通 cell，在每个 cell 内生成往复扫描路径，并用 BFS 连接相邻 cell；若 BCD 因地图退化失败，则回退至矩形 zigzag 方案保证任务可执行。覆盖路径写入本地文件后按 \texttt{robot\_id} 分工：0 号车执行前半段，1 号车执行后半段并逆序以降低重复覆盖。执行中提取方向变化处的转折点作为导航目标，逐段交给 A* 与 DWA；若某目标被临时障碍阻挡，则在邻近半径内寻找可通行栅格修复。
+
+该设计将“覆盖路径生成”与“路径执行”分离：BCD/STC/zigzag 负责生成应覆盖的空间序列，A* 与 DWA 负责把序列转化为实际运动，协同避障负责多车相遇时的暂停与恢复，三层职责分明。
+
+\section{车间协同避障 COOP\_AVOID}
+\label{sec:coop-avoid}
+
+COOP\_AVOID 是两车 \texttt{Navi} 之间的直连协同避障通道，使用独立多播 LCM（\texttt{ttl=1}，可跨车），不经过平板与软总线，专门处理执行层的偶发路线冲突。其工作流程为：本地 DWA 连续重试失败且判断被对方车辆阻挡时，先请求对方位姿与目标，比较自身前瞻路线与对方位置走廊的距离；判定冲突后请求对方停车（对方保存当前目标与覆盖进度后零速度停等），本车安全通过后再请求对方恢复执行。为避免两车同时请求停车导致死锁，以 \texttt{robot\_id} 做确定性仲裁：1 号车优先，0 号车停等。通道内配有 ACK 确认、约 450~ms 间隔重发与超时兜底机制，协同消息不可达时退回本地动态避障而非无限等待。协同状态经心跳字节回传平板，使“为对方停等”不被误判为掉线或卡死。
+
+\section{差速轮控制与串口安全}
+\label{sec:wheel-control}
+
+\texttt{serial} 进程订阅 \texttt{wheel\_ctrl}（手动）与 \texttt{PATH}（导航），按两轮差速模型将线速度 $v$ 与角速度 $w$ 解算为左右轮速度百分比，经串口（115200, 8N1）下发至电机驱动板，数据包含帧头、左右轮方向/速度与异或校验。工程上做了几处安全处理：角速度限制在安全范围内，非零低速命令提升至最小有效轮速以避免“有命令但不动”；输出轮速限制在 $\pm$60\% 以内；串口写失败时加锁重试并重新打开串口，同时将里程估计速度冻结为 0，避免硬件异常时继续累计错误位姿。
+
+\section{运行状态管理与接口边界}
+\label{sec:state-management}
+
+围绕算法运行还有一层状态管理，使异常时系统行为可解释：地图生命周期保证建图前清理旧产物、存图后导航图与压缩图同时可用；导航目标在规划前先检查可通行性与动态障碍，仅满足安全条件才进入 A*；动态障碍采用“停车重试 $\to$ 重新规划 $\to$ 协同避障”的分级降级；覆盖任务通过转折点索引与路径文件维护进度，协同停等恢复后从中断处继续，不漏扫也不重复。车端还有两道安全兜底：UDP 看门狗在上层失联时急停，串口异常时冻结里程积分。
+
+对上层应用而言，紫派暴露的是有限且稳定的协议边界：平板不直接调用 C++ 函数、不了解 A*/DWA 内部结构，仅通过 9 字节 UDP 下发命令、经 HTTP 拉取地图、经心跳读取位姿与协同状态。多机协同时，软总线上的任务也由车载 agent 翻译为本机 UDP 命令后进入同一入口，C++ 导航进程保持与单车模式一致。该边界使平板 UI 与导航算法可各自独立迭代。

@@ -1,0 +1,15 @@
+{
+  "name": "wangtiao",
+  "version": "1.0.0",
+  "main": "extract_mermaid.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "^11.15.0"
+  }
+}

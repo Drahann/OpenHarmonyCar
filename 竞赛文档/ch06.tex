@@ -1,0 +1,66 @@
+% ch06.tex - 第七章 鸿蒙平板控制应用
+\chapter{平板控制应用}
+\label{chap:tablet-app}
+
+本章介绍系统的人机交互终端——运行在鸿蒙平板上、采用国产 ArkTS 语言开发的控制应用。该应用承担建图触发、运动遥控、目标与区域下发、地图与识别结果可视化，以及多机协同总控等职责，从语言（ArkTS）、UI 框架（ArkUI）到分布式能力（软总线）均基于鸿蒙原生生态构建。
+
+\section{应用总体架构}
+\label{sec:app-architecture}
+
+应用采用 ArkTS 与 ArkUI 声明式框架开发，并按页面、组件、服务、模型四层组织（表~\ref{tab:app-layers}）。关键原则是：UI 层不直接操作 socket、不直接拼接协议，所有与车辆及视觉服务的通信均统一由服务层处理（例如 \texttt{RobotTransport} 是全应用唯一的 UDP socket 持有者），UI 层仅调用服务层的语义化方法。这种做法避免了“各页面各自监听 socket”导致的监听泄漏与资源抢占，也保证了协议实现的一致性。
+
+\begin{table}[htbp]
+\centering
+\caption{应用分层架构}
+\label{tab:app-layers}
+\begin{tabularx}{\textwidth}{p{2cm}Xp{5cm}}
+\toprule
+\textbf{层次} & \textbf{模块} & \textbf{职责} \\
+\midrule
+页面层 & HomePage / ControlPage / VisionPage / SetIPPage / DeviceTrustPage & UI 渲染与交互 \\
+组件层 & MapCanvas / Joystick / VideoView / ReadingPanel / DeviceList & 可复用 UI 组件 \\
+服务层 & RobotTransport / MapService / VisionService / FleetMissionService & 通信、地图、视觉、协同 \\
+模型层 & protocol / mission / mapContour / vision / geometry & 协议编解码、数据结构、坐标几何 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{统一传输层与多车保活}
+\label{sec:robot-transport}
+
+第~\ref{sec:udp-lcm-bridge}~节所述协议包含一条安全约定：应用必须至少每秒向车辆发送一帧指令，否则车辆 3 秒后急停。这意味着应用必须持续保活；当平板管理多台车辆时，需为每台车各维护一条保活循环。\texttt{RobotTransport} 作为全应用唯一的 UDP 传输单例，统一持有 socket、统一收发 9 字节协议，并用 \texttt{Map<ip, HeartbeatLoop>} 为每个目标 IP 维护独立的保活定时器；消息回调只注册一次，按订阅者分发解析后的心跳，杜绝监听泄漏。
+
+在此之上，每台车的连接状态由“是否保活”与“心跳新鲜度”派生为一个状态机（图~\ref{fig:conn-state}）：已发现（广播发现车辆但未启动保活）、连接中（已保活但尚未收到心跳）、已连接（心跳新鲜，链路健康）、已断开（曾经连接，心跳超时 2 秒，UI 提示连接丢失）。UI 据此精确反映每台车的链路健康度。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-6-1-connstate.pdf}
+\caption{应用与车辆连接状态机}
+\label{fig:conn-state}
+\end{figure}
+
+传输层还内置了线控日志：显式命令的发送始终打印命令名与 9 字节十六进制内容，高频保活与心跳默认静默、仅在内容变化时打印。调试者可以直接核对“实际发出去的字节是否正确”，这在多设备联调中非常实用。
+
+\section{地图渲染与坐标换算}
+\label{sec:map-rendering}
+
+地图可视化要把紫派构建的、规模可达 $1800\times1800$ 的栅格地图正确渲染到屏幕上，并支持点选目标与框选区域，核心是三套坐标系的互逆换算：真实世界坐标（紫派建图坐标，5\,cm/格，与地图栅格一一对应）、屏幕地图坐标（对地图做障碍包围盒裁剪与正方形化后的可缩放显示坐标）、触控像素坐标（用户手指点选位置）。下发目标点时，屏幕像素逐步换算回世界坐标；渲染位姿时，心跳中的世界坐标逐步换算至屏幕像素，两个方向必须严格互逆。
+
+地图文件解析有两个实现要点。其一，首行 7 个字段中，行列数须取第 3、4 个字段（height/width），末尾的 \texttt{x0/y0} 是最小角的世界坐标偏移（真机上常为负值），取错会导致地图整体错位。其二，压缩地图（ZMAP1，见第~\ref{sec:zmap1-compression}~节）把 64 个栅格打包为一个 64 位无符号整数，而 ArkTS 普通 number 只有 53 位精度，无法精确表示——应用端须使用 BigInt 读取，再按位移运算逐位还原栅格。
+
+\section{视频流与读数展示}
+\label{sec:vision-page}
+
+\texttt{VisionService} 通过 WebSocket 连接香橙派的 \texttt{/ws/video} 接口，按第~\ref{sec:vision-contract}~节所述方式接收“JPEG 帧 + JSON 元数据”的交替推送：二进制帧解码渲染至视频组件，JSON 解析出读数、置信度与告警状态更新至读数面板。视觉页与控制页通过设备发现联动：应用广播发现包时，车辆回复 \texttt{0x06}、视觉源回复 \texttt{0x07}，应用据此自动区分两类设备并配置视觉服务地址，无需手工填写。视觉页还实现了断线 3 秒自动重连与 \texttt{ALARM} 状态闪烁提示。
+
+\section{任务编排与交互设计}
+\label{sec:task-orchestration}
+
+作为总控终端，应用把各子系统能力编排为完整操作流：
+
+\begin{itemize}
+\item 单车流程：发现并连接车辆 $\to$ 开始建图 $\to$ 摇杆遥控遍历环境 $\to$ 结束建图 $\to$ 拉取并渲染地图 $\to$ 点选目标点或框选区域启动全覆盖 $\to$ 实时监看位姿与覆盖轨迹 $\to$ 视觉页查看实时读数 $\to$ 请求生成分析报告。
+\item 多车流程：在单车基础上，经 \texttt{FleetMissionService} 加入软总线、建立设备互信、共享任务黑板，在共享地图上为多车划分子区域并监看全局态势（见第~\ref{chap:multi-robot}~章）。
+\end{itemize}
+
+交互上，应用提供摇杆遥控（长按持续发送、松手即停）、地图触控选点与框选、设备列表与互信管理、IP 配置等组件，操作者在一个应用内即可完成“控车—看图—读表—分析”的全流程。

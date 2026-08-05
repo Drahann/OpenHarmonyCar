@@ -1,0 +1,105 @@
+\contentsline {chapter}{摘要}{I}{chapter*.1}%
+\contentsline {chapter}{\numberline {第一章\hspace {.3em}}项目背景与目标}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}项目定位}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}工业巡检的需求与痛点}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}政策与技术背景}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}目标问题定义}{2}{section.1.4}%
+\contentsline {section}{\numberline {1.5}意义与价值}{3}{section.1.5}%
+\contentsline {chapter}{\numberline {第二章\hspace {.3em}}系统总体设计}{4}{chapter.2}%
+\contentsline {section}{\numberline {2.1}设计原则}{4}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}国产自主与零外部依赖}{4}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}视觉与导航解耦}{4}{subsection.2.1.2}%
+\contentsline {section}{\numberline {2.2}系统总体架构}{4}{section.2.2}%
+\contentsline {section}{\numberline {2.3}三大异构节点的职责}{6}{section.2.3}%
+\contentsline {section}{\numberline {2.4}四层通信方式}{6}{section.2.4}%
+\contentsline {section}{\numberline {2.5}端到端任务流程}{9}{section.2.5}%
+\contentsline {section}{\numberline {2.6}关键技术选型}{9}{section.2.6}%
+\contentsline {chapter}{\numberline {第三章\hspace {.3em}}硬件平台与系统部署}{12}{chapter.3}%
+\contentsline {section}{\numberline {3.1}整车硬件组成}{12}{section.3.1}%
+\contentsline {section}{\numberline {3.2}运动主控 Purple Pi OH}{12}{section.3.2}%
+\contentsline {section}{\numberline {3.3}视觉单元 香橙派 AI Pro}{12}{section.3.3}%
+\contentsline {section}{\numberline {3.4}RPLIDAR A2M8 激光雷达}{13}{section.3.4}%
+\contentsline {section}{\numberline {3.5}电机、驱动板与供电}{13}{section.3.5}%
+\contentsline {section}{\numberline {3.6}OpenHarmony 5.0 裁剪适配与烧录}{14}{section.3.6}%
+\contentsline {section}{\numberline {3.7}板端工具与依赖库构建}{15}{section.3.7}%
+\contentsline {section}{\numberline {3.8}三端部署与启动流程}{15}{section.3.8}%
+\contentsline {section}{\numberline {3.9}真机调试经验}{16}{section.3.9}%
+\contentsline {chapter}{\numberline {第四章\hspace {.3em}}视觉感知与智能分析}{17}{chapter.4}%
+\contentsline {section}{\numberline {4.1}技术路线}{17}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}两段式读数路线的选择}{17}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}处理流水线}{17}{subsection.4.1.2}%
+\contentsline {section}{\numberline {4.2}自建数据集与模型训练}{17}{section.4.2}%
+\contentsline {section}{\numberline {4.3}YOLOv5s 仪表检测}{18}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Simple Baselines 关键点检测}{19}{section.4.4}%
+\contentsline {section}{\numberline {4.5}仪表读数的几何换算}{20}{section.4.5}%
+\contentsline {section}{\numberline {4.6}多表检测与误检过滤}{20}{section.4.6}%
+\contentsline {section}{\numberline {4.7}昇腾推理流水线}{21}{section.4.7}%
+\contentsline {section}{\numberline {4.8}DeepSeek 大模型端侧部署}{22}{section.4.8}%
+\contentsline {section}{\numberline {4.9}视频流与数据服务接口}{23}{section.4.9}%
+\contentsline {section}{\numberline {4.10}数据采集、存储与分析}{24}{section.4.10}%
+\contentsline {chapter}{\numberline {第五章\hspace {.3em}}自主导航与运动控制}{25}{chapter.5}%
+\contentsline {section}{\numberline {5.1}子系统结构}{25}{section.5.1}%
+\contentsline {section}{\numberline {5.2}激光雷达驱动与统一感知链路}{26}{section.5.2}%
+\contentsline {section}{\numberline {5.3}UDP-LCM 桥接与 9 字节控制协议}{26}{section.5.3}%
+\contentsline {section}{\numberline {5.4}SLAM 建图与地图管理}{27}{section.5.4}%
+\contentsline {section}{\numberline {5.5}定位与位姿更新}{27}{section.5.5}%
+\contentsline {section}{\numberline {5.6}A* 全局规划与 DWA 局部避障}{28}{section.5.6}%
+\contentsline {section}{\numberline {5.7}全覆盖路径规划与多机分区执行}{28}{section.5.7}%
+\contentsline {section}{\numberline {5.8}车间协同避障 COOP\_AVOID}{28}{section.5.8}%
+\contentsline {section}{\numberline {5.9}差速轮控制与串口安全}{29}{section.5.9}%
+\contentsline {section}{\numberline {5.10}运行状态管理与接口边界}{29}{section.5.10}%
+\contentsline {chapter}{\numberline {第六章\hspace {.3em}}多机协同}{30}{chapter.6}%
+\contentsline {section}{\numberline {6.1}协同场景与设计选择}{30}{section.6.1}%
+\contentsline {section}{\numberline {6.2}分布式软总线的三层能力}{30}{section.6.2}%
+\contentsline {section}{\numberline {6.3}FleetMission 共享任务黑板}{31}{section.6.3}%
+\contentsline {section}{\numberline {6.4}设备互信与 PIN 认证}{32}{section.6.4}%
+\contentsline {section}{\numberline {6.5}车载无界面 agent}{34}{section.6.5}%
+\contentsline {section}{\numberline {6.6}双车分区覆盖与协同避障}{34}{section.6.6}%
+\contentsline {chapter}{\numberline {第七章\hspace {.3em}}平板控制应用}{38}{chapter.7}%
+\contentsline {section}{\numberline {7.1}应用总体架构}{38}{section.7.1}%
+\contentsline {section}{\numberline {7.2}统一传输层与多车保活}{38}{section.7.2}%
+\contentsline {section}{\numberline {7.3}地图渲染与坐标换算}{39}{section.7.3}%
+\contentsline {section}{\numberline {7.4}视频流与读数展示}{40}{section.7.4}%
+\contentsline {section}{\numberline {7.5}任务编排与交互设计}{40}{section.7.5}%
+\contentsline {chapter}{\numberline {第八章\hspace {.3em}}性能优化}{41}{chapter.8}%
+\contentsline {section}{\numberline {8.1}数据通路与瓶颈定位}{41}{section.8.1}%
+\contentsline {section}{\numberline {8.2}地图位打包压缩（ZMAP1）}{41}{section.8.2}%
+\contentsline {section}{\numberline {8.3}推理流水线提速}{42}{section.8.3}%
+\contentsline {section}{\numberline {8.4}端到端性能指标}{42}{section.8.4}%
+\contentsline {chapter}{\numberline {第九章\hspace {.3em}}系统运行实测}{43}{chapter.9}%
+\contentsline {section}{\numberline {9.1}自主建图与导航实测}{43}{section.9.1}%
+\contentsline {section}{\numberline {9.2}全覆盖遍历实测}{44}{section.9.2}%
+\contentsline {section}{\numberline {9.3}仪表识别精度与实时性}{45}{section.9.3}%
+\contentsline {section}{\numberline {9.4}DeepSeek 端侧分析实测}{46}{section.9.4}%
+\contentsline {section}{\numberline {9.5}多机协同实测}{46}{section.9.5}%
+\contentsline {chapter}{\numberline {第十章\hspace {.3em}}创新点}{48}{chapter.10}%
+\contentsline {section}{\numberline {10.1}创新点总览}{48}{section.10.1}%
+\contentsline {section}{\numberline {10.2}国产化与自主可控}{49}{section.10.2}%
+\contentsline {section}{\numberline {10.3}异构架构与通信协议设计}{50}{section.10.3}%
+\contentsline {subsection}{\numberline {10.3.1}双单元物理解耦架构}{50}{subsection.10.3.1}%
+\contentsline {subsection}{\numberline {10.3.2}四层通信方式与 9 字节控制协议}{50}{subsection.10.3.2}%
+\contentsline {subsection}{\numberline {10.3.3}ZMAP1 位打包压缩地图}{51}{subsection.10.3.3}%
+\contentsline {section}{\numberline {10.4}自主导航算法链}{51}{section.10.4}%
+\contentsline {subsection}{\numberline {10.4.1}多分辨率扫描匹配 SLAM}{51}{subsection.10.4.1}%
+\contentsline {subsection}{\numberline {10.4.2}KLD 自适应粒子滤波定位}{51}{subsection.10.4.2}%
+\contentsline {subsection}{\numberline {10.4.3}A* 代价规划与 DWA 局部避障}{51}{subsection.10.4.3}%
+\contentsline {subsection}{\numberline {10.4.4}多策略全覆盖路径规划}{51}{subsection.10.4.4}%
+\contentsline {section}{\numberline {10.5}多机协同创新}{51}{section.10.5}%
+\contentsline {subsection}{\numberline {10.5.1}DDO 共享任务黑板}{51}{subsection.10.5.1}%
+\contentsline {subsection}{\numberline {10.5.2}幂等的车载协同 agent}{52}{subsection.10.5.2}%
+\contentsline {subsection}{\numberline {10.5.3}空间分区与 COOP\_AVOID 协同避障}{52}{subsection.10.5.3}%
+\contentsline {section}{\numberline {10.6}视觉与端侧大模型的结合}{52}{section.10.6}%
+\contentsline {subsection}{\numberline {10.6.1}两段式可解释读数路线}{52}{subsection.10.6.1}%
+\contentsline {subsection}{\numberline {10.6.2}视觉与大模型分时共享 NPU}{52}{subsection.10.6.2}%
+\contentsline {subsection}{\numberline {10.6.3}端侧大模型工程化}{52}{subsection.10.6.3}%
+\contentsline {chapter}{\numberline {第十一章\hspace {.3em}}相关工作与对比}{53}{chapter.11}%
+\contentsline {section}{\numberline {11.1}现有方案概况}{53}{section.11.1}%
+\contentsline {section}{\numberline {11.2}技术维度对比}{53}{section.11.2}%
+\contentsline {section}{\numberline {11.3}差异化特征}{53}{section.11.3}%
+\contentsline {section}{\numberline {11.4}政策契合度}{54}{section.11.4}%
+\contentsline {chapter}{\numberline {第十二章\hspace {.3em}}总结与展望}{55}{chapter.12}%
+\contentsline {section}{\numberline {12.1}工作总结}{55}{section.12.1}%
+\contentsline {section}{\numberline {12.2}局限性与改进方向}{55}{section.12.2}%
+\contentsline {section}{\numberline {12.3}后续研究方向}{56}{section.12.3}%
+\contentsline {chapter}{参考文献}{57}{chapter*.43}%
+\contentsline {chapter}{\numberline {附录 A\hspace {.3em}}术语表}{58}{chapter.A}%

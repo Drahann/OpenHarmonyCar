@@ -1,0 +1,94 @@
+% ch05.tex - 第六章 多机协同与分布式软总线
+\chapter{多机协同}
+\label{chap:multi-robot}
+
+多机协同以华为分布式软总线为承载：多台设备通过分布式数据对象（DDO）共享同一份任务状态，各节点监听状态变化并执行本端动作，从而把多机器人分区覆盖大区域的任务组织为去中心化的协同。本章依次介绍协同场景、软总线提供的能力、共享任务黑板、设备互信、车载 agent，以及双车分区覆盖与协同避障。
+
+\section{协同场景与设计选择}
+\label{sec:multi-robot-challenge}
+
+在大规模厂区巡检中，单台机器人完成全区域覆盖耗时过长，需要多机协同：一台主车先行建图，随后各车从同一起点出发，各自领取一块子区域执行全覆盖；平板作为总控，负责触发建图、划分区域并监看所有车辆的实时位姿与进度。该场景要解决三个问题：多车如何共用同一张地图与坐标系、如何把大区域均衡分配给多车、路线交叠时如何避让。
+
+在鸿蒙生态中，一种常见的跨设备协作方式是远程拉起：平板通过 \texttt{startAbility} 拉起车端页面，用参数传递一次性数据，页面执行完即销毁。本项目没有采用这种方式，原因是：（1）每次操作都是“拉起—传参—销毁”，无法维持持续的共享状态，不能实时反映各车进展；（2）Ability 本质是 UI 组件，被当作无状态函数反复拉起销毁，稳定性差；（3）协同逻辑分散在各次拉起的参数中，难以维护。本项目改用基于 DDO 的共享状态方式：各设备共持一份任务状态，靠状态变化驱动协同。
+
+\section{分布式软总线的三层能力}
+\label{sec:softbus-principle}
+
+分布式软总线是鸿蒙操作系统的底层能力，其作用是在可信网络内把多台鸿蒙设备连接为统一的协作环境，对上层屏蔽 Wi-Fi、蓝牙等底层网络差异，使设备发现、连接与数据传输具备统一接口。对本项目而言，软总线提供了三层可直接使用的能力（图~\ref{fig:softbus}）：
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-5-1-softbus.pdf}
+\caption{华为分布式软总线原理示意图}
+\label{fig:softbus}
+\end{figure}
+
+\begin{itemize}
+\item 设备发现与传输：同一网络内自动发现其他鸿蒙设备，认证后在设备间透明传输数据。本项目通过 \texttt{distributedDeviceManager} 使用该层能力。
+\item 共享对象自动同步（DDO）：多台设备用同一 sessionId 加入同一个共享数据对象后，任何一端修改对象，变更都会被软总线自动实时同步到其余各端，各端通过 \texttt{on('change')} 回调感知。编程时操作该对象与操作本地对象无异。
+\item 设备互信约束：DDO 同步有两个前置条件——各端应用使用相同 bundleName（本项目统一为 \texttt{com.example.carapp}），且各设备已通过 PIN 码认证组成可信环。
+\end{itemize}
+
+这些能力是鸿蒙作为分布式操作系统的原生能力，不依赖第三方中间件，也无需自建消息服务器。若用传统的“Android/Linux + 自建 socket/MQTT 服务器”方案，实现等价的多设备状态同步需自行搭建发现、认证与广播设施，复杂度更高。直接复用软总线既简化了实现，也使协同能力建立在国产生态之上。
+
+\section{FleetMission 共享任务黑板}
+\label{sec:fleetmission}
+
+本项目把 DDO 能力具体实现为跨设备共享的任务黑板 \texttt{FleetMission}：平板与每台车的常驻 agent 加入同一会话，共持同一份任务状态，结构如图~\ref{fig:fleetmission}所示。黑板的主要字段包括：任务阶段 \texttt{phase}（idle/scanning/dividing/covering/done）；坐标系元数据 \texttt{frame}（原点、0.05\,m/格分辨率、朝向定义），是多车共用同一坐标系的前提；地图来源 \texttt{map}（主车地图地址）；大区域边界 \texttt{area}；区域分配 \texttt{assignments}（每车负责的对角矩形与主从身份）；各车运行态 \texttt{robots}（位姿、朝向、覆盖进度、在线状态）。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-5-2-blackboard.pdf}
+\caption{共享黑板 FleetMission 模型图}
+\label{fig:fleetmission}
+\end{figure}
+
+基于该黑板，多机协同由共享状态驱动：平板发出建图命令后，主车进入 \texttt{scanning} 阶段；主车建图完成后把地图地址与区域边界写回黑板，阶段转为 \texttt{dividing}；平板在共享地图上划分子区域并写入 \texttt{assignments}，阶段转为 \texttt{covering}；各车 agent 监听黑板变化，读取属于本车的分配区域并翻译为本机 UDP 命令启动覆盖；覆盖过程中各车持续把位姿与进度写回 \texttt{robots}，平板据此刷新全局态势。每个节点只需读取任务状态、写入本机进展、响应状态变化，无需远程调用，也无需维护额外的命令会话。
+
+工程实现上，整块黑板序列化为一个 JSON 字符串写入 DDO 的单一字段同步，而非拆成多个字段——这样避免了多字段异步到达产生的中间不一致状态，变更回调也只需处理一份完整快照。
+
+\section{设备互信与 PIN 认证}
+\label{sec:ddm}
+
+DDO 能同步的前提是各设备先建立互信、组成可信环，时序如图~\ref{fig:pin-trust}所示。流程为：平板以 bundleName 创建设备管理器并开启发现，软总线在同一网络内搜索其他鸿蒙设备；平板对选中的车端发起绑定（bindType=1，无账号 PIN 码认证），车端弹出系统 PIN 弹窗，配网阶段通过 HDMI 显示器确认 PIN 码；认证通过后两端建立持久互信（跨重启有效），此后只要使用相同 bundle 与同一 sessionId 加入 DDO，即可共享黑板。项目还提供解绑能力，用于绑定异常时重置关系。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-5-3-pin.pdf}
+\caption{设备互信（distributedDeviceManager + PIN）时序图}
+\label{fig:pin-trust}
+\end{figure}
+
+工程上有一个值得注意的细节：DDO 协同需要 \texttt{DISTRIBUTED\_DATASYNC} 权限，车端无界面 agent 无法弹框申请，必须预授权；且初始化时须先申请权限、再创建 DDO 对象，否则 \texttt{joinSession} 会被静默跳过，表现为“入会假成功而实际未连通”。
+
+\section{车载无界面 agent}
+\label{sec:car-agent}
+
+黑板上的协同决策最终要转换为紫派能理解的 9 字节 UDP 命令，承担这一翻译职责的是常驻车上的无界面 ArkTS agent。它做双向桥接：一方面监听黑板变更，把与本车相关的决策翻译为本机 UDP 命令下发给 \texttt{udp2lcm}；另一方面接收本车回传的位姿心跳，经节流后写回黑板的 \texttt{robots} 字段供平板监看。
+
+agent 的命令下发逻辑可概括为“期望状态与实际状态对齐”：黑板描述期望状态（本车应覆盖的区域），agent 对比本车当前状态，计算出为达成期望所需的命令序列；其关键特性是幂等——只要与本车相关的黑板内容没有变化，就不重复下发命令。具体流程如图~\ref{fig:reconciler}所示：先从整块黑板快照中抽取与本车相关的切片（阶段、分配区域、主车地址等）并计算签名，签名未变则直接返回；进入 \texttt{covering} 阶段且本车有分配区域时，区分主从身份——从车先经 \texttt{cmd105} 从主车拉取地图，再经 \texttt{cmd5} 加载地图并将位姿归零（从车与主车同一物理起点出发，归零后即为地图原点），主车则使用自建的地图与定位；随后两者均下发两个对角点命令，触发紫派生成本车覆盖路径并执行。由于紫派采用“先暂存后使用”的命令机制，agent 在命令对之间保留间隔（拉图后预留 15~s 供传输完成），避免乱序。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-5-4-agent.pdf}
+\caption{车载 agent 工作流程}
+\label{fig:reconciler}
+\end{figure}
+
+实现上，agent 的运行核心（绑定 UDP、加入软总线、命令生成、状态回写）与 Ability 外壳分离：当前以 \texttt{UIAbility} 外壳托管核心逻辑，后续以系统应用形式部署时只需更换为 \texttt{ServiceExtensionAbility} 外壳，核心无需修改。此外，agent 仅在本车确有任务时才作为 UDP 客户端保活，空闲与建图期间保持静默，避免与平板直连争抢车端 5001 端口。
+
+\section{双车分区覆盖与协同避障}
+\label{sec:dual-car}
+
+多车覆盖的正确做法不是把一条路径对半分、两车从两端相向而行（那样两车必在中点相遇、冲突频发），而是空间分区：在同一张地图上把大区域划分为空间上分离的子矩形，每车负责一块，在本车矩形内独立执行 BCD 全覆盖（见第~\ref{sec:coverage}~节）。空间分离使两车很少相遇，把协同避障从主力机制降为偶发兜底，提升了多车覆盖的稳健性。
+
+即便分了区，两车在子区域交界带仍可能路线交叠，此时由 COOP\_AVOID 车间直连通道处理（机制详见第~\ref{sec:coop-avoid}~节）。该通道在两车的 \texttt{Navi} 之间闭环，使用独立多播 LCM，不经过平板与软总线，对上层完全透明：触发后先交换位姿判断是否真的冲突，再协商停车与恢复，以 \texttt{robot\_id} 仲裁避免对称死锁，并以 ACK、重发与超时回退保证不可靠多播下的可靠协商，交互时序如图~\ref{fig:coop-avoid}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-5-5-coop.pdf}
+\caption{双车协同避障（COOP\_AVOID）时序图}
+\label{fig:coop-avoid}
+\end{figure}
+
+综上，多机协同以分布式软总线为承载，用共享任务黑板替代远程拉起传参，以 PIN 认证互信保证同步安全，以车载 agent 把黑板决策幂等地翻译为本机命令，并以空间分区与 COOP\_AVOID 实现双车协同覆盖与避障。

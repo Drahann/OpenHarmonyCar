@@ -1,0 +1,208 @@
+% ch07.tex - 第七章 关键协议与契约工程
+\chapter{关键协议与契约工程}
+\label{ch:protocols}
+
+前述各章介绍了三大子系统的原理与实现。对于一个由三种语言、三台设备组成的异构系统，稳定协同的关键在于对所有接口进行精确的契约化定义。本章先介绍贯穿全局的契约驱动开发方法论，再逐一说明四套关键协议契约。
+
+\section{契约驱动开发方法论}
+\label{sec:contract-methodology}
+
+\subsection{异构系统集成问题}
+\label{sec:heterogeneous-integration}
+
+本系统由三块代码组成，分别运行在不同设备、使用不同语言（ArkTS / C$\cdot$C++ / Python）编写，且互不编译依赖。在此架构下，编译器无法跨设备检查接口一致性。例如，某一端将目标点 X 坐标置于第 3--4 字节，另一端却从第 5--6 字节读取，编译均可通过，但集成时会出现难以定位的异常行为。实践表明，异构分布式系统的集成失败多数源于接口不一致。
+
+\subsection{contracts 目录作为接口事实源}
+\label{sec:contracts-directory}
+
+为此，本项目设立契约目录 \texttt{contracts/}，作为三端共同维护的接口事实源（single source of truth），其核心约束如下：
+
+\begin{quote}
+任何跨设备通信的代码，改动前必须阅读对应契约文档，保证两侧逐字节、逐字段一致；若需修改协议，必须同步更新 \texttt{contracts/} 中的相应文件，并显式标注“协议变更，需另一端同步”。
+\end{quote}
+
+\texttt{contracts/} 目录下沉淀了完整的接口契约，包括 \texttt{udp-protocol.md}（9 字节 UDP 协议）、\texttt{map-format.md}（地图格式）、\texttt{lcm/}（内部信道）、\texttt{vision-stream-api.md}（视觉流）、\texttt{multi-robot-collab.md}（多机协同）、\texttt{server-api.md}（服务接口）等，并辅以 \texttt{udp-protocol-crosscheck.md}（逐字段对账报告）与 \texttt{integration-qa.md}（开放问题异步问答）。该机制带来三方面价值：（1）并行开发——三端各自按契约实现，无需互等；（2）独立自测——使用模拟或录制数据离线验证，断言契约一致性；（3）可追溯——任何协议变更均留痕并知会全员。
+
+\section{App 与紫派 9 字节 UDP 协议}
+\label{sec:udp-protocol}
+
+\subsection{传输层与字节布局}
+\label{sec:udp-byte-layout}
+
+表~\ref{tab:udp-transport} 给出了 UDP 协议的传输层约定。
+
+\begin{table}[htbp]
+\centering
+\caption{UDP 协议传输层约定}
+\label{tab:udp-transport}
+\begin{tabular}{ll}
+\toprule
+\textbf{项目} & \textbf{约定} \\
+\midrule
+端口 & UDP 5001 \\
+包长 & 固定 9 字节 \\
+字节序 & 大端 / 网络序 \\
+坐标单位 & 1 个整数单位 = 1/20~m = 5~cm \\
+心跳周期 & 紫派到 App 约 500~ms 一帧 \\
+车端看门狗 & 约 3~s 未收到控制包则急停 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+App 至紫派的命令包字节布局如表~\ref{tab:app-to-purplepi} 所示。
+
+\begin{table}[htbp]
+\centering
+\caption{App $\to$ 紫派命令包字节布局}
+\label{tab:app-to-purplepi}
+\begin{tabular}{ll}
+\toprule
+\textbf{字节} & \textbf{含义} \\
+\midrule
+byte0 & 命令码 \\
+byte1 & 方向、顶点序号、算法号或 robot\_id，按命令复用 \\
+byte2 & 遥控速度或 IP 第二段，按命令复用 \\
+byte3--4 & 目标 X 或 IP 第三段所在字段，高字节在前 \\
+byte5--6 & 目标 Y 或 IP 第四段所在字段，高字节在前 \\
+byte7--8 & 保留或朝向相关字段 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+紫派至 App 的心跳包字节布局如表~\ref{tab:purplepi-to-app} 所示。
+
+\begin{table}[htbp]
+\centering
+\caption{紫派 $\to$ App 心跳包字节布局}
+\label{tab:purplepi-to-app}
+\begin{tabular}{ll}
+\toprule
+\textbf{字节} & \textbf{含义} \\
+\midrule
+byte0 & 固定为 3，表示携带坐标的心跳 \\
+byte1 & 协同避障状态，由 \texttt{SERVICE\_COMMAND} 74 写入 \\
+byte2 & 协同避障事件，由 \texttt{SERVICE\_COMMAND} 74 写入 \\
+byte3--4 & 当前 X，单位 5~cm \\
+byte5--6 & 当前 Y，单位 5~cm \\
+byte7--8 & 当前朝向，单位为度，范围约为 [$-$180, 180] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{命令码表}
+\label{sec:command-table}
+
+完整的 9 字节 UDP 命令码表如表~\ref{tab:command-codes} 所示。
+
+\begin{table}[htbp]
+\centering
+\caption{9 字节 UDP 命令码表}
+\label{tab:command-codes}
+\small
+\begin{tabularx}{\textwidth}{p{1.5cm}p{1.5cm}p{2.5cm}X}
+\toprule
+\textbf{byte0} & \textbf{字符} & \textbf{命令} & \textbf{紫派动作} \\
+\midrule
+0 & --- & 建连/心跳兼容 & 无图时兼容触发建图；有图时主要作为保活处理 \\
+1 & --- & 手动遥控 & 发布 \texttt{wheel\_ctrl} \\
+2 & --- & 结束建图 & 停轮、保存地图、加载默认地图 \\
+3 & --- & 设置目标点 & 发布 \texttt{ROBOT\_CONTROL} 20 \\
+4 & --- & 取消导航 & 发布 23 并停车 \\
+5 & --- & 加载地图 & 发布 10，常用于子机加载并归零 \\
+6 & --- & 发现 ping & 仅回发现响应，不记录 client，不启动心跳 \\
+102 & \texttt{f} & 启动单车全路径 & 发布 127，byte1 为算法号：0 zigzag，1 STC \\
+103 & \texttt{g} & 取消全路径 & 发布 126 \\
+104 & \texttt{h} & 全路径顶点 & 发布 125，byte1 为顶点序号 \\
+105 & \texttt{i} & 子机拉主机图 & 发布 124，主机 IP 置于 byte[1,2,4,6] \\
+106 & \texttt{j} & 加载图并接收主机目标 & 发布 10 后发布 20 \\
+107 & \texttt{k} & 分布式覆盖对角点 1 & 暂存角点 \\
+108 & \texttt{l} & 分布式覆盖对角点 2 & 发布 122 生成本车路径，再发布 123 执行 \\
+0x6d & \texttt{m} & 强制重新建图 & 发布 30，\texttt{forceNewMap=true}，清理旧产物 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{协议安全机制}
+\label{sec:protocol-safety}
+
+该协议内嵌三类安全机制。第一，车端看门狗独立于平板运行，当 3 秒内未收到有效控制包时，\texttt{udp.c} 即向轮控发布停止命令。第二，发现包与普通控制包严格分离，\texttt{0x06} 仅回响应，不建立控制会话，避免广播发现导致未选中车辆误急停。第三，建图正式入口采用 \texttt{m} 强制重建命令，保证重新建图时清理旧地图、旧路径与覆盖产物，避免在旧图上进行定位和存图。
+
+\section{紫派内部 LCM 信道契约}
+\label{sec:lcm-channels}
+
+紫派内部四个进程通过 LCM 发布/订阅机制通信。主导航总线仅用于本机内部，协同避障使用单独的多播 URI，二者在作用域与命令空间上明确区分。
+
+\subsection{核心信道}
+\label{sec:core-channels}
+
+紫派内部 LCM 核心信道如表~\ref{tab:lcm-channels} 所示。
+
+\begin{table}[htbp]
+\centering
+\caption{紫派内部 LCM 核心信道}
+\label{tab:lcm-channels}
+\begin{tabularx}{\textwidth}{p{2.8cm}p{2.5cm}p{2cm}X}
+\toprule
+\textbf{信道} & \textbf{消息类型} & \textbf{方向} & \textbf{作用} \\
+\midrule
+\texttt{HOKUYO\_LIDAR} & \texttt{laser\_t} & 雷达 $\to$ Navi & 单雷达完整扫描帧 \\
+\texttt{POSE} & \texttt{pose\_t} & serial $\to$ Navi & 轮控里程估计，约 15~ms 周期 \\
+\texttt{CURRENTPOSE} & \texttt{pose\_t} & Navi $\to$ 上层 & 融合后的当前位姿 \\
+\texttt{ROBOT\_CONTROL} & \texttt{robot\_control\_t} & 上层 $\to$ Navi & 建图/加载/目标/覆盖等控制命令 \\
+\texttt{PATH} & \texttt{path\_t} & Navi $\to$ serial & 导航输出的线速度与角速度 \\
+\texttt{wheel\_ctrl} & \texttt{path\_ctrl\_t} & udp2lcm $\to$ serial & 建图阶段手动轮控 \\
+\texttt{SERVICE\_COMMAND} & \texttt{robot\_control\_t} & Navi $\to$ 上层 & 建图/存图/协同状态等事件 \\
+\texttt{COOP\_AVOID} & \texttt{robot\_control\_t} & 车 $\leftrightarrow$ 车 & 独立多播协同避障通道 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{常用命令号}
+\label{sec:command-ids}
+
+\texttt{ROBOT\_CONTROL} 的常用命令包括：7（初始化导航配置）、10（加载地图）、20（设置目标点）、23（删除目标）、30（开始建图）、32（保存地图）、122（生成矩形覆盖路径）、123（执行分布式覆盖）、124（子机拉主机地图）、125（设置房间顶点）、126（取消全路径）、127（启动全路径）。\texttt{SERVICE\_COMMAND} 中，cmd51 表示建图启动结果，cmd52 表示存图事件，cmd74 表示协同避障状态回传。
+
+\texttt{COOP\_AVOID} 使用负命令号以避开普通控制命令区间：$-$40（位姿请求）、$-$39（位姿响应）、$-$38（停车请求）、$-$37（停车确认）、$-$36（恢复请求）、$-$35（恢复确认）、$-$34（ACK）、$-$33（本地兜底）、$-$32（对车覆盖完成）。通道内部配备 ACK、重发、超时与 robot\_id 仲裁机制，使双车路线交汇时能够暂停、恢复或降级处理。
+
+\subsection{总线隔离与边界约束}
+\label{sec:bus-isolation}
+
+主导航总线仅承载本机内部的雷达、位姿、轮控与普通控制命令；协同避障总线显式跨车。该边界设计避免两辆车互相订阅到对方的雷达、POSE 或 PATH。新增命令时还需考虑 \texttt{robot\_control\_t.commandid} 的 int8 范围，避免命令号越界导致跨语言解析不一致。
+
+\section{地图格式与 ZMAP1 压缩地图协议}
+\label{sec:zmap1}
+
+地图是 App 与车之间传输量最大的数据块（可达 $1800\times1800$ 格）。本项目设计了 ZMAP1 压缩地图协议以实现高效传输。
+
+\subsection{普通地图格式}
+\label{sec:normal-map}
+
+普通地图 \texttt{defultMap.txt} 的首行包含 7 个字段：\texttt{range resolution height width \allowbreak metersPerPixel x0 y0}。其中行列数取第 3、4 个字段（height/width），\texttt{x0/y0} 为最小角世界坐标偏移（可为负值）。数据区采用空格分隔，\texttt{-1} 表示障碍，\texttt{0} 表示空旷。
+
+\subsection{ZMAP1 位压缩协议}
+\label{sec:zmap1-protocol}
+
+ZMAP1 的核心思想是位打包（bit-packing）：将每个栅格压缩为 1 bit（障碍=1，空旷=0），每 64 个 bit 打包为一个无符号 64 位整数，从而将密排文本格式压缩约 8 倍。其格式如下：
+
+\begin{lstlisting}
+ZMAP1                                    <- 魔数校验行
+range resolution height width mpp x0 y0  <- 同普通地图头(7字段)
+rowBitCount wordCount word0 word1 ...    <- 逐行: 该行bit数 字数 各64位字
+...
+\end{lstlisting}
+
+压缩流程：（1）读取普通地图头；（2）按行处理，每行 width 个栅格；（3）每格转换为 1 bit（$-$1$\to$1，0$\to$0）；（4）每 64 bit 打包为一个 64 位整数，第一个栅格置于最高位 bit63，依次向低位排列；（5）行末不足 64 bit 仍写一个整数，低位补 0（解压时按 rowBitCount 忽略补零部分）；（6）每行输出 \texttt{rowBitCount wordCount word0 \ldots}。
+
+解压流程：（1）校验首行 ZMAP1；（2）读取头部获取 height/width；（3）逐行读取 wordCount 个 64 位字；（4）第 col 格取 $\text{wordIndex}=\text{col}/64$，$\text{bitOffset}=\text{col}\bmod 64$，$\text{bit}=(\text{word}[\text{wordIndex}]\gg(63-\text{bitOffset}))\mathbin{\&}1$；（5）bit=1 还原为 $-$1，bit=0 还原为 0。
+
+\subsection{跨语言数值精度的契约约定}
+\label{sec:cross-language-precision}
+
+ZMAP1 的字以十进制文本形式写出（避免二进制端序问题，机器人为 ARM64 架构，使用 unsigned long long 保存）。消费端语言若数字精度不足（如 JS/ArkTS 普通 number 仅有 53 位精度），必须使用 BigInt 或拆分为两个 32 位整数读取。该约定已写入契约文档，是第~\ref{sec:bigint}~节 App 端解析压缩图时所遵循的规则。在协议层显式声明数值精度边界，可避免跨语言解析时的精度错误。
+
+\section{视觉流契约小结}
+\label{sec:vision-contract-summary}
+
+视觉流契约（\texttt{vision-stream-api.md}）已在第~\ref{sec:vision-contract}~节详述，此处仅作汇总定位。该契约定义了香橙派 \texttt{:8000} 端口的 WebSocket \texttt{/ws/video} 接口（JPEG 帧与 JSON 元数据交替推送）以及全套 REST 接口（状态查询、历史数据、阈值设置、仪表配置、大模型交互、分析报告），明确了 \texttt{detections[]} 结构、关键点 \texttt{[\{name,x,y,conf\}]}、读数与告警字段。该契约是平板视觉页接入的唯一依据，与运动控制的 UDP 协议、地图的 HTTP 协议共同构成本系统对外接口的完整契约集。
+
+综上，契约工程支撑了异构三端的协同。从契约驱动方法论到 9 字节 UDP 控制协议、LCM 内部信道、ZMAP1 压缩地图与视觉流契约，本系统对关键接口逐字段定义、逐字节对齐，降低了三端并行开发时的集成风险。

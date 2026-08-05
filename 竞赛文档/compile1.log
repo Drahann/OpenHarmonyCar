@@ -1,0 +1,1195 @@
+This is XeTeX, Version 3.141592653-2.6-0.999998 (MiKTeX 26.5) (preloaded format=xelatex.fmt)
+ restricted \write18 enabled.
+entering extended mode
+(main.tex
+LaTeX2e <2026-06-01>
+L3 programming layer <2026-05-26>
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex\ctexbook.cls
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/config\ctexbackend
+.cfg)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/l3kernel\expl3.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/l3backend\l3backend-xet
+ex.def))
+Document Class: ctexbook 2022/07/14 v2.5.10 Chinese adapter for class book (CTE
+X)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex\ctexhook.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex\ctexpatch.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/base\fix-cm.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/base\ts1enc.def))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/config\ctexopts.cf
+g) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/base\book.cls
+Document Class: book 2025/01/22 v1.4n Standard LaTeX document class
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/base\bk12.clo))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/engine\ctex-engine
+-xetex.def
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/xelatex/xecjk\xeCJK.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/l3packages/xtemplate\xt
+emplate.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/l3packages/xparse\xpars
+e.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec-xetex
+.sty (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/base\fontenc.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/fontspec\fontspec.cfg))
+) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/xelatex/xecjk\xeCJK.cfg)))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/zhnumber\zhnumber.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/zhnumber\zhnumber-utf8.
+cfg))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/scheme\ctex-scheme
+-chinese-book.def
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/config\ctex-name-u
+tf8.cfg))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/fontset\ctex-fonts
+et-windows.def))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/ctex/config\ctex.cfg)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\keyval.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/iftex\ifvtex.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/iftex\iftex.sty))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/geometry\geometry.cfg))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsmath.sty
+For additional information on amsmath, use the `?' option.
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amstext.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsgen.sty))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsbsy.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsmath\amsopn.sty))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amssymb.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\amsfonts.sty))
+ (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphicx.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\graphics.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\trig.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\graphics.c
+fg)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics-def\xetex.def)
+))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/booktabs\booktabs.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/tools\longtable.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/tools\tabularx.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/tools\array.sty))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/multirow\multirow.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/makecell\makecell.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/float\float.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/caption\caption3.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/caption\ltcaption.sty))
+ (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/fancyhdr\fancyhdr.sty)
+ (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hyperref.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/kvsetkeys\kvsetkeys.sty
+)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/kvdefinekeys\kvdefine
+keys.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/pdfescape\pdfescape.s
+ty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/ltxcmds\ltxcmds.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/pdftexcmds\pdftexcmds
+.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/infwarerr\infwarerr.s
+ty)))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/hycolor\hycolor.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\nameref.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/refcount\refcount.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/gettitlestring\gettit
+lestring.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/kvoptions\kvoptions.sty
+)))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/etoolbox\etoolbox.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/stringenc\stringenc.s
+ty) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\pd1enc.def
+) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/intcalc\intcalc.sty
+) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\puenc.def)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/url\url.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/bitset\bitset.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/bigintcalc\bigintcalc
+.sty)))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/hyperref\hxetex.def
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/rerunfilecheck\rerunfil
+echeck.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/generic/uniquecounter\uniquec
+ounter.sty)))
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/setspace\setspace.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/listings\listings.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/listings\lstpatch.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/listings\lstmisc.sty)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/listings\listings.cfg))
+
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/xelatex/xecjk\xeCJK-listings.
+sty) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/xcolor\xcolor.sty
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics-cfg\color.cfg)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/graphics\mathcolor.ltx)
+) (C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/enumitem\enumitem.sty
+) (main.aux
+
+LaTeX Warning: Label `sec:deployment' multiply defined.
+
+
+LaTeX Warning: Label `sec:vision-contract' multiply defined.
+
+
+LaTeX Warning: Label `sec:slam-mapping' multiply defined.
+
+)
+*geometry* driver: auto-detecting
+*geometry* detected driver: xetex
+(main.out) (main.out)
+
+LaTeX Font Warning: Font shape `TU/SimHei(0)/b/n' undefined
+(Font)              using `TU/SimHei(0)/m/n' instead on input line 133.
+
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd)
+(C:\Users\draha\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd)
+[1] [2] (abstract.tex) [1] (main.toc [2] [3] [4] [5] [6] [7]) [8] (ch01.tex
+第一章
+[1] [2] [3] [4] [5]) (ch02.tex [6]
+第二章
+[7] [8]
+
+Package tabularx Warning: X Columns too narrow (table too wide)
+(tabularx)                 on input line 86.
+
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 互、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 发、|
+
+Overfull \hbox (15.33398pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 点\TU/TimesNewRoman(0)/m/n/12 /\TU/SimSun(0)/m/n/12 区
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 发、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 化、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 知、|
+
+Overfull \hbox (25.60547pt too wide) in paragraph at lines 86--86
+\TU/TimesNewRoman(0)/m/n/12 SLAM\TU/SimSun(0)/m/n/12 、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 航、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 盖、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 控、|
+
+Overfull \hbox (18.0pt too wide) in paragraph at lines 86--86
+\TU/TimesNewRoman(0)/m/n/12 HTTP
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 务、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 理、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 算、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 警、|
+
+Overfull \hbox (4.26563pt too wide) in paragraph at lines 86--86
+\TU/SimSun(0)/m/n/12 储、|
+
+Overfull \hbox (36.64453pt too wide) in paragraph at lines 86--86
+\TU/TimesNewRoman(0)/m/n/12 DeepSeek
+
+Overfull \hbox (63.0292pt too wide) in alignment at lines 86--86
+[][][][][] 
+
+LaTeX Warning: Float too large for page by 536.6797pt on input line 87.
+
+[9] [10] [11] [12]
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+[]|\TU/SimSun(0)/b/n/12 角
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+[]|\TU/SimSun(0)/m/n/12 运
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 行
+
+Overfull \hbox (10.83974pt too wide) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 Open-
+
+Overfull \hbox (2.5956pt too wide) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 Har-
+
+Overfull \hbox (8.18544pt too wide) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 mony
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 5.0\TU/SimSun(0)/m/n/12 ，|
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 承
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 载
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 导
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 航
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 四
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 进
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+[]|\TU/SimSun(0)/m/n/12 视
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 觉
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 推
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 理
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 +
+
+Overfull \hbox (29.49599pt too wide) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 DeepSeek
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 大
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 模
+
+Overfull \hbox (3.65028pt too wide) in paragraph at lines 175--175
+[]|\TU/TimesNewRoman(0)/m/n/12 360°
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 二
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 维
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 测
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 距，|
+
+Overfull \hbox (14.1913pt too wide) in paragraph at lines 175--175
+\TU/TimesNewRoman(0)/m/n/12 SLAM
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 感
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 知
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 输
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+[]|\TU/SimSun(0)/m/n/12 执
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 行
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 运
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 动；|
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 轮
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 控
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 进
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 程
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 按
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 速
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 度
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 指
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 令
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 积
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 分
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 生
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 成
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 里
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 程
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 估
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+[]|\TU/SimSun(0)/m/n/12 仪
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 表
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 画
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 面
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 采
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+[]|\TU/SimSun(0)/m/n/12 总
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 控
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 与
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 可
+
+Underfull \hbox (badness 10000) in paragraph at lines 175--175
+\TU/SimSun(0)/m/n/12 视
+
+LaTeX Warning: Float too large for page by 319.17966pt on input line 176.
+
+[13] [14]) (ch03.tex [15] [16]
+第三章
+[17] [18]
+
+LaTeX Warning: Float too large for page by 950.17107pt on input line 80.
+
+
+Overfull \hbox (12.68901pt too wide) in paragraph at lines 96--97
+[]\TU/SimSun(0)/b/n/12 二 次 \TU/TimesNewRoman(0)/b/n/12 IoU \TU/SimSun(0)/b/n/12
+ 去 重\TU/SimSun(0)/m/n/12 ：|  在 \TU/TimesNewRoman(0)/m/n/12 NMS \TU/SimSun(0)/m/
+n/12 之 后，|  增 加 一 道 更 为 严 格 的 去 重 处 理  |（\TU/lmtt/m/n/12 _dedup_overlapping\TU/
+SimSun(0)/m/n/12 ） ：|
+
+Underfull \vbox (badness 10000) has occurred while \output is active [19]
+[20]
+
+LaTeX Warning: Float too large for page by 667.66116pt on input line 133.
+
+
+Overfull \hbox (1.60825pt too wide) in paragraph at lines 139--140
+\TU/TimesNewRoman(0)/m/n/12 geNet \TU/SimSun(0)/m/n/12 标 准 归 一 化  |（减 去 均 值 $\O
+T1/cmr/m/n/12 [0\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 485\OML/cmm/m/it/12 ; \OT1/cm
+r/m/n/12 0\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 456\OML/cmm/m/it/12 ; \OT1/cmr/m/n/
+12 0\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 406]$\TU/SimSun(0)/m/n/12 ，|  除 以 标 准 差 $
+\OT1/cmr/m/n/12 [0\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 229\OML/cmm/m/it/12 ; \OT1/
+cmr/m/n/12 0\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 224\OML/cmm/m/it/12 ; \OT1/cmr/m/
+n/12 0\OML/cmm/m/it/12 :\OT1/cmr/m/n/12 225]$\TU/SimSun(0)/m/n/12 ） 。|
+
+Overfull \hbox (11.96149pt too wide) in paragraph at lines 141--142
+\TU/SimSun(0)/m/n/12 的 热 力 图，|  分 别 对 应 \TU/TimesNewRoman(0)/m/n/12 4 \TU/SimSu
+n(0)/m/n/12 个 关 键 点。|  热 力 图 分 辨 率  |（\TU/TimesNewRoman(0)/m/n/12 64$\OMS/cmsy/
+m/n/12 ^^B$\TU/TimesNewRoman(0)/m/n/12 48\TU/SimSun(0)/m/n/12 ）|  低 于 输 入 分 辨 率
+  |（\TU/TimesNewRoman(0)/m/n/12 256$\OMS/cmsy/m/n/12 ^^B$\TU/TimesNewRoman(0)/m
+/n/12 192\TU/SimSun(0)/m/n/12 ） ，|
+[21] [22] [23] [24] [25]
+
+LaTeX Warning: Float too large for page by 561.58298pt on input line 298.
+
+[26] [27]
+
+LaTeX Warning: Float too large for page by 623.85895pt on input line 338.
+
+[28] [29]
+Overfull \hbox (61.03833pt too wide) in paragraph at lines 345--346
+[]\TU/SimSun(0)/b/n/12 自 回 归 生 成 \TU/TimesNewRoman(0)/b/n/12 + Top-p \TU/SimSun
+(0)/b/n/12 采 样 \TU/TimesNewRoman(0)/b/n/12 + \TU/SimSun(0)/b/n/12 重 复 惩 罚\TU/Si
+mSun(0)/m/n/12 ：|  每 步 利 用 经 \TU/lmtt/m/n/12 @mindspore.jit \TU/SimSun(0)/m/n/1
+2 编 译 的 \TU/lmtt/m/n/12 decode_one_token
+
+Overfull \hbox (110.7388pt too wide) in paragraph at lines 366--379
+ [][] 
+[30]
+Underfull \vbox (badness 10000) has occurred while \output is active [31])
+(ch04.tex [32]
+第四章
+
+Overfull \hbox (461.642pt too wide) in paragraph at lines 19--29
+ [][] 
+[33]
+Overfull \hbox (43.52528pt too wide) in paragraph at lines 43--44
+[]\TU/SimSun(0)/m/n/12 当 前 代 码 采 用 单 雷 达 统 一 感 知 方 案。| \TU/lmtt/m/n/12 Lidar/li
+dar_driver.cpp \TU/SimSun(0)/m/n/12 基 于 \TU/TimesNewRoman(0)/m/n/12 SLAMTEC/RPL
+IDAR
+[34]
+Overfull \hbox (138.31842pt too wide) in paragraph at lines 62--82
+ [][] 
+[35]
+Overfull \hbox (16.69565pt too wide) in paragraph at lines 95--96
+[]\TU/SimSun(0)/m/n/12 地 图 保 存 由 \TU/lmtt/m/n/12 ROBOT_CONTROL \TU/TimesNewRoma
+n(0)/m/n/12 32 \TU/SimSun(0)/m/n/12 触 发。| \TU/lmtt/m/n/12 Navi \TU/SimSun(0)/m/
+n/12 先 保 存 未 优 化 地 图 \TU/lmtt/m/n/12 unprobdefultMap.txt\TU/SimSun(0)/m/n/12 ，|
+
+
+Overfull \hbox (8.96849pt too wide) in paragraph at lines 95--96
+\TU/lmtt/m/n/12 zipedMap.txt\TU/SimSun(0)/m/n/12 。|  普 通 地 图 首 行 包 含 \TU/lmtt/m
+/n/12 range resolution height width metersPerPixel
+
+Overfull \hbox (48.36816pt too wide) in paragraph at lines 97--98
+[]\TU/TimesNewRoman(0)/m/n/12 ZMAP1 \TU/SimSun(0)/m/n/12 压 缩 图 用 于 解 决 弱 网 环 境 
+下 普 通 地 图 拉 取 过 慢 的 问 题。| \TU/lmtt/m/n/12 MapServer::saveZipedMap
+
+Overfull \hbox (9.21948pt too wide) in paragraph at lines 111--112
+[]\TU/SimSun(0)/m/n/12 单 点 导 航 的 主 流 程 为 \TU/TimesNewRoman(0)/m/n/12 A* \TU/Sim
+Sun(0)/m/n/12 全 局 路 径 规 划 与 \TU/TimesNewRoman(0)/m/n/12 DWA \TU/SimSun(0)/m/n/1
+2 局 部 速 度 规 划。|  收 到 \TU/lmtt/m/n/12 ROBOT_CONTROL
+
+Underfull \vbox (badness 1622) has occurred while \output is active [36]
+Overfull \hbox (7.22832pt too wide) in paragraph at lines 120--121
+[]\TU/SimSun(0)/m/n/12 全 覆 盖 分 为 单 车 全 路 径 覆 盖 与 多 机 矩 形 分 区 覆 盖 两 类。|  单 车 模 式
+ 由 \TU/lmtt/m/n/12 ROBOT_CONTROL
+[37]
+Underfull \vbox (badness 1590) has occurred while \output is active [38]
+Overfull \hbox (44.92662pt too wide) in paragraph at lines 149--150
+[]\TU/SimSun(0)/m/n/12 紫 派 侧 所 有 生 成 文 件 与 运 行 产 物 集 中 于 \TU/lmtt/m/n/12 /data/
+test\TU/SimSun(0)/m/n/12 。|  启 动 脚 本 按 顺 序 拉 起 \TU/lmtt/m/n/12 lidar_driver\TU/
+SimSun(0)/m/n/12 、|
+
+Underfull \vbox (badness 1975) has occurred while \output is active [39]
+[40]) (ch05.tex [41]
+第五章
+[42] [43]
+Underfull \vbox (badness 1675) has occurred while \output is active [44]
+[45]
+Overfull \hbox (5.16333pt too wide) in paragraph at lines 101--102
+[]\TU/SimSun(0)/m/n/12 在 应 用 侧 的 具 体 实 现 中，| \TU/lmtt/m/n/12 FleetMissionServic
+e \TU/SimSun(0)/m/n/12 使 用 单 一 字 符 串 字 段 \TU/lmtt/m/n/12 missionJson
+
+Overfull \hbox (74.72978pt too wide) in paragraph at lines 124--125
+[]\TU/SimSun(0)/b/n/12 创 建 设 备 管 理 器\TU/SimSun(0)/m/n/12 ：|  平 板 以 \TU/TimesNew
+Roman(0)/m/n/12 bundleName |\TU/SimSun(0)/m/n/12 （\TU/lmtt/m/n/12 com.example.c
+arapp\TU/SimSun(0)/m/n/12 ）|  创 建 \TU/lmtt/m/n/12 distributedDeviceManager\TU/S
+imSun(0)/m/n/12 。|
+
+Underfull \vbox (badness 10000) has occurred while \output is active [46]
+Overfull \hbox (3.5591pt too wide) in paragraph at lines 128--129
+[]\TU/SimSun(0)/b/n/12 入 会 共 享\TU/SimSun(0)/m/n/12 ：|  此 后，|  只 要 两 端 使 用 相 同 \
+TU/TimesNewRoman(0)/m/n/12 bundle \TU/SimSun(0)/m/n/12 且 已 建 立 互 信，|  各 自 使 用 同
+ 一 \TU/lmtt/m/n/12 sessionId
+
+Underfull \vbox (badness 10000) has occurred while \output is active [47]
+Overfull \hbox (1.50603pt too wide) in paragraph at lines 174--175
+\TU/SimSun(0)/m/n/12 给 本 车 的 子 区 域 \TU/lmtt/m/n/12 assignment\TU/SimSun(0)/m/n/
+12 、|  本 车 的 单 点 目 标 \TU/lmtt/m/n/12 endPoint \TU/SimSun(0)/m/n/12 以 及 主 车 地 址 
+\TU/lmtt/m/n/12 masterIp\TU/SimSun(0)/m/n/12 。|
+[48] [49]
+Overfull \hbox (21.87889pt too wide) in paragraph at lines 189--190
+\TU/TimesNewRoman(0)/m/n/12 agent \TU/SimSun(0)/m/n/12 作 为 紫 派 \TU/SimSun(0)/b/
+n/12 系 统 应 用  |\TU/SimSun(0)/m/n/12 （\TU/TimesNewRoman(0)/m/n/12 Full SDK + \TU
+/SimSun(0)/m/n/12 系 统 签 名）|  时，|  仅 需 更 换 为 \TU/lmtt/m/n/12 ServiceExtensionAbi
+lity
+[50]
+Overfull \hbox (5.14014pt too wide) in paragraph at lines 207--208
+[]\TU/SimSun(0)/b/n/12 独 立 多 播 \TU/TimesNewRoman(0)/b/n/12 LCM \TU/SimSun(0)/b/
+n/12 通 道\TU/SimSun(0)/m/n/12 ：|  使 用 \TU/lmtt/m/n/12 udpm://239.255.76.67:7668?
+ttl=1\TU/SimSun(0)/m/n/12 ，|  频 道 \TU/lmtt/m/n/12 COOP_AVOID\TU/SimSun(0)/m/n/1
+2 ，|
+
+Overfull \hbox (92.4686pt too wide) in paragraph at lines 230--231
+\TU/SimSun(0)/m/n/12 桥 接 层 写 入 对 平 板 心 跳 的 \TU/TimesNewRoman(0)/m/n/12 byte1/by
+te2 |\TU/SimSun(0)/m/n/12 （\TU/TimesNewRoman(0)/m/n/12 normal/diagnosing/stoppe
+d_for_peer/peer_paused/local_fallback
+[51] [52]) (ch06.tex [53]
+第六章
+
+Overfull \hbox (14.90111pt too wide) in paragraph at lines 13--14
+\TU/TimesNewRoman(0)/m/n/12 Script \TU/SimSun(0)/m/n/12 基 础 上 增 强 了 静 态 类 型 与 状
+ 态 管 理，|  配 合 \TU/TimesNewRoman(0)/m/n/12 ArkUI \TU/SimSun(0)/m/n/12 的 声 明 式 范 
+式  |（\TU/lmtt/m/n/12 @State\TU/TimesNewRoman(0)/m/n/12 /\TU/lmtt/m/n/12 @Compon
+ent
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--30
+[]|\TU/TimesNewRoman(0)/m/n/12 RobotTransport
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--30
+\TU/TimesNewRoman(0)/m/n/12 / MapService /
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--30
+\TU/TimesNewRoman(0)/m/n/12 VisionService /
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--30
+\TU/TimesNewRoman(0)/m/n/12 FleetMissionSer-
+
+Underfull \hbox (badness 7558) in paragraph at lines 31--31
+\TU/TimesNewRoman(0)/m/n/12 / mapContour /
+[54]
+Overfull \hbox (14.42783pt too wide) in paragraph at lines 74--75
+[]\TU/SimSun(0)/m/n/12 该 状 态 机 使 \TU/TimesNewRoman(0)/m/n/12 UI \TU/SimSun(0)/m
+/n/12 能 够 精 确、|  实 时 地 反 映 每 台 车 辆 的 链 路 健 康 度。|  此 外，| \TU/lmtt/m/n/12 RobotTr
+ansport
+[55] [56]
+Overfull \hbox (1.63661pt too wide) in paragraph at lines 102--103
+[]\TU/SimSun(0)/m/n/12 地 图 文 件 首 行 包 含 \TU/TimesNewRoman(0)/b/n/12 7 \TU/SimSun
+(0)/b/n/12 个 字 段\TU/SimSun(0)/m/n/12 ：| \TU/lmtt/m/n/12 range resolution height
+ width metersPerPixel
+[57] [58]) (ch07.tex [59]
+第七章
+[60]
+Underfull \hbox (badness 6808) in paragraph at lines 113--114
+[]|\TU/SimSun(0)/m/n/10.95 发 布 \TU/TimesNewRoman(0)/m/n/10.95 127\TU/SimSun(0)/
+m/n/10.95 ，| \TU/TimesNewRoman(0)/m/n/10.95 byte1 \TU/SimSun(0)/m/n/10.95 为 算 法
+ 号：| \TU/TimesNewRoman(0)/m/n/10.95 0
+
+Underfull \hbox (badness 10000) in paragraph at lines 116--117
+[]|\TU/SimSun(0)/m/n/10.95 发 布 \TU/TimesNewRoman(0)/m/n/10.95 124\TU/SimSun(0)/
+m/n/10.95 ，|  主 机 \TU/TimesNewRoman(0)/m/n/10.95 IP \TU/SimSun(0)/m/n/10.95 置 于
+
+[61]
+Underfull \hbox (badness 3417) in paragraph at lines 151--152
+[]|\TU/SimSun(0)/m/n/12 建 图\TU/TimesNewRoman(0)/m/n/12 /\TU/SimSun(0)/m/n/12 加 
+载\TU/TimesNewRoman(0)/m/n/12 /\TU/SimSun(0)/m/n/12 目 标\TU/TimesNewRoman(0)/m/n/
+12 /\TU/SimSun(0)/m/n/12 覆 盖 等
+
+Overfull \hbox (6.4002pt too wide) in paragraph at lines 144--158
+ [][] 
+
+Underfull \vbox (badness 10000) has occurred while \output is active [62]
+Overfull \hbox (5.27661pt too wide) in paragraph at lines 180--181
+[]\TU/SimSun(0)/m/n/12 普 通 地 图 \TU/lmtt/m/n/12 defultMap.txt \TU/SimSun(0)/m/n/
+12 的 首 行 包 含 \TU/TimesNewRoman(0)/m/n/12 7 \TU/SimSun(0)/m/n/12 个 字 段：| \TU/lmt
+t/m/n/12 range resolution height width
+[63]) (ch08.tex [64]
+第八章
+[65] [66]) (ch09.tex [67]
+第九章
+[68] [69]
+Overfull \hbox (11.87645pt too wide) in paragraph at lines 70--71
+[]\TU/SimSun(0)/m/n/12 当 前 紫 派 代 码 已 实 现 双 车 分 布 式 覆 盖 所 需 的 核 心 接 口：|  子 机 优 先
+ 拉 取 \TU/lmtt/m/n/12 zipedMap.txt
+) (ch10.tex [70]
+第十章
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+\TU/SimSun(0)/m/n/10.95 低 关 键 技 术 受 制
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 算 法 资 产 完 全 自
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 模 型 可 解 释 可 重
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 异 构 三 端 逐 字 节
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+\TU/SimSun(0)/m/n/10.95 库 依 赖 的 自 主 建
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 取 代 脆 弱 的 远 程
+
+Underfull \hbox (badness 1383) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 端 侧 感 知\TU/TimesNewRoman(0)/m/n/10.95 –\TU/SimSun(0)
+/m/n/10.95 认 知 一
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 边 缘 大 模 型 可 落
+
+Underfull \hbox (badness 10000) in paragraph at lines 49--49
+[]|\TU/SimSun(0)/m/n/10.95 大 块 地 图 传 输 提
+
+Underfull \vbox (badness 10000) has occurred while \output is active [71]
+[72]
+Underfull \vbox (badness 10000) has occurred while \output is active [73]
+Underfull \vbox (badness 10000) has occurred while \output is active [74]
+Underfull \vbox (badness 10000) has occurred while \output is active [75])
+(ch11.tex [76]
+第十一章
+[77]
+Underfull \vbox (badness 10000) has occurred while \output is active [78]
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/b/n/10.95 本
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/b/n/10.95 系
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/b/n/10.95 统
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/b/n/10.95 的
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/b/n/10.95 契
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/b/n/10.95 合
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/m/n/10.95 本
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 系
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 统
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 正
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 是
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 面
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 向
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 工
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 业
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 巡
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 检
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 的
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 特
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 种
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 移
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 动
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 机
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 器
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 人，|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 直
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 击
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 高
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 危
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 环
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 境
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 作
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 业
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 需
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/m/n/10.95 本
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 系
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 统
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 是
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 集
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 自
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 主
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 移
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 动、|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 环
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 境
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 感
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 知、|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 视
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 觉
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 智
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 能、|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 端
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 侧
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 大
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 模
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 型
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 于
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 一
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 体
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 的
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 具
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 身
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 智
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 能
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 载
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/m/n/10.95 本
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 系
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 统
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 契
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 合
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 各
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 地
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 培
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 育
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 具
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 身
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 智
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 能
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 产
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 业、|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 拓
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 展
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 应
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 用
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 场
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 景
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 的
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 方
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/m/n/10.95 全
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 栈
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 国
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 产
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 自
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 主，|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 可
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 直
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 接
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 服
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 务
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 电
+
+Overfull \hbox (5.8992pt too wide) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 力\TU/TimesNewRoman(0)/m/n/10.95 /\TU/SimSun(0)/m/n/10.9
+5 能
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 源
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 等
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 央
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 国
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 企
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 信
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 创
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 替
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 代
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 场
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/m/n/10.95 本
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 系
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 统
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 是
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 昇
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 腾
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 边
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 缘
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 算
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 力
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 与
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 国
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 产
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 推
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 理
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 框
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 架
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 在
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 具
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 身
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 智
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 能
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 领
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 域
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 的
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 原
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 生
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 落
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+[]|\TU/SimSun(0)/m/n/10.95 本
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 系
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 统
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 在
+
+Overfull \hbox (8.32124pt too wide) in paragraph at lines 99--99
+\TU/TimesNewRoman(0)/m/n/10.95 Open-
+
+Overfull \hbox (0.79846pt too wide) in paragraph at lines 99--99
+\TU/TimesNewRoman(0)/m/n/10.95 Har-
+
+Overfull \hbox (5.8992pt too wide) in paragraph at lines 99--99
+\TU/TimesNewRoman(0)/m/n/10.95 mony
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 上
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 实
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 现
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 了
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 工
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 业
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 级
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 机
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 器
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 人
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 栈
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 的
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 完
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 整
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 部
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 署，|
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 丰
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 富
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 了
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 鸿
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 蒙
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 工
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 业
+
+Underfull \hbox (badness 10000) in paragraph at lines 99--99
+\TU/SimSun(0)/m/n/10.95 生
+
+LaTeX Warning: Float too large for page by 1754.88074pt on input line 100.
+
+) (ch12.tex [79] [80]
+第十二章
+[81]) (appendix.tex [82]
+附录 A
+[83]
+附录 B
+
+Overfull \hbox (6.41652pt too wide) in paragraph at lines 44--45
+[]\TU/SimSun(0)/m/n/12 工 业 和 信 息 化 部 等 \TU/TimesNewRoman(0)/m/n/12 15 \TU/SimSu
+n(0)/m/n/12 部 门\TU/TimesNewRoman(0)/m/n/12 . |\TU/SimSun(0)/m/n/12 《\TU/TimesNe
+wRoman(0)/m/n/12 ” \TU/SimSun(0)/m/n/12 十 四 五\TU/TimesNewRoman(0)/m/n/12 ” \TU/
+SimSun(0)/m/n/12 机 器 人 产 业 发 展 规 划》| \TU/TimesNewRoman(0)/m/n/12 . 2021-12. |\T
+U/SimSun(0)/m/n/12 （\TU/TimesNewRoman(0)/m/n/12 ndrc.gov.cn
+
+Overfull \hbox (43.03696pt too wide) in paragraph at lines 48--49
+[]\TU/SimSun(0)/m/n/12 杭 州 市\TU/TimesNewRoman(0)/m/n/12 . |\TU/SimSun(0)/m/n/12
+ 《杭 州 市 具 身 智 能 机 器 人\TU/TimesNewRoman(0)/m/n/12 ” \TU/SimSun(0)/m/n/12 强 链 补 链
+\TU/TimesNewRoman(0)/m/n/12 ” \TU/SimSun(0)/m/n/12 行 动 方 案  |（\TU/TimesNewRoman
+(0)/m/n/12 2026–2027 \TU/SimSun(0)/m/n/12 年） 》| \TU/TimesNewRoman(0)/m/n/12 . |
+\TU/SimSun(0)/m/n/12 （\TU/TimesNewRoman(0)/m/n/12 hangzhou.gov.cn\TU/SimSun(0)/
+m/n/12 ）| 
+[84]
+附录 C
+
+Overfull \hbox (79.41933pt too wide) in alignment at lines 62--67
+ [] [] [] [] 
+
+Overfull \hbox (79.41933pt too wide) in alignment at lines 67--71
+ [] [] [] [] 
+
+Overfull \hbox (79.41933pt too wide) in alignment at lines 71--73
+ [] [] [] [] 
+
+Overfull \hbox (79.41933pt too wide) in alignment at lines 73--81
+ [] [] [] [] 
+) [85] [86] (main.aux)
+
+LaTeX Font Warning: Some font shapes were not available, defaults substituted.
+
+
+LaTeX Warning: There were multiply-defined labels.
+
+ )
+(see the transcript file for additional information)
+Output written on main.pdf (96 pages).
+Transcript written on main.log.

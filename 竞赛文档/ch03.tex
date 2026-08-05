@@ -1,0 +1,192 @@
+\chapter{视觉感知与智能分析}
+\label{ch:vision}
+
+本章介绍运行在香橙派昇腾 NPU 上的视觉子系统：将摄像头画面逐步转化为结构化的仪表读数，并利用端侧大模型对历史读数生成趋势分析报告。
+
+\section{技术路线}
+\label{sec:vision-overview}
+
+\subsection{两段式读数路线的选择}
+\label{sec:two-stage}
+
+指针式仪表读数需回答两个问题：仪表在画面中的位置，以及指针指向量程的百分比。一种朴素方法是用端到端网络直接回归读数数值，但在工业场景下存在三点不足：画面中可能出现多块仪表，端到端方法难以处理可变数量目标；仪表的位置、大小、角度变化大，直接回归对姿态的鲁棒性不足；可解释性差，读数错误时无法定位原因。
+
+为此，本项目采用两段式路线，将问题分解为两个子任务：
+
+\begin{enumerate}
+\item 目标检测：用 YOLOv5s 在整幅画面中定位每块仪表的边界框，解决位置与数量问题。
+\item 关键点定位与几何换算：将每块仪表的 ROI 裁剪后送入 Simple Baselines 关键点网络，定位表盘的四个语义关键点（圆心、指针尖、零刻度、满刻度），再由纯几何方法换算读数百分比。
+\end{enumerate}
+
+该路线的核心原则是：深度学习只负责定位，读数交给确定性的几何公式完成。这使读数过程可解释、可标定、可复现，适配不同量程的仪表只需更换标定参数。
+
+\subsection{处理流水线}
+\label{sec:vision-pipeline}
+
+完整流水线为：USB 摄像头抓帧 $\to$ YOLOv5s 检测仪表框 $\to$ 裁剪 ROI $\to$ 关键点检测（热力图）$\to$ 解码出 4 个关键点坐标 $\to$ 角度几何换算读数 $\to$ 渲染叠加 $\to$ JPEG 编码 $\to$ WebSocket 推送至平板；同时读数入库，供大模型按需分析。每个模型均经华为 ATC 工具转换为昇腾原生 \texttt{.om} 格式在 NPU 上推理；整条流水线运行在独立后台线程中，配合帧队列与跳帧策略保证实时性。
+
+\section{自建数据集与模型训练}
+\label{sec:dataset-training}
+
+视觉模型的训练数据由项目成员围绕目标仪表（以压力表为主）自行采集与标注，覆盖不同光照、拍摄角度与表盘背景。标注包含两类标签：检测标签（每块仪表的边界框，单类别）与关键点标签（圆心、指针尖、零刻度、满刻度 4 个关键点坐标）。
+
+模型训练基于成熟公开基线改造而非从零搭建：检测沿用 YOLOv5s 结构并改造为单类别输出；关键点检测沿用 Simple Baselines，输出通道改造为本项目定义的 4 个语义关键点。训练完成后经 ATC 转换为 \texttt{.om} 格式，并配置 AIPP 把色彩空间转换、归一化等预处理交由 NPU 硬件完成。此外，利用留存的样图离线运行推理并断言读数误差，作为模型迭代时的精度回归测试。
+
+\section{YOLOv5s 仪表检测}
+\label{sec:yolo-detection}
+
+YOLO 系列单阶段检测器将检测转化为一次性回归问题：一次前向传播即在整幅图的网格上预测所有目标框的位置、大小与置信度，推理速度快，适合机器人实时场景。本项目选用其中的轻量版本 YOLOv5s，在精度与速度间取得适合边缘设备的平衡，检测流程如图~\ref{fig:yolo-flow}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-3-1-yolo.pdf}
+\caption{YOLOv5s 仪表检测流程图}
+\label{fig:yolo-flow}
+\end{figure}
+
+检测流程的关键环节如下：
+
+\begin{itemize}
+\item 预处理：摄像头帧统一转换为 RGB 并缩放至 640$\times$640（采用最近邻插值，检测任务对像素级精度不敏感，速度更快）。色彩转换与归一化通过 AIPP 交由 NPU 硬件完成，CPU 仅提供 uint8 数据。
+\item 置信度过滤：多表场景下阈值降至 0.10 以提高召回率（避免漏检），误检由后续多级过滤剔除。
+\item DIoU-NMS 去重：相比传统 IoU，DIoU 额外考虑两框中心点距离，对密集目标去重效果更好；其后再加一道更严格的二次 IoU 去重，消除同一仪表的多个重叠框。
+\item 长宽比与面积过滤：真实仪表长宽比通常在 0.6--1.7 之间、面积不超过全图 85\%，据此剔除跨表大框与残框。
+\end{itemize}
+
+上述层层递进的过滤体现了“模型高召回、工程后处理高精度”的思路：模型尽可能多检出候选，工程后处理逐层去伪存真，最终输出干净的仪表框列表 $[x, y, w, h, \text{score}]$，进入关键点检测阶段。
+
+\section{Simple Baselines 关键点检测}
+\label{sec:keypoint-detection}
+
+第二阶段是在每块仪表的 ROI 内定位 4 个关键点的精确像素坐标。网络不直接回归坐标值，而是为每个关键点输出一张二维热力图——每个像素的值表示关键点出现在该位置的概率，取响应最大的像素作为关键点位置。热力图表示把“精确定位一个点”转化为“在概率图上找峰值”，更易学习，对位置噪声也更鲁棒。检测与解码流程如图~\ref{fig:keypoint-flow}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-3-2-keypoint.pdf}
+\caption{关键点检测与热力图解码流程图}
+\label{fig:keypoint-flow}
+\end{figure}
+
+关键环节如下：
+
+\begin{itemize}
+\item 预处理：输入为 256$\times$192 的 NCHW float32 张量，按 ImageNet 均值与标准差归一化，保持骨干网络预训练特征分布一致。
+\item 热力图输出：网络输出 4 张 64$\times$48 热力图，分别对应 4 个关键点；分辨率低于输入以降低计算量，解码时再映射回高分辨率。
+\item 峰值定位与坐标映射：对每张热力图用 \texttt{argmax} 取响应最大的格位及置信度，按比例放大回 ROI 像素坐标（峰值格加 0.5 中心偏移以提升亚像素精度），再叠加 ROI 在全图中的偏移，最终得到 4 个 $(x, y, \text{conf})$ 三元组。
+\end{itemize}
+
+\section{仪表读数的几何换算}
+\label{sec:geometric-reading}
+
+从 4 个关键点到读数的换算是视觉子系统可解释性的核心。将表盘抽象为圆，圆心为 $C$：从圆心出发有三条射线——指向零刻度 $Z$（对应 0\%）、指向满刻度 $F$（对应 100\%）、指向指针尖 $P$（当前读数）。读数的本质是：指针射线 $CP$ 落在零刻度射线 $CZ$ 到满刻度射线 $CF$ 所构成扇形夹角中的百分比。
+
+实现时需处理两个方向问题。坐标方向上，图像坐标系 $y$ 轴向下，计算各点相对圆心的向量时对 $y$ 分量取负以转回数学坐标系，再用 $\texttt{atan2}$ 求极角（$\texttt{atan2}$ 能正确处理四个象限并避免除零）。旋转方向上，工业仪表刻度多为顺时针递增，但也存在逆时针的情况，因此同时计算顺时针（CW）与逆时针（CCW）两个方向的占比，按仪表类型选定，默认为 CW。完整换算过程如下：
+
+\begin{lstlisting}
+# 第一步：求三条射线的极角（数学坐标系）
+theta_P = atan2( -(P.y - C.y), (P.x - C.x) )   # 指针射线
+theta_Z = atan2( -(Z.y - C.y), (Z.x - C.x) )   # 零刻度射线
+theta_F = atan2( -(F.y - C.y), (F.x - C.x) )   # 满刻度射线
+
+# 第二步：归一化到 [0, 2*pi)，按同一方向计算扇形夹角
+delta_total = normalize(theta_F - theta_Z)   # 总扇形角（以 CCW 为例）
+delta_ptr   = normalize(theta_P - theta_Z)   # 指针扇形角
+
+# 第三步：计算占比并约束到 [0,1]，换算为读数
+ratio       = clamp(delta_ptr / delta_total, 0.0, 1.0)
+reading_pct = ratio * 100
+physical    = range_min + ratio * (range_max - range_min)
+\end{lstlisting}
+
+此外，系统对读数实施置信度门控：仅当圆心、指针、零刻度、满刻度四个关键点的置信度均超过各自阈值（圆心/指针 $>0.3$，刻度 $>0.2$）时才输出读数，否则输出“无法识别”。这一机制遵循“宁可不报、不可错报”的原则。读数超过预设告警阈值时标记为 \texttt{ALARM}。整个换算不含机器学习黑盒，仅涉及 $\texttt{atan2}$ 与比例运算，是确定性的、可逐步验证的几何过程。
+
+\section{多表检测与误检过滤}
+\label{sec:multi-gauge}
+
+工业现场常出现一个画面中多块仪表并存的情况。本项目的策略是“高召回检测 + 多级几何过滤 + 逐表独立读数”：置信度阈值降至 0.10 避免漏检；经 DIoU-NMS、二次去重与长宽比/面积过滤三道关卡剔除误检；对保留的每块仪表（默认最多 5 块）各自裁剪 ROI、各自检测关键点、各自换算读数，互不干扰。实测中，系统在“一图两块压力表”场景下能稳定地将两块表分别检出并各自给出正确读数。
+
+\section{昇腾推理流水线}
+\label{sec:ascend-pipeline}
+
+模型推理建立在昇腾三项技术之上：OM 离线模型（经 ATC 编译，针对 NPU 算子融合优化）、ACL 运行时（设备管理与推理调度）、AIPP 硬件预处理（色彩转换、归一化由 NPU 硬件完成）。为在 NPU 推理与 30\,FPS 抓帧之间维持实时性，系统采用生产者--消费者架构（图~\ref{fig:ascend-pipeline}），要点如下：
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-3-4-pipeline.pdf}
+\caption{昇腾推理流水线工程架构图}
+\label{fig:ascend-pipeline}
+\end{figure}
+
+\begin{itemize}
+\item 后台常驻线程：服务启动即拉起独立线程，在线程内初始化 ACL 并加载模型（ACL 上下文有线程亲和性），循环执行“读帧 $\to$ 推理 $\to$ 渲染 $\to$ 入队”。
+\item 跳帧策略：每 2 帧处理 1 帧，被跳过的帧复用上一帧结果。仪表读数变化缓慢，视觉效果几乎无影响，有效推理负载减半。
+\item 帧队列（maxlen=2）：仅保留最新 1--2 帧，推送协程始终取最新帧，网络抖动不累积延迟。
+\item WebSocket 推送：渲染帧经 JPEG 编码（质量参数 50，平衡清晰度与带宽）后与 JSON 元数据交替推送。
+\item NPU 分时共享：大模型请求到来时调用 \texttt{pause()} 暂停视觉推理并释放 NPU 显存，推理完成后 \texttt{resume()} 恢复。
+\end{itemize}
+
+针对摄像头可能因震动瞬断的情况，读帧失败时自动重连（释放旧句柄、重新打开并重置参数）；连续重连 5 次仍失败则推送错误提示帧而非使服务崩溃，以支撑无人值守场景。
+
+\section{DeepSeek 大模型端侧部署}
+\label{sec:deepseek-coupling}
+
+将巡检数据发送至云端大模型分析存在三方面问题：数据安全（巡检数据涉及生产机密）、网络可靠性（工业现场常无稳定外网）、成本与延迟。因此本项目将大模型置于机器人本体离线运行，与“全栈国产自主、断网可用”的原则一致。
+
+模型选用 DeepSeek-R1-Distill-Qwen-1.5B（FP16）——DeepSeek-R1 蒸馏至 15 亿参数的小模型，兼具推理能力与边缘可运行的体量；推理框架采用国产 MindSpore + MindNLP，权重本地加载，全程零网络请求。部署流程与优化手段如图~\ref{fig:deepseek-jit}所示：
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-3-5-deepseek.pdf}
+\caption{DeepSeek 端侧推理（JIT + StaticCache + 流式输出）流程图}
+\label{fig:deepseek-jit}
+\end{figure}
+
+\begin{itemize}
+\item 并发门控：大模型推理独占 NPU 算力，通过推理锁拒绝并发请求，确保资源独占。
+\item 与视觉分时共享 NPU：推理前暂停视觉流水线并释放显存，结束后恢复，两类任务在同一块 NPU 上共存。
+\item 图模式 JIT 编译：设置 \texttt{GRAPH\_MODE} 与 \texttt{jit\_level=O2} 并调用 \texttt{model.jit()} 将整模型静态图化，生成 NPU 高效执行形式；代价是首次推理需约 140~s 图编译，之后推理速度明显提升。
+\item StaticCache KV 缓存：预分配固定长度（4096）的 Key/Value 缓存，避免自回归生成中重复计算历史 token。
+\item 采样与生成：Top-p 核采样（$p=0.8$）加重复惩罚（1.2）抑制重复输出；采样 softmax 用 NumPy 实现（实测在昇腾开发板上更快）。
+\item 流式输出：生成内容经 SSE 边生成边推送，平板上文字逐步呈现。
+\end{itemize}
+
+由此，系统从“报数据”扩展到“给结论”：操作者可请求对历史读数做趋势分析，DeepSeek 基于本地数据库生成自然语言分析与异常研判报告（可导出 Markdown/txt），使机器人不仅能上报读数，还能给出分析结论。
+
+\section{视频流与数据服务接口}
+\label{sec:vision-contract}
+
+香橙派的视觉能力通过 FastAPI + Uvicorn 服务对外暴露，部署于本机 8000 端口，核心接口如表~\ref{tab:vision-api}所示。
+
+\begin{table}[htbp]
+\centering
+\caption{视觉服务核心接口一览}
+\label{tab:vision-api}
+\small
+\begin{tabularx}{\textwidth}{p{1.8cm}p{3.5cm}X}
+\toprule
+\textbf{类别} & \textbf{接口} & \textbf{说明} \\
+\midrule
+实时视频 & \texttt{WebSocket /ws/video} & 持续推送 JPEG 二进制帧与 JSON 元数据（交替发送） \\
+状态查询 & \texttt{GET /api/summary} & 实时 FPS、延迟、读数列表（含 NORMAL/ALARM 状态） \\
+历史数据 & \texttt{GET /api/history} & 最近 600 条读数记录 \\
+报警阈值 & \texttt{POST /api/thresholds} & 设置告警上下限（百分比） \\
+仪表配置 & \texttt{GET/POST /api/gauge/configs} & 量程、单位、显示名等标定配置 \\
+大模型 & \texttt{POST /api/llm/query} & DeepSeek 对话（SSE 流式输出） \\
+分析报告 & \texttt{POST /api/data/report} & 生成趋势分析报告（调用 DeepSeek） \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+其中视频流是核心接口，交互时序如图~\ref{fig:ws-video}所示。建立 WebSocket 长连接后，服务端对每一帧先推一条二进制消息（已渲染检测框、关键点、读数的 JPEG 图），紧接一条文本消息（该帧的 JSON 元数据：帧号、FPS、推理耗时、检测框、关键点坐标与各仪表读数）。图像与元数据同通道交替推送，使画面与读数一一对应，无需额外同步机制。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-3-6-ws.pdf}
+\caption{WebSocket 视频流交互时序图}
+\label{fig:ws-video}
+\end{figure}
+
+\section{数据采集、存储与分析}
+\label{sec:data-pipeline}
+
+每帧识别出的有效读数均由采集模块写入本地数据库（含时间戳、仪表类型、读数值、置信度、FPS 等字段），并提供按时间范围与仪表类型的统计查询，作为大模型分析报告的数据源。“采集 $\to$ 存储 $\to$ 分析 $\to$ 报告”的链路使系统能够持续积累巡检数据：读数结构化入库、可查询、可追溯，为预测性维护提供数据基础。

@@ -1,0 +1,65 @@
+% ch08.tex - 第八章 数据传输与性能优化
+\chapter{性能优化}
+\label{ch:performance}
+
+本章从数据通路与端到端耗时的角度，说明系统的性能瓶颈定位与已落地的优化措施，并汇总关键性能指标。
+
+\section{数据通路与瓶颈定位}
+\label{sec:data-pathways}
+
+系统的数据流可归为四类通路（表~\ref{tab:data-pathways}）。控制与心跳是 9 字节小包，无瓶颈；主要优化对象是数据量大的地图通路——地图文件体积大、传输频次低但等待时间明显，直接影响“建图完成到地图可用”的端到端体验。早期实现中地图按行经 LCM 逐条上送，一张 $20\,\text{m}\times20\,\text{m}$ 地图仅人为延迟即需约 20 秒；车与车之间拉图则使用单线程 HTTP 整文件传输。这两处是地图链路的主要延迟来源。
+
+\begin{table}[htbp]
+\centering
+\caption{四类数据通路及其瓶颈特征}
+\label{tab:data-pathways}
+\begin{tabularx}{\textwidth}{p{2.5cm}p{2cm}p{2cm}p{2cm}X}
+\toprule
+\textbf{通路} & \textbf{载体} & \textbf{用途} & \textbf{数据量} & \textbf{瓶颈特征} \\
+\midrule
+App $\leftrightarrow$ 紫派 & UDP 5001，9 字节 & 控制/心跳 & 极小 & 无瓶颈 \\
+紫派 $\to$ App & HTTP 8000 & 地图上送 & 大 & 整文件传输 \\
+香橙派 $\to$ App & WebSocket & 视频流 & 中 & 编码/带宽 \\
+紫派内部 & LCM & 雷达/位姿/轮控 & 中（高频） & 激光编码冗余 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{地图位打包压缩（ZMAP1）}
+\label{sec:bit-packing}
+
+占据栅格地图本质上是二值图，每格非障碍即空旷，理论只需 1 bit；而密排文本格式用 1 字节存储一个 0/1 值，信息密度仅 1/8。ZMAP1 压缩据此设计：每个栅格压为 1 bit（障碍=1、空旷=0），每 64 格按位打包为一个 64 位无符号整数，逐行写出，地图体积降至约 1/8。字以十进制文本形式写出以避免二进制端序问题；解压时按行读取各字，用位移运算逐位还原栅格。
+
+获取流程采用“压缩图优先”策略：平板或子车优先拉取 \texttt{zipedMap.txt}，校验并本地解压；压缩图不存在、校验失败或下载失败时回退拉取普通地图。实测该方案使地图传输数据量明显下降，对 $1800\times1800$ 量级的地图尤为明显。
+
+\section{推理流水线提速}
+\label{sec:pipeline-optimization}
+
+视觉链路的实时性依赖第~\ref{sec:ascend-pipeline}~节所述的流水线工程，从性能视角汇总如下：AIPP 硬件预处理省去 CPU 浮点开销；每 2 帧处理 1 帧使有效推理负载减半；帧队列仅保留最新帧，延迟不累积；预处理采用最近邻插值，速度更快且精度损失可忽略；大模型推理采用 MindSpore 图模式 JIT 与 StaticCache KV 缓存提速。上述措施叠加后，“检测 + 关键点 + 读数 + 编码”流水线稳定运行在约 29~FPS。
+
+\section{端到端性能指标}
+\label{sec:e2e-performance}
+
+系统关键性能指标汇总如表~\ref{tab:e2e-performance}所示。视觉单帧端到端约 34~ms（约 29~FPS），控制心跳 500~ms 一帧，地图压缩比约 8 倍，可满足巡检场景的实时性要求。
+
+\begin{table}[htbp]
+\centering
+\caption{端到端性能指标汇总}
+\label{tab:e2e-performance}
+\begin{tabular}{llp{6cm}}
+\toprule
+\textbf{指标} & \textbf{数值} & \textbf{说明} \\
+\midrule
+仪表检测（YOLOv5s） & $\sim$21~ms & 昇腾 OM 推理 \\
+关键点检测 & $\sim$8~ms & Simple Baselines OM 推理 \\
+预/后处理 + 编码 & $\sim$5~ms & 含 JPEG 编码（quality=50） \\
+视觉端到端 & $\sim$34~ms（约 29~FPS） & 单帧全链路 \\
+控制心跳周期 & 500~ms & 紫派 $\to$ App 位姿心跳 \\
+保活/急停超时 & 3~s & 无指令即急停 \\
+地图分辨率 & 0.05~m/格 & 与 UDP 整数坐标 1:1 \\
+地图压缩比 & $\sim$8$\times$（位打包） & ZMAP1 相对密排文本 \\
+SLAM 关键帧阈值 & 0.35~m / 30\textdegree & 位移或转角触发新关键帧 \\
+差速底盘满速 & 0.60~m/s & FULLSPEED \\
+\bottomrule
+\end{tabular}
+\end{table}

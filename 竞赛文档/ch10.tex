@@ -1,0 +1,157 @@
+% ch10.tex - 第十章 创新点与技术特色
+\chapter{创新点}
+\label{ch:innovations}
+
+本章在前述各章的基础上归纳系统的技术创新，分为五个维度：国产化与自主可控、异构架构与通信协议、自主导航算法链、多机协同、视觉与端侧大模型结合。表~\ref{tab:innovation-matrix}以矩阵形式概览，后续各节分别展开。
+
+\section{创新点总览}
+\label{sec:innovation-matrix}
+
+\small
+\begin{xltabular}{\textwidth}{p{2.5cm}p{4.5cm}X}
+\caption{创新点总览矩阵}
+\label{tab:innovation-matrix} \\
+\toprule
+\textbf{维度} & \textbf{创新内容} & \textbf{技术价值} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{l}{\small 续表~\ref{tab:innovation-matrix}} \\
+\toprule
+\textbf{维度} & \textbf{创新内容} & \textbf{技术价值} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+\multirow{4}{*}{\makecell[l]{国产化与\\自主可控}}
+  & 操作系统、AI 算力、开发语言全栈国产化 & 满足信创自主可控要求，降低外部依赖风险 \\
+  & SLAM、规划、覆盖、轮控等核心算法自主实现 & 算法资产可审查、可修改、可迁移 \\
+  & 训练数据自行采集标注，模型基于公开基线改造 & 模型可解释、可重训 \\
+  & DeepSeek 端侧离线运行（国产模型 + 框架 + NPU） & 数据不出本体，断网可用 \\
+\midrule
+\multirow{4}{*}{\makecell[l]{异构架构\\与通信\\协议}}
+  & 视觉与导航物理解耦至双计算单元 & 算力专用化、故障隔离、独立迭代 \\
+  & 四层通信方式分层设计 & 各层职责清晰，互不干扰 \\
+  & 9 字节定长控制协议 & 跨语言解析一致，嵌入式场景适配 \\
+  & ZMAP1 位打包压缩地图（约 8$\times$） & 大块地图传输显著提速 \\
+\midrule
+\multirow{4}{*}{\makecell[l]{自主导航\\算法链}}
+  & 多分辨率扫描匹配 SLAM & 国产 OS 上无外部库依赖的自主建图 \\
+  & KLD 自适应粒子滤波定位 & 粒子数自适应，抑制长期漂移 \\
+  & A* 代价分层规划 + DWA 局部避障 & 多传感器融合避障，路径带安全余量 \\
+  & BCD/STC/zigzag 全覆盖（含失败回退） & 兼顾覆盖完整性与工程可执行性 \\
+\midrule
+\multirow{3}{*}{\makecell[l]{多机协同\\与软总线}}
+  & DDO 共享任务黑板 & 替代远程拉起，实现状态持久共享 \\
+  & 幂等的车载协同 agent & 状态不变则不重复下发命令 \\
+  & 空间分区 + COOP\_AVOID 直连兜底 & 覆盖稳健，避障与上层解耦 \\
+\midrule
+\multirow{3}{*}{\makecell[l]{视觉与\\端侧大\\模型结合}}
+  & 检测 + 关键点 + 几何换算两段式读数 & 读数过程可解释、可标定、可复现 \\
+  & 视觉推理与大模型分时共享 NPU & 同一块 NPU 上推理与分析共存 \\
+  & JIT 图模式 + StaticCache 端侧大模型优化 & 边缘大模型工程化落地 \\
+\bottomrule
+\end{xltabular}
+\normalsize
+
+\section{国产化与自主可控}
+\label{sec:domestic-innovation}
+
+在关键技术自主可控需求日益迫切的背景下，本系统从四个层面实现了完整的国产化路径。
+
+操作系统层面，运动主控与交互终端均运行开源鸿蒙（OpenHarmony / HarmonyOS），完整的机器人栈部署于该平台，并利用鸿蒙原生的分布式软总线实现多机协同——这是传统单机操作系统不具备的能力，也验证了国产操作系统承载复杂机器人应用的可行性。
+
+AI 算力层面，视觉推理与端侧大模型均运行于华为昇腾 310B NPU，模型经 ATC 编译为原生 OM 格式、由 ACL 运行时调度、AIPP 硬件完成预处理，完全不依赖境外 GPU 产品。
+
+算法层面，不使用 ROS 及任何境外机器人中间件，SLAM、规划、覆盖与轮控等核心算法全部自主实现，内部通信采用可在 OpenHarmony 上零依赖移植的轻量级 LCM——全部核心代码可审查、可修改、可优化，不存在黑盒依赖。
+
+数据与模型层面，视觉训练数据自行采集标注；DeepSeek-R1-Distill-Qwen-1.5B 采用国产 MindSpore 框架在昇腾 NPU 上完全离线运行，数据全程不出设备本体。整车硬件结构与供电系统也均自主搭建，从硬件到软件实现完整的自主可控。
+
+\section{异构架构与通信协议设计}
+\label{sec:architecture-innovations}
+
+\subsection{双单元物理解耦架构}
+\label{sec:decoupled-architecture}
+
+视觉感知与运动导航分别部署于两块独立计算单元：香橙派负责视觉推理，紫派负责运动控制。二者不共享进程与算力，通过车内网络交换控制指令与运行状态。香橙派识别到仪表后向紫派下发减速指令，读数完成或目标离开后下发恢复指令；紫派执行后回传当前行进状态。该交互不改变两块板卡的部署边界，系统仍具有算力专用化（NPU 专注 AI 推理、CPU 专注实时控制）、故障隔离（一侧异常不影响另一侧）与独立演进（模型与算法各自迭代）三方面收益，如图~\ref{fig:decoupled-arch}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-10-1-decoupled.pdf}
+\caption{视觉--导航物理解耦的双单元架构}
+\label{fig:decoupled-arch}
+\end{figure}
+
+\subsection{四层通信方式与 9 字节控制协议}
+\label{sec:four-layer-bus}
+
+系统通信划分为四层：设备内 LCM 总线（\texttt{ttl=0} 实现进程隔离）、控制 UDP 通道（平板与车之间，9 字节定长包）、数据 HTTP/WebSocket 通道（地图与视频流）、协同通道（软总线 DDO 负责任务协调，车与车多播 LCM 负责执行层避障）。各层在通信范围、协议类型与数据粒度上相互独立，使多设备数据流具有清晰的层次结构。
+
+平板与车之间的控制协议固定 9 字节、大端字节序，命令码对齐 ASCII 编码（如 \texttt{'f'=102} 表示启动全覆盖），便于跨语言实现时保持解析一致。协议内嵌安全机制：3 秒无控制指令即车端急停；发现命令（0x06）仅回响应而不建立控制会话，避免广播发现误触发其他车辆。以极小的包体积表达完整的控制语义，是该协议的主要特点。
+
+\subsection{ZMAP1 位打包压缩地图}
+\label{sec:zmap1-compression}
+
+占据栅格地图体积大、拉取慢，是弱网环境下的实际瓶颈。ZMAP1 将每格从 1 字节压缩至 1 bit、每 64 格打包为一个 64 位整数，使地图体积降至约 1/8；获取流程采用“压缩图优先、失败回退普通图”的策略，在保证可用性的同时显著提升了大块地图的传输效率（详见第~\ref{sec:bit-packing}~节）。
+
+\section{自主导航算法链}
+\label{sec:algorithm-innovations}
+
+\subsection{多分辨率扫描匹配 SLAM}
+\label{sec:self-slam}
+
+建图不依赖 ROS 建图模块：紫派以单雷达扫描帧与轮控里程估计为输入，采用多分辨率扫描匹配在预测位姿附近搜索最优匹配，并将每帧激光增量融合至概率栅格地图，在 OpenHarmony 上完成了从雷达采集、坐标变换、地图更新到持久化的完整链路。
+
+\subsection{KLD 自适应粒子滤波定位}
+\label{sec:self-localization}
+
+定位链路融合轮控里程估计、激光扫描匹配与粒子滤波三类信息源：轮控提供连续运动先验，扫描匹配校正位姿，粒子滤波抑制长期漂移并量化定位不确定性；配合角度归一化与匹配跳变检测，提升了定位异常时的可诊断性。
+
+\subsection{A* 代价规划与 DWA 局部避障}
+\label{sec:self-planning}
+
+A* 在经静态障碍膨胀的代价栅格上搜索路径，并融合激光与视觉动态障碍信息，使路径主动远离高风险区域；DWA 在速度空间采样候选 $(v,w)$，通过短时轨迹预测评估安全性、目标朝向与速度效率，选出最优速度输出。
+
+\subsection{多策略全覆盖路径规划}
+\label{sec:self-coverage}
+
+覆盖规划按任务类型组合多种策略：单车支持 zigzag 牛耕式与 STC 生成树覆盖；多机矩形覆盖优先采用 BCD 生成连续路径，失败时回退矩形 zigzag。执行中提取方向变化点作为导航目标，逐段交由 A* 与 DWA 完成，兼顾覆盖完整性、执行可行性与故障降级能力。
+
+\section{多机协同创新}
+\label{sec:multi-robot-innovations}
+
+\subsection{DDO 共享任务黑板}
+\label{sec:ddo-paradigm}
+
+多机任务协调采用分布式数据对象（DDO）构建共享任务黑板，替代远程拉起式协作：平板写入任务阶段与区域分配，车载 agent 监听与本车相关的状态变化并翻译为本机命令。任务协调层与 C++ 导航进程边界清晰，软总线的状态同步不会直接干扰实时运动控制。
+
+\subsection{幂等的车载协同 agent}
+\label{sec:reconciler-agent}
+
+车载 agent 把黑板上的期望状态转化为本车应执行的命令序列，并通过状态签名比较实现幂等门控：与本车相关的黑板内容未变化时不重复下发命令，避免向导航进程重复发送命令造成干扰。这一设计使多机任务编排简单可靠、易于维护。
+
+\subsection{空间分区与 COOP\_AVOID 协同避障}
+\label{sec:spatial-coop}
+
+双车覆盖采用空间分区策略，在任务规划层面减少路线交叉；交界处的偶发冲突由独立的 COOP\_AVOID 多播通道兜底，通道内嵌 ACK 确认、重发与超时回退机制，并以 \texttt{robot\_id} 仲裁避免对称死锁。协同状态经心跳回传，使平板能区分正常协同停等与异常掉线。
+
+\section{视觉与端侧大模型的结合}
+\label{sec:vision-llm-innovations}
+
+\subsection{两段式可解释读数路线}
+\label{sec:interpretable-reading}
+
+仪表读数采用“目标检测 + 关键点定位 + 几何换算”两段式路线：深度学习只负责空间定位（检测框与 4 个关键点），读数换算由确定性的角度比例公式完成。读数过程可解释、可复现，适配不同量程仪表只需更换标定参数。把可学习模块与可解释模块的边界划在恰当位置，是视觉子系统的主要设计考虑。
+
+\subsection{视觉与大模型分时共享 NPU}
+\label{sec:npu-time-sharing}
+
+在同一块昇腾 NPU 上，通过“暂停视觉推理 $\to$ 执行大模型 $\to$ 恢复视觉推理”的分时调度与推理锁互斥，使实时视觉推理与 DeepSeek 大模型分析两个原本争抢算力的任务得以共存，机器人本体由此同时具备实时读数与智能分析能力。
+
+\subsection{端侧大模型工程化}
+\label{sec:edge-llm-engineering}
+
+为使 15 亿参数的大模型在边缘 NPU 上稳定运行，系统综合采用了 MindSpore 图模式 O2 级 JIT 编译、StaticCache 预分配 KV 缓存、Top-p 采样与重复惩罚控制生成质量、SSE 流式输出改善交互体验等手段，使端侧大模型从理论可行推进至工程可用。
+
+综上，本项目的创新覆盖国产化自主、异构架构与通信协议、自主导航算法链、多机协同、视觉与端侧大模型结合五个维度，构成一套全栈国产自主的工业巡检机器人系统，可为同类系统的国产化落地提供工程参考。

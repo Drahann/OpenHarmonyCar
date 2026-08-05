@@ -1,0 +1,118 @@
+\chapter{系统总体设计}
+\label{ch:architecture}
+
+本章介绍系统的设计原则、总体架构、节点分工与通信方式，为后续各子系统章节提供整体背景。
+
+\section{设计原则}
+\label{sec:design-principles}
+
+系统实现之前确立了两条设计原则，它们决定了代码的物理边界与各部分的协作方式。
+
+\subsection{国产自主与零外部依赖}
+\label{sec:domestic-independent}
+
+第一条原则是全栈国产化与算法自研，具体落实为三个“不依赖”：
+
+\begin{itemize}
+\item 不依赖 ROS 及任何境外机器人中间件。SLAM 建图、粒子滤波定位、A* 规划、全覆盖算法、差速轮控等功能全部自主实现，仅以轻量级 LCM 作为紫派内部进程通信总线。
+\item 不依赖境外操作系统与云端。操作系统采用开源鸿蒙 OpenHarmony 5.0，应用层采用国产 ArkTS 语言，AI 算力采用华为昇腾 NPU，大模型采用端侧离线的 DeepSeek，全流程数据不出本体、断网可用。
+\item 不依赖外购整机。硬件结构、电机与雷达接线、供电系统均自主搭建调试。
+\end{itemize}
+
+\subsection{视觉与导航解耦}
+\label{sec:vision-nav-decoupling}
+
+第二条原则是将视觉感知与运动导航在物理上完全解耦，分别承载于两块独立的计算单元——香橙派负责视觉，紫派负责导航。二者不共享进程、不共享算力，仅通过明确的网络接口交互。这里的“解耦”约束的是部署与算力边界，并不排斥经受控接口交换状态或速度约束。该设计带来三方面收益：算力专用化（NPU 专注视觉推理，CPU 专注实时 SLAM 与轮控，互不抢占）；故障隔离（一侧故障不影响另一侧）；独立演进（视觉模型与导航算法可各自迭代）。
+
+此外，由于三端代码分别用 C/C++、Python、ArkTS 编写且互不编译依赖，所有跨设备接口（字节布局、端口、坐标单位等）由一份共享的接口文档统一约定，任何协议修改须三端同步，以此保证异构系统的集成一致性。
+
+\section{系统总体架构}
+\label{sec:sys-arch}
+
+在上述原则下，系统采用“鸿蒙平板 + 多辆双计算单元小车 + 两类协同通道”的总体架构，如图~\ref{fig:sys-arch}所示。每辆车由一块紫派和一块香橙派组成，平板统一下发任务并汇总各车状态。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-2-1-arch.pdf}
+\caption{系统总体架构图}
+\label{fig:sys-arch}
+\end{figure}
+
+图~\ref{fig:sys-arch}展示了系统的五层关系：（1）平板与车辆——鸿蒙平板作为多车总控终端，每辆车由紫派运动主控和香橙派视觉单元组成；（2）平板到各车的控制与数据链路——平板经 UDP 5001 端口下发 9 字节控制命令，紫派每 500~ms 回传携带位姿的心跳，地图文件经 HTTP 8000 端口获取，香橙派经 WebSocket 推送视频帧与识别结果；（3）紫派内部运动闭环——\texttt{lidar\_driver}（雷达）、\texttt{Navi}（SLAM 与规划）、\texttt{serial}（轮控）、\texttt{udp2lcm}（协议桥接）通过 LCM 总线协作，构成“感知 $\to$ 决策 $\to$ 执行”闭环；（4）车内视觉--运动联动——香橙派识别到仪表后向同车紫派下发减速指令，读数完成或目标离开后下发恢复指令，紫派执行运动控制并回传当前行进状态；（5）多机协同——每辆车的 \texttt{car-agent} 以无界面服务接入平板的分布式软总线任务黑板，各车的 \texttt{COOP\_AVOID} 通过车间多播 LCM（\texttt{ttl=1}）直接交换避障状态。图中完整展开车辆 \#1，并以相同接口展示车辆 \#2 与车辆 \#N。
+
+\section{三大异构节点的职责}
+\label{sec:node-roles}
+
+表~\ref{tab:node-roles}汇总了三大节点的设备、技术栈与核心职责。分工取决于各自的硬件特性：紫派 RK3566 的 CPU 适合承载实时性要求较高的 SLAM 与控制任务；香橙派昇腾 310B 的 NPU 面向 AI 推理设计；鸿蒙平板适合触控交互与可视化。
+
+\begin{table}[htbp]
+\centering
+\caption{三大异构节点职责与技术栈}
+\label{tab:node-roles}
+\begin{tabularx}{\textwidth}{p{2.5cm}p{3cm}p{2.5cm}p{2.5cm}X}
+\toprule
+\textbf{节点} & \textbf{物理设备} & \textbf{操作系统} & \textbf{主要语言} & \textbf{核心职责} \\
+\midrule
+鸿蒙平板 & HarmonyOS 平板 & HarmonyOS & ArkTS / ArkUI & 人机交互、建图触发、目标点/区域下发、地图与识别结果可视化、多机总控 \\
+紫派主控 & Purple Pi (RK3566) & OpenHarmony 5.0 & C/C++ + Python + ArkTS & 雷达感知、SLAM、导航、全覆盖、差速轮控、HTTP 地图服务、多机协同、接收减速或恢复指令并回传行进状态 \\
+香橙派视觉 & Orange Pi AI Pro (昇腾 310B) & Linux (CANN) & Python + C++ + MindSpore & 摄像头实时推理、读数几何换算、越限告警、数据存储、DeepSeek 端侧分析、识别仪表后控制机器人行进状态 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{四层通信方式}
+\label{sec:comm-bus}
+
+系统的通信由四层在不同范围、不同协议上工作的通道构成，如图~\ref{fig:comm-bus}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-2-2-bus.pdf}
+\caption{四层通信通道数据流图}
+\label{fig:comm-bus}
+\end{figure}
+
+第(1)层\quad 设备内总线 LCM——紫派内部进程通信。LCM 是基于 UDP 组播的轻量级发布/订阅中间件；主总线 \texttt{ttl=0}（仅本机可见），保证两台车的内部信道相互隔离。
+
+第(2)层\quad 控制通道 UDP 5001——平板与车的实时控制链路。采用 9 字节定长二进制协议；选 UDP 而非 TCP 的原因是控制命令要求低延迟且可容忍偶发丢包（下一帧及时补充）。
+
+第(3)层\quad 数据通道 HTTP/WebSocket——数据传输与车内状态交互。紫派经 HTTP 8000 端口提供地图文件；香橙派经 WebSocket 推送视频帧与 JSON 读数；同车的香橙派和紫派经车内网络交换减速、恢复指令与行进状态。
+
+第(4)层\quad 协同通道——多机状态同步。包含两条互补链路：华为分布式软总线承载共享任务状态（协调态），车与车的多播 LCM（COOP\_AVOID，\texttt{ttl=1}）用于执行层的直接协商让行。
+
+\section{端到端任务流程}
+\label{sec:data-flow}
+
+图~\ref{fig:sequence}给出一次完整单车巡检任务的时序，展示了数据如何在各节点间流动。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{pdf/fig-2-3-sequence.pdf}
+\caption{单车巡检任务端到端时序图}
+\label{fig:sequence}
+\end{figure}
+
+一次典型巡检任务分为五个阶段：
+
+\begin{itemize}
+\item (1) 建图启动：操作者在平板点击“开始建图”，平板发出 UDP 命令 \texttt{'m'}，紫派启动 SLAM，以激光扫描配合轮控里程估计逐帧拼接地图，并以 500~ms 周期回传实时位姿。
+\item (2) 遥控探索：建图阶段人工遥控车辆遍历环境，平板持续发送运动命令并保活（满足“至少每秒一帧”的安全约定，否则紫派在 3~s 后急停）。
+\item (3) 结束建图与取图：紫派保存地图并生成 ZMAP1 压缩图，平板经 HTTP 拉取后在本地解压、换算坐标并渲染。
+\item (4) 覆盖巡检：操作者在地图上框选区域或点选目标点，紫派以 BCD 牛耕分解规划全覆盖路径，A* 全局规划、DWA 局部避障，走完全程并持续回传位姿与进度。
+\item (5) 视觉与分析（全程并行）：平板经 WebSocket 接收香橙派推送的叠加检测框与读数的视频流；香橙派识别到仪表后向同车紫派下发减速指令，读数完成或目标离开后下发恢复指令，紫派执行后回传行进状态。操作者还可请求生成分析报告，香橙派暂停视觉推理以释放 NPU，调用端侧 DeepSeek 对历史读数生成趋势分析报告。
+\end{itemize}
+
+该流程体现了系统的一个关键特征：运动链路（平板与紫派）与视觉链路（平板与香橙派）在时间上并行、在物理部署上解耦；同车的香橙派与紫派通过明确的网络接口交换减速、恢复指令和行进状态，使仪表识别与运动控制形成闭环。
+
+\section{关键技术选型}
+\label{sec:tech-choices}
+
+\begin{itemize}
+\item 内部通信选 LCM 而非 ROS：LCM 轻量、无中心节点，可在 OpenHarmony 上零依赖移植；ROS 生态庞大、移植成本高，与国产自主原则冲突。
+\item 控制协议选 9 字节定长 UDP：紧凑、解析无歧义、跨语言实现简单，适合高频小包控制。
+\item 地图传输选 HTTP + 位打包压缩：HTTP 通用易实现，配合 ZMAP1 位打包可将地图体积压至约 1/8。
+\item 视频流选 WebSocket + JPEG：实现简单，可与读数 JSON 共用同一连接，延迟低，无需额外播放器组件。
+\item 多机协同选软总线共享状态：以跨设备共享任务状态替代远程拉起页面传参，消除了把 Ability 生命周期当作远程调用使用的脆弱性。
+\end{itemize}
+
+上述选型的共同逻辑是：在满足功能与实时性要求的前提下，优先选择轻量、自主、易于在国产生态上落地的技术路线。

@@ -1,0 +1,96 @@
+% ch09.tex - 第九章 运行结果与应用效果
+\chapter{系统运行实测}
+\label{ch:results}
+
+本章给出系统在真实软硬件平台上的运行结果。所有结果均基于自主搭建的实物小车（紫派 RK3566/OpenHarmony 5.0、香橙派昇腾 310B、RPLIDAR 激光雷达、差速底盘、USB 摄像头）与鸿蒙平板控制端实测得出。
+
+\section{自主建图与导航实测}
+\label{sec:slam-results}
+
+在室内场景中，操作者通过平板发送强制建图命令，紫派进入建图状态，遥控遍历环境过程中地图实时增量构建；结束建图后生成导航图与压缩图。实测表明，强制重建语义能有效避免沿用旧图：每次建图前系统清理旧地图、旧路径与覆盖产物，新地图从干净状态开始构建；地图坐标原点与 5~cm 栅格单位与平板端解析一致，压缩图优先拉取也使地图获取等待明显缩短。平板端启动建图的实测界面如图~\ref{fig:ch9-mapping}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth,height=0.52\textheight,keepaspectratio]{ch9-mapping-start.jpg}
+\caption{平板端启动自主建图}
+\label{fig:ch9-mapping}
+\end{figure}
+
+导航实测中，操作者在地图上点选目标点，紫派以 A* 规划全局路径、DWA 输出实时速度，机器人沿规划路线自主行驶至目标点，心跳位姿持续回传，平板同步显示当前位置与轨迹。当路径被临时障碍阻塞时，系统先停车并重试、必要时重新规划，而非盲目继续前进，具备可解释的失败降级能力。平板端导航与巡检控制界面如图~\ref{fig:ch9-control}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth,height=0.52\textheight,keepaspectratio]{ch9-inspect-control.jpg}
+\caption{平板端导航与巡检控制界面}
+\label{fig:ch9-control}
+\end{figure}
+
+\section{全覆盖遍历实测}
+\label{sec:coverage-results}
+
+单车模式下，平板下发区域顶点后启动覆盖，zigzag 与 STC 两种算法均能生成并执行完整覆盖路径。多机矩形覆盖模式下，平板向每台车下发对角点与车号，各车在本车矩形内用 BCD 生成覆盖路径并分工执行，交界处的偶发冲突由 COOP\_AVOID 协商处理。实测中，该方式能把大区域拆分为多车可独立执行的覆盖任务。机器人执行全覆盖巡检的实景如图~\ref{fig:ch9-inspecting}所示。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth,height=0.52\textheight,keepaspectratio]{ch9-inspecting.jpg}
+\caption{机器人全覆盖巡检实景}
+\label{fig:ch9-inspecting}
+\end{figure}
+
+\section{仪表识别精度与实时性}
+\label{sec:recognition-results}
+
+视觉子系统在昇腾 NPU 上完成了“检测 $\to$ 关键点 $\to$ 读数”全链路实测，并录制了实时推理视频作为运行证据。识别与读数实测效果如图~\ref{fig:ch9-gauge}与图~\ref{fig:ch9-gauge-multi}所示，要点如下：
+
+\begin{itemize}
+\item 检测准确性：YOLOv5s 在自采压力表数据集上训练，能稳定检出画面中的仪表；配合多级过滤，跨表大框与重复框被有效剔除。
+\item 多表同时识别：一图两块压力表场景下，两块表被分别检出并各自给出正确读数，互不干扰。
+\item 读数准确性：关键点定位准确，几何换算得出的指针百分比与人工读数基本一致；置信度门控保证了“宁可不报、不可错报”。
+\item 越限告警：读数超过预设阈值即标记 \texttt{ALARM}，平板端触发告警提示。
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth,height=0.52\textheight,keepaspectratio]{ch9-gauge-recog.jpg}
+\caption{工业仪表识别与读数实测}
+\label{fig:ch9-gauge}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.2\textheight,keepaspectratio]{ch9-gauge-1.png}
+\end{minipage}\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.2\textheight,keepaspectratio]{ch9-gauge-2.png}
+\end{minipage}\hfill
+\begin{minipage}{0.32\textwidth}
+\centering
+\includegraphics[width=\linewidth,height=0.2\textheight,keepaspectratio]{ch9-gauge-3.png}
+\end{minipage}
+\caption{多块仪表识别与读数结果示例}
+\label{fig:ch9-gauge-multi}
+\end{figure}
+
+实时性方面，实测 YOLO 检测约 21~ms、关键点检测约 8~ms、后处理与编码约 5~ms，单帧端到端约 34~ms（约 29~FPS）。配合跳帧与“仅保留最新帧”的队列机制，平板显示画面流畅、延迟低，可满足巡检实时读表需求，且全部在国产昇腾边缘算力上完成，数据不出本体。
+
+\section{DeepSeek 端侧分析实测}
+\label{sec:llm-results}
+
+操作者在平板请求“生成分析报告”后，香橙派暂停视觉推理以释放 NPU，调用端侧 DeepSeek-R1-Distill-Qwen-1.5B 对本地历史读数进行分析。实测表明：（1）模型本地加载，全程零网络请求，断网可用；（2）回复经 SSE 流式推送，文字逐步呈现；（3）能基于历史读数生成趋势分析与异常研判报告，支持导出为 Markdown 或纯文本；（4）通过“暂停视觉 $\to$ 大模型推理 $\to$ 恢复视觉”的分时调度，两类任务在同一块 NPU 上共存。需要说明的是，端侧大模型首次推理需约 140~s 的 JIT 图编译（一次性代价），编译完成后后续推理速度明显提升。
+
+\section{多机协同实测}
+\label{sec:multi-robot-results}
+
+多机协同实测覆盖“互信建立 $\to$ 分区下发 $\to$ 拉图加载 $\to$ 分区覆盖”的完整链路：平板与两车通过 PIN 认证建立互信（图~\ref{fig:ch9-trust}），在共享地图上为每台车划分矩形区域；车载 agent 监听到与本车相关的任务后翻译为本机命令；从车经 HTTP 拉取主车压缩图并本地解压加载，随后各车在本车分区内生成并执行覆盖路径，平板实时显示两车位姿、朝向与覆盖进度。两车路线交汇时，COOP\_AVOID 通道完成位姿交换、协商停车与恢复，心跳状态回显使平板能区分正常运行、协同停等与本地兜底。
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth,height=0.52\textheight,keepaspectratio]{ch9-trust.jpg}
+\caption{多机协同设备互信（PIN 认证）实测}
+\label{fig:ch9-trust}
+\end{figure}
+
+综合实测结果，系统实现了“自主建图导航 $\to$ 全覆盖遍历 $\to$ 实时仪表识别 $\to$ 端侧大模型分析 $\to$ 多机分区协同”的完整功能流程，全部核心功能运行在国产软硬件平台之上。
